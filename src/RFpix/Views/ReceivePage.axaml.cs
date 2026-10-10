@@ -7,10 +7,13 @@
 //      spectrum analyzer, all on the audio thread.
 //   4. Twenty times a second a timer moves the level meter to match.
 //   5. Each time the analyzer finishes a line, it's added to the waterfall.
+//   6. "Play recording…" does the same with a WAV file instead of the radio:
+//      a second input (_player) feeds the very same steps 3 to 5.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.Input;
 using RFpix.Audio;
@@ -22,6 +25,7 @@ namespace RFpix.Views;
 public partial class ReceivePage : UserControl, IDisposable
 {
     private readonly IAudioInput _input = AudioSystem.CreateInput();
+    private readonly WavFileAudioInput _player = new();
     private readonly DispatcherTimer _meterTimer;
     private readonly SpectrumAnalyzer _analyzer = new(maxFrequency: 3000);
 
@@ -37,6 +41,16 @@ public partial class ReceivePage : UserControl, IDisposable
 
         _input.SamplesAvailable += OnSamples;
         _input.Failed += OnAudioFailed;
+
+        // The recording player feeds the same handler as the radio.
+        _player.SamplesAvailable += OnSamples;
+        _player.Failed += OnAudioFailed;
+        _player.Finished += (_, _) => Dispatcher.UIThread.Post(() =>
+        {
+            string name = _player.FileName ?? "the recording";
+            StopPlayback();
+            FormatText.Text = $"Finished playing {name}";
+        });
 
         _meterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
         _meterTimer.Tick += (_, _) => UpdateMeter();
@@ -117,6 +131,8 @@ public partial class ReceivePage : UserControl, IDisposable
             return;
         }
 
+        StopPlayback();   // the radio and a recording can't both feed the waterfall
+
         try
         {
             _input.Start(device.Id);
@@ -134,18 +150,80 @@ public partial class ReceivePage : UserControl, IDisposable
     private void StopListening()
     {
         _input.Stop();
+        if (!_player.IsRunning) ResetMeter();
+        UpdateStartButton();
+    }
+
+    // Nothing is feeding the waterfall any more: empty the meter and clear the status line.
+    private void ResetMeter()
+    {
         _meterTimer.Stop();
         _latestRms = 0;
         LevelMeter.Value = 0;
+        LevelMeter.ClearValue(ForegroundProperty);
         LevelText.Text = "Not listening";
         FormatText.Text = "";
-        UpdateStartButton();
     }
 
     private void UpdateStartButton()
     {
         StartButton.Content = _input.IsRunning ? "Stop" : "Start listening";
         StartButton.IsEnabled = _input.IsRunning || DeviceBox.SelectedItem is not null;
+        PlayButton.Content = _player.IsRunning ? "Stop playback" : "Play recording…";
+    }
+
+    // ---- playing a recording ----
+
+    private async void OnPlayClick(object? sender, RoutedEventArgs e)
+    {
+        if (_player.IsRunning)
+        {
+            StopPlayback();
+            return;
+        }
+
+        // Ask which file to play, starting in the folder used last time.
+        var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storage is null) return;
+
+        IStorageFolder? startFolder = null;
+        var lastFolder = AppSettings.Current.LastRecordingFolder;
+        if (lastFolder is not null && Directory.Exists(lastFolder))
+            startFolder = await storage.TryGetFolderFromPathAsync(lastFolder);
+
+        var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Play a recording",
+            AllowMultiple = false,
+            SuggestedStartLocation = startFolder,
+            FileTypeFilter = new[] { new FilePickerFileType("WAV sound files") { Patterns = new[] { "*.wav" } } },
+        });
+
+        var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        if (path is null) return;   // cancelled
+
+        AppSettings.Current.LastRecordingFolder = Path.GetDirectoryName(path);
+        AppSettings.Current.Save();
+
+        StopListening();   // the radio and a recording can't both feed the waterfall
+        try
+        {
+            _player.Start(path);
+            HideError();
+            _meterTimer.Start();
+        }
+        catch (AudioException ex)
+        {
+            ShowError(ex.Message);
+        }
+        UpdateStartButton();
+    }
+
+    private void StopPlayback()
+    {
+        _player.Stop();
+        if (!_input.IsRunning) ResetMeter();
+        UpdateStartButton();
     }
 
     // ---- audio arriving (runs on the audio thread, so keep it quick) ----
@@ -165,12 +243,13 @@ public partial class ReceivePage : UserControl, IDisposable
         _analyzer.AddSamples(e.Samples, e.Count, e.SampleRate);
     }
 
-    // The radio was unplugged or similar: show why, on the screen's own thread.
+    // The radio was unplugged (or a recording couldn't be played): show why, on the screen's own thread.
     private void OnAudioFailed(object? sender, string message)
     {
         Dispatcher.UIThread.Post(() =>
         {
-            StopListening();
+            if (sender == _player) StopPlayback();
+            else StopListening();
             ShowError(message);
         });
     }
@@ -190,6 +269,10 @@ public partial class ReceivePage : UserControl, IDisposable
             LevelMeter.Foreground = Brushes.OrangeRed;   // too loud
         else
             LevelMeter.ClearValue(ForegroundProperty);   // back to the theme's colour
+
+        // While a recording plays, show which one and how far along it is.
+        if (_player.IsRunning)
+            FormatText.Text = $"Playing {_player.FileName}  ·  {_player.Position:m\\:ss} / {_player.Duration:m\\:ss}";
     }
 
     // ---- frequency readout when pointing at the waterfall ----
@@ -222,6 +305,7 @@ public partial class ReceivePage : UserControl, IDisposable
     public void Dispose()
     {
         _meterTimer.Stop();
+        _player.Dispose();
         _input.Dispose();
     }
 }

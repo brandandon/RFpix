@@ -16,6 +16,9 @@ public sealed class AppSettings
     /// <summary>"System" (follow Windows), "Light" or "Dark".</summary>
     public string Theme { get; set; } = "System";
 
+    /// <summary>Folder the "Play recording…" button opened last time.</summary>
+    public string? LastRecordingFolder { get; set; }
+
     // ---- loading and saving ----
 
     private static readonly string FilePath = Path.Combine(

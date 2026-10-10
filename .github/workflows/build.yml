@@ -1,4 +1,4 @@
-# Builds RFpix for Windows on GitHub's servers every time code is pushed.
+# Tests and builds RFpix for Windows on GitHub's servers every time code is pushed.
 # The finished program can be downloaded from the run's Summary page,
 # under "Artifacts" (you need to be signed in to GitHub to download it).
 
@@ -21,6 +21,10 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
+      # If any test fails, the build stops here and no new RFpix.exe is made.
+      - name: Run the tests (uses the recordings in tests/recordings)
+        run: dotnet test tests/RFpix.Tests/RFpix.Tests.csproj -c Release
 
       - name: Build RFpix (one self-contained RFpix.exe)
         run: >

@@ -1,0 +1,28 @@
+<!--
+  RFpix.Tests.csproj - automated tests for RFpix.
+  They run on GitHub with every push, and in Visual Studio from Test > Run All Tests.
+  The tests use the recordings in tests/recordings, so no radio is needed.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- xUnit is the test framework; the other two let Visual Studio and "dotnet test" run it. -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The tests check RFpix's own code. -->
+    <ProjectReference Include="..\..\src\RFpix\RFpix.csproj" />
+  </ItemGroup>
+
+</Project>
