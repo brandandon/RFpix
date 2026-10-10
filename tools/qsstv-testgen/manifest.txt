@@ -1,0 +1,15 @@
+01 img01.jpg A 2.5 64 long  high 0
+02 img02.jpg A 2.5 16 short low  0
+03 img03.jpg A 2.2 4  long  high 0
+04 img04.jpg B 2.5 16 long  high 0
+05 img05.jpg B 2.2 64 short low  0
+06 img06.jpg B 2.5 4  long  high 0
+07 img07.jpg E 2.5 4  long  high 0
+08 img08.jpg E 2.2 16 short low  0
+09 img09.jpg E 2.5 64 long  high 0
+10 img10.jpg B 2.5 16 long  high 1
+11 img11.jpg B 2.5 16 long  high 2
+12 img12.jpg B 2.5 16 long  high 3
+13 img13.jpg B 2.5 16 long  high 4
+14 img14.jp2 B 2.5 16 long  high 0
+15 img15.jpg A 2.5 64 long  high 0

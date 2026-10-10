@@ -31,3 +31,4 @@ Thumbs.db
 # Large test recordings live outside the repo unless deliberately added
 *.wav
 !testdata/**/*.wav
+!tests/recordings/*.wav
