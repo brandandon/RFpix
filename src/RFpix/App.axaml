@@ -1,0 +1,29 @@
+<!--
+  App.axaml - settings that apply to the whole app.
+
+  RequestedThemeVariant="Default" means "follow the computer's setting":
+  dark when Windows is in dark mode, light when it isn't.
+  The Settings page can override this.
+-->
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RFpix.App"
+             RequestedThemeVariant="Default">
+
+  <Application.Styles>
+    <!-- The overall look of buttons, lists, menus and so on. -->
+    <FluentTheme />
+
+    <!-- Our own styles. "PageTitle" is the big heading at the top of each page. -->
+    <Style Selector="TextBlock.PageTitle">
+      <Setter Property="FontSize" Value="26" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+    <Style Selector="TextBlock.Hint">
+      <Setter Property="Opacity" Value="0.7" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+  </Application.Styles>
+
+</Application>

@@ -1,0 +1,12 @@
+<!--
+  ReceivePage.axaml - the Receive page. For now it only shows what is coming.
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RFpix.Views.ReceivePage">
+  <StackPanel Spacing="8">
+    <TextBlock Classes="PageTitle" Text="Receive" />
+    <TextBlock Text="Received images and the waterfall will appear here." TextWrapping="Wrap" />
+    <TextBlock Classes="Hint" Text="Coming in milestone 1: pick the radio's sound device, see the waterfall, and decode HamDRM images." />
+  </StackPanel>
+</UserControl>

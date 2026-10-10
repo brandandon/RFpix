@@ -1,0 +1,32 @@
+<!--
+  RFpix.csproj - the "recipe" for building RFpix.
+  It says what kind of program this is, which .NET version it uses,
+  and which add-on libraries (NuGet packages) it needs.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- A Windows program with a window (no black console box behind it). -->
+    <OutputType>WinExe</OutputType>
+    <!-- .NET 10 is the current long-term-support version. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- Warns us when something could be "empty" (null) by mistake. -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <RootNamespace>RFpix</RootNamespace>
+    <AssemblyName>RFpix</AssemblyName>
+    <Version>0.1.0</Version>
+    <Product>RFpix</Product>
+    <Description>Digital SSTV (HamDRM) for ham radio</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Avalonia draws the windows, buttons and pages. -->
+    <PackageReference Include="Avalonia" Version="11.3.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.0" />
+    <!-- The "Fluent" look, including automatic light and dark themes. -->
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.0" />
+  </ItemGroup>
+
+</Project>

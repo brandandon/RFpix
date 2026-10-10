@@ -1,0 +1,53 @@
+// MainWindow.axaml.cs - the code half of the main window.
+// It switches pages when you click an item in the sidebar.
+
+using System.Reflection;
+using Avalonia.Controls;
+using RFpix.Views;
+
+namespace RFpix;
+
+public partial class MainWindow : Window
+{
+    // Each page is created the first time it is opened, then kept,
+    // so switching back to a page doesn't lose what was on it.
+    private readonly Dictionary<string, Control> _pages = new();
+
+    public MainWindow()
+    {
+        InitializeComponent();   // builds everything described in MainWindow.axaml
+
+        var version = Assembly.GetExecutingAssembly().GetName().Version;
+        VersionText.Text = $"Version {version?.ToString(3)}";
+
+        NavList.SelectedIndex = 0;   // start on the first page (Receive)
+    }
+
+    // Runs whenever a different sidebar item is picked.
+    private void OnNavSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (NavList.SelectedItem is ListBoxItem item && item.Tag is string pageName)
+        {
+            PageHost.Content = GetPage(pageName);
+        }
+    }
+
+    // Finds the page with that name, creating it the first time.
+    private Control GetPage(string pageName)
+    {
+        if (!_pages.TryGetValue(pageName, out var page))
+        {
+            page = pageName switch
+            {
+                "Receive"  => new ReceivePage(),
+                "Send"     => new SendPage(),
+                "Gallery"  => new GalleryPage(),
+                "Radio"    => new RadioPage(),
+                "Settings" => new SettingsPage(),
+                _ => new TextBlock { Text = $"Unknown page: {pageName}" }
+            };
+            _pages[pageName] = page;
+        }
+        return page;
+    }
+}

@@ -1,0 +1,24 @@
+<!--
+  SettingsPage.axaml - the Settings page.
+  For now it has one setting: the colour theme.
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RFpix.Views.SettingsPage">
+  <StackPanel Spacing="20">
+    <TextBlock Classes="PageTitle" Text="Settings" />
+
+    <StackPanel Spacing="6">
+      <TextBlock Text="Theme" FontWeight="SemiBold" />
+      <!-- Picking an item runs OnThemeChanged in SettingsPage.axaml.cs. -->
+      <ComboBox x:Name="ThemeBox" Width="220"
+                SelectionChanged="OnThemeChanged">
+        <ComboBoxItem Content="Follow Windows" />
+        <ComboBoxItem Content="Light" />
+        <ComboBoxItem Content="Dark" />
+      </ComboBox>
+      <TextBlock Classes="Hint"
+                 Text="Not remembered between runs yet. Saving settings comes later." />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

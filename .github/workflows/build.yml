@@ -1,0 +1,37 @@
+# Builds RFpix for Windows on GitHub's servers every time code is pushed.
+# The finished program can be downloaded from the run's Summary page,
+# under "Artifacts" (you need to be signed in to GitHub to download it).
+
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build RFpix (one self-contained RFpix.exe)
+        run: >
+          dotnet publish src/RFpix/RFpix.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish
+
+      - name: Keep the program for download
+        uses: actions/upload-artifact@v4
+        with:
+          name: RFpix-windows-x64
+          path: publish/RFpix.exe

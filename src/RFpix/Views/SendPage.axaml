@@ -1,0 +1,12 @@
+<!--
+  SendPage.axaml - the Send page. For now it only shows what is coming.
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RFpix.Views.SendPage">
+  <StackPanel Spacing="8">
+    <TextBlock Classes="PageTitle" Text="Send" />
+    <TextBlock Text="Pick an image, optimize it to fit the transmit time, and send it." TextWrapping="Wrap" />
+    <TextBlock Classes="Hint" Text="Coming in milestone 3, with the image optimizer and repeater profiles." />
+  </StackPanel>
+</UserControl>

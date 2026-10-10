@@ -1,0 +1,53 @@
+<!--
+  MainWindow.axaml - the layout of the main window.
+
+  The window is split into two columns:
+    - left (220 pixels wide): the sidebar with the app name and the page list
+    - right (the rest, written "*"): the current page
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RFpix.MainWindow"
+        Title="RFpix"
+        Width="1200" Height="760"
+        MinWidth="800" MinHeight="560"
+        WindowStartupLocation="CenterScreen">
+
+  <Grid ColumnDefinitions="220,*">
+
+    <!-- Sidebar -->
+    <Border Grid.Column="0"
+            Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+      <DockPanel Margin="12">
+        <TextBlock DockPanel.Dock="Top"
+                   Text="RFpix"
+                   FontSize="22" FontWeight="SemiBold"
+                   Margin="12,8,12,24" />
+
+        <!-- Version number pinned to the bottom of the sidebar. -->
+        <TextBlock x:Name="VersionText"
+                   DockPanel.Dock="Bottom"
+                   Classes="Hint" FontSize="12"
+                   Margin="12,0,12,4" />
+
+        <!-- The page list. Picking one runs OnNavSelectionChanged in MainWindow.axaml.cs.
+             Each item's Tag is the name the code uses to find the page. -->
+        <ListBox x:Name="NavList"
+                 Background="Transparent"
+                 SelectionChanged="OnNavSelectionChanged">
+          <ListBoxItem Content="Receive"  Tag="Receive" />
+          <ListBoxItem Content="Send"     Tag="Send" />
+          <ListBoxItem Content="Gallery"  Tag="Gallery" />
+          <ListBoxItem Content="Radio"    Tag="Radio" />
+          <ListBoxItem Content="Settings" Tag="Settings" />
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <!-- The current page is placed in here by the code. -->
+    <ContentControl Grid.Column="1"
+                    x:Name="PageHost"
+                    Margin="32,24" />
+
+  </Grid>
+</Window>
