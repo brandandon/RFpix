@@ -17,8 +17,7 @@
         <ComboBoxItem Content="Light" />
         <ComboBoxItem Content="Dark" />
       </ComboBox>
-      <TextBlock Classes="Hint"
-                 Text="Not remembered between runs yet. Saving settings comes later." />
+      <TextBlock Classes="Hint" Text="RFpix remembers this between runs." />
     </StackPanel>
   </StackPanel>
 </UserControl>

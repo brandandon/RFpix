@@ -3,6 +3,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Styling;
+using RFpix.Settings;
 
 namespace RFpix.Views;
 
@@ -12,23 +13,27 @@ public partial class SettingsPage : UserControl
     {
         InitializeComponent();
 
-        // Show whichever theme is currently in use.
-        var current = Application.Current?.RequestedThemeVariant;
-        ThemeBox.SelectedIndex =
-            current == ThemeVariant.Light ? 1 :
-            current == ThemeVariant.Dark  ? 2 : 0;
+        // Show the saved theme: 0 = follow Windows, 1 = light, 2 = dark.
+        ThemeBox.SelectedIndex = AppSettings.Current.Theme switch
+        {
+            "Light" => 1,
+            "Dark" => 2,
+            _ => 0
+        };
     }
 
-    // Runs when a different theme is picked: 0 = follow Windows, 1 = light, 2 = dark.
+    // Runs when a different theme is picked.
     private void OnThemeChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (Application.Current is null) return;
-
-        Application.Current.RequestedThemeVariant = ThemeBox.SelectedIndex switch
+        var theme = ThemeBox.SelectedIndex switch
         {
-            1 => ThemeVariant.Light,
-            2 => ThemeVariant.Dark,
-            _ => ThemeVariant.Default
+            1 => "Light",
+            2 => "Dark",
+            _ => "System"
         };
+
+        App.ApplyTheme(theme);
+        AppSettings.Current.Theme = theme;
+        AppSettings.Current.Save();
     }
 }

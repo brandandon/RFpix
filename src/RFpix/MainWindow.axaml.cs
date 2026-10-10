@@ -23,6 +23,16 @@ public partial class MainWindow : Window
         NavList.SelectedIndex = 0;   // start on the first page (Receive)
     }
 
+    // When the window closes, let pages tidy up (for example, release the sound device).
+    protected override void OnClosed(EventArgs e)
+    {
+        foreach (var page in _pages.Values.OfType<IDisposable>())
+        {
+            page.Dispose();
+        }
+        base.OnClosed(e);
+    }
+
     // Runs whenever a different sidebar item is picked.
     private void OnNavSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {

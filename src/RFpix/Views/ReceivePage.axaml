@@ -1,12 +1,49 @@
 <!--
-  ReceivePage.axaml - the Receive page. For now it only shows what is coming.
+  ReceivePage.axaml - the Receive page.
+  Step 1 of milestone 1: pick the radio's sound device and check that audio is arriving.
+  The waterfall and the decoded image will be added below this later.
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="RFpix.Views.ReceivePage">
-  <StackPanel Spacing="8">
+  <StackPanel Spacing="20" MaxWidth="760" HorizontalAlignment="Left">
     <TextBlock Classes="PageTitle" Text="Receive" />
-    <TextBlock Text="Received images and the waterfall will appear here." TextWrapping="Wrap" />
-    <TextBlock Classes="Hint" Text="Coming in milestone 1: pick the radio's sound device, see the waterfall, and decode HamDRM images." />
+
+    <!-- Device picker -->
+    <StackPanel Spacing="6">
+      <TextBlock Text="Radio sound device (input)" FontWeight="SemiBold" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <ComboBox x:Name="DeviceBox" Width="440"
+                  PlaceholderText="Pick the radio's USB audio device"
+                  SelectionChanged="OnDeviceChanged" />
+        <Button Content="Refresh" Click="OnRefreshClick" />
+      </StackPanel>
+      <TextBlock Classes="Hint"
+                 Text="Radios usually appear as &quot;USB Audio CODEC&quot;. Renaming it in Windows Sound settings (for example &quot;FT-991A RX&quot;) makes it easy to spot. RFpix remembers your choice." />
+    </StackPanel>
+
+    <!-- Start / stop -->
+    <StackPanel Orientation="Horizontal" Spacing="12">
+      <Button x:Name="StartButton" Content="Start listening" Click="OnStartStopClick" />
+      <TextBlock x:Name="FormatText" Classes="Hint" VerticalAlignment="Center" />
+    </StackPanel>
+
+    <!-- Level meter -->
+    <StackPanel Spacing="6">
+      <TextBlock Text="Audio level" FontWeight="SemiBold" />
+      <ProgressBar x:Name="LevelMeter" Minimum="0" Maximum="100" Height="18" />
+      <TextBlock x:Name="LevelText" Classes="Hint" Text="Not listening" />
+      <TextBlock Classes="Hint"
+                 Text="The bar should move with band noise and signals. 0 dB is the loudest possible; the bar turns red near the top, meaning the audio is too loud and will distort. Turn the radio's USB/data output level down if it does." />
+    </StackPanel>
+
+    <!-- Problems are explained here -->
+    <Border x:Name="ErrorPanel" IsVisible="False"
+            Padding="14" CornerRadius="6"
+            Background="#33E5484D" BorderBrush="#99E5484D" BorderThickness="1">
+      <TextBlock x:Name="ErrorText" TextWrapping="Wrap" />
+    </Border>
+
+    <TextBlock Classes="Hint" Text="Coming next: the waterfall, then decoding HamDRM images." />
   </StackPanel>
 </UserControl>

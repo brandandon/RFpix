@@ -27,6 +27,9 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.3.0" />
     <!-- The "Fluent" look, including automatic light and dark themes. -->
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.0" />
+    <!-- NAudio talks to Windows' own sound system (WASAPI). Windows only;
+         Linux and Mac will get their own audio backend later. -->
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
   </ItemGroup>
 
 </Project>
