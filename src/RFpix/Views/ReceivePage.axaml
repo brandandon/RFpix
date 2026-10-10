@@ -1,16 +1,21 @@
 <!--
   ReceivePage.axaml - the Receive page.
-  Step 1 of milestone 1: pick the radio's sound device and check that audio is arriving.
-  The waterfall and the decoded image will be added below this later.
+  Milestone 1 so far: pick the radio's sound device, check the level, and watch the waterfall.
+  The decoded HamDRM image will be added later.
+
+  The page is a Grid with rows stacked top to bottom. "Auto" rows are as tall as
+  their contents; the "*" row (the waterfall) takes all the space that's left.
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:RFpix.Controls"
              x:Class="RFpix.Views.ReceivePage">
-  <StackPanel Spacing="20" MaxWidth="760" HorizontalAlignment="Left">
-    <TextBlock Classes="PageTitle" Text="Receive" />
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" RowSpacing="14">
 
-    <!-- Device picker -->
-    <StackPanel Spacing="6">
+    <TextBlock Grid.Row="0" Classes="PageTitle" Text="Receive" />
+
+    <!-- Row 1: device picker -->
+    <StackPanel Grid.Row="1" Spacing="6">
       <TextBlock Text="Radio sound device (input)" FontWeight="SemiBold" />
       <StackPanel Orientation="Horizontal" Spacing="8">
         <ComboBox x:Name="DeviceBox" Width="440"
@@ -22,28 +27,40 @@
                  Text="Radios usually appear as &quot;USB Audio CODEC&quot;. Renaming it in Windows Sound settings (for example &quot;FT-991A RX&quot;) makes it easy to spot. RFpix remembers your choice." />
     </StackPanel>
 
-    <!-- Start / stop -->
-    <StackPanel Orientation="Horizontal" Spacing="12">
-      <Button x:Name="StartButton" Content="Start listening" Click="OnStartStopClick" />
-      <TextBlock x:Name="FormatText" Classes="Hint" VerticalAlignment="Center" />
+    <!-- Row 2: start/stop, format, and level meter on one line -->
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16">
+      <Button x:Name="StartButton" Content="Start listening" Click="OnStartStopClick" MinWidth="130" />
+      <StackPanel Spacing="2" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="Level" VerticalAlignment="Center" />
+          <ProgressBar x:Name="LevelMeter" Minimum="0" Maximum="100" Width="220" Height="14"
+                       ToolTip.Tip="0 dB is the loudest possible. Red means too loud: turn the radio's USB/data output level down." />
+          <TextBlock x:Name="LevelText" Classes="Hint" VerticalAlignment="Center" MinWidth="60" Text="Not listening" />
+        </StackPanel>
+        <TextBlock x:Name="FormatText" Classes="Hint" FontSize="12" />
+      </StackPanel>
     </StackPanel>
 
-    <!-- Level meter -->
-    <StackPanel Spacing="6">
-      <TextBlock Text="Audio level" FontWeight="SemiBold" />
-      <ProgressBar x:Name="LevelMeter" Minimum="0" Maximum="100" Height="18" />
-      <TextBlock x:Name="LevelText" Classes="Hint" Text="Not listening" />
-      <TextBlock Classes="Hint"
-                 Text="The bar should move with band noise and signals. 0 dB is the loudest possible; the bar turns red near the top, meaning the audio is too loud and will distort. Turn the radio's USB/data output level down if it does." />
-    </StackPanel>
+    <!-- Row 3: the waterfall, filling the rest of the page -->
+    <Border Grid.Row="3" CornerRadius="6" ClipToBounds="True" MinHeight="180"
+            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+      <controls:WaterfallControl x:Name="Waterfall"
+                                 PointerMoved="OnWaterfallPointerMoved"
+                                 PointerExited="OnWaterfallPointerExited" />
+    </Border>
 
-    <!-- Problems are explained here -->
-    <Border x:Name="ErrorPanel" IsVisible="False"
+    <!-- Row 4: frequency under the mouse, and a hint -->
+    <Grid Grid.Row="4" ColumnDefinitions="Auto,*">
+      <TextBlock x:Name="PointerFrequencyText" Grid.Column="0" MinWidth="140" FontWeight="SemiBold" />
+      <TextBlock Grid.Column="1" Classes="Hint" HorizontalAlignment="Right"
+                 Text="Point at the waterfall to read a frequency. A HamDRM signal shows as a wide band, roughly 300 to 2800 Hz." />
+    </Grid>
+
+    <!-- Row 5: problems are explained here -->
+    <Border Grid.Row="5" x:Name="ErrorPanel" IsVisible="False"
             Padding="14" CornerRadius="6"
             Background="#33E5484D" BorderBrush="#99E5484D" BorderThickness="1">
       <TextBlock x:Name="ErrorText" TextWrapping="Wrap" />
     </Border>
-
-    <TextBlock Classes="Hint" Text="Coming next: the waterfall, then decoding HamDRM images." />
-  </StackPanel>
+  </Grid>
 </UserControl>

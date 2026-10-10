@@ -3,14 +3,18 @@
 // What happens here:
 //   1. Fill the drop-down with the computer's recording devices.
 //   2. When you press Start listening, open the chosen device through the audio layer.
-//   3. Each chunk of audio is measured (how loud is it?) on the audio thread.
+//   3. Each chunk of audio is measured (how loud is it?) and handed to the
+//      spectrum analyzer, all on the audio thread.
 //   4. Twenty times a second a timer moves the level meter to match.
+//   5. Each time the analyzer finishes a line, it's added to the waterfall.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.Input;
 using RFpix.Audio;
+using RFpix.Dsp;
 using RFpix.Settings;
 
 namespace RFpix.Views;
@@ -19,6 +23,7 @@ public partial class ReceivePage : UserControl, IDisposable
 {
     private readonly IAudioInput _input = AudioSystem.CreateInput();
     private readonly DispatcherTimer _meterTimer;
+    private readonly SpectrumAnalyzer _analyzer = new(maxFrequency: 3000);
 
     // The latest loudness measurement, written by the audio thread and read by the timer.
     private volatile float _latestRms;
@@ -35,6 +40,11 @@ public partial class ReceivePage : UserControl, IDisposable
 
         _meterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
         _meterTimer.Tick += (_, _) => UpdateMeter();
+
+        // The analyzer works on the audio thread; the waterfall must be updated
+        // on the screen's thread, so each finished line is "posted" across.
+        _analyzer.LineReady += (line, hzPerStep) =>
+            Dispatcher.UIThread.Post(() => Waterfall.AddLine(line, hzPerStep));
 
         LoadDevices();
     }
@@ -150,6 +160,9 @@ public partial class ReceivePage : UserControl, IDisposable
             sum += s * s;
         }
         if (e.Count > 0) _latestRms = (float)Math.Sqrt(sum / e.Count);
+
+        // Feed the same audio to the waterfall's spectrum analyzer.
+        _analyzer.AddSamples(e.Samples, e.Count, e.SampleRate);
     }
 
     // The radio was unplugged or similar: show why, on the screen's own thread.
@@ -177,6 +190,23 @@ public partial class ReceivePage : UserControl, IDisposable
             LevelMeter.Foreground = Brushes.OrangeRed;   // too loud
         else
             LevelMeter.ClearValue(ForegroundProperty);   // back to the theme's colour
+    }
+
+    // ---- frequency readout when pointing at the waterfall ----
+
+    private void OnWaterfallPointerMoved(object? sender, PointerEventArgs e)
+    {
+        double x = e.GetPosition(Waterfall).X;
+        double width = Waterfall.Bounds.Width;
+        if (width <= 0) return;
+
+        double hz = Math.Clamp(x / width, 0, 1) * Waterfall.DisplayMaxFrequency;
+        PointerFrequencyText.Text = $"{hz:0} Hz";
+    }
+
+    private void OnWaterfallPointerExited(object? sender, PointerEventArgs e)
+    {
+        PointerFrequencyText.Text = "";
     }
 
     // ---- messages ----
