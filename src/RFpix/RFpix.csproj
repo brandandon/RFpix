@@ -27,6 +27,9 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.3.0" />
     <!-- The "Fluent" look, including automatic light and dark themes. -->
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.0" />
+    <!-- Avalonia uses this for Linux's D-Bus. Its version 0.21.2 has a security
+         problem (GHSA-xrw6-gwf8-vvr9), so we ask for the fixed 0.21.3. -->
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
     <!-- NAudio talks to Windows' own sound system (WASAPI). Windows only;
          Linux and Mac will get their own audio backend later. -->
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
