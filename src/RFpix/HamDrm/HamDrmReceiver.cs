@@ -1,12 +1,14 @@
 // HamDrmReceiver.cs - the HamDRM decoder, fed with audio from the audio layer.
 //
-// So far (milestone 1, decoder stages 1 to 3) it finds a HamDRM signal, names
+// So far (milestone 1, decoder stages 1 to 4) it finds a HamDRM signal, names
 // its mode, measures how far off frequency it is, reads every carrier in every
-// symbol, finds where each 400 ms frame starts, and measures the difference
-// between the two sound cards' clocks. Later stages read the data and the image.
+// symbol, finds where each 400 ms frame starts, measures the difference between
+// the two sound cards' clocks, and reads each frame's FAC: the transmission's
+// settings and the sender's callsign. Later stages read the picture data.
 //
 //   audio (48 kHz) -> Downconverter (12 kHz complex) -> ModeDetector -> FrequencyLock
-//                  -> OfdmSymbols -> FrameSync + SampleClock -> Status
+//                  -> OfdmSymbols -> FrameSync + SampleClock
+//                  -> ChannelEstimator -> Fac -> Status
 
 using System.Numerics;
 using RFpix.Dsp;
@@ -40,6 +42,7 @@ public sealed class HamDrmReceiver
                 // Signal gone: start afresh next time.
                 _clock.Reset();
                 _recentFrameStarts.Clear();
+                ForgetFac();
             }
             return;
         }
@@ -63,10 +66,153 @@ public sealed class HamDrmReceiver
             while (_recentFrameStarts.Count > FrameVotes) _recentFrameStarts.Dequeue();
             int agreeing = _recentFrameStarts.Count(t => FrameTimingAgrees(t, start));
             if (agreeing >= FrameVotesNeeded) FrameStartTime = start;
+
+            // Read the FAC of each whole frame in this window that hasn't been read yet.
+            // (The FAC's own checksum confirms the frame start, so no vote is needed.)
+            ReadFacs(mode, frame, start);
         }
 
         // Frame starts, followed over several seconds, reveal the clock difference.
         if (FrameStartTime is double confirmed) _clock.AddFrameStart(confirmed);
+    }
+
+    // ---- the FAC ----
+
+    private double? _lastFacTime;                          // when the last frame read started
+    private HamDrmBandwidth _bandwidth = HamDrmBandwidth.Wide;   // best guess until a FAC says
+    // Votes for each third of the callsign: how often each version has been heard.
+    private readonly Dictionary<string, int>[] _labelVotes = { new(), new(), new() };
+
+    private void ReadFacs(HamDrmMode mode, FrameSyncResult frame, double firstFrameTime)
+    {
+        var symbols = Symbols!;
+        int perFrame = HamDrmModes.SymbolsPerFrame(mode);
+        double symbolSeconds = HamDrmModes.SymbolLength(mode) / (double)Downconverter.OutputRate;
+        // Wait until a few symbols after the frame are in the window too, so the channel
+        // estimate for its last symbols has pilots on both sides.
+        int after = CellLayout.For(mode, _bandwidth).PilotSymbolSpacing - 1;
+
+        // Channel estimates for this window, worked out once per bandwidth when first needed.
+        var channels = new Dictionary<HamDrmBandwidth, Complex[][]>();
+        for (int f = 0; ; f++)
+        {
+            int s0 = frame.FirstSymbol + f * perFrame;
+            if (s0 + perFrame + after > symbols.Count) break;
+            double time = firstFrameTime + f * perFrame * symbolSeconds;
+            if (_lastFacTime is double last && time < last + 0.2) continue;   // already read
+            _lastFacTime = time;
+
+            // Try the bandwidth the last FAC announced first, then the other one.
+            // (They differ only in the pilots at the top edge.)
+            FacInfo? info = null;
+            foreach (var bandwidth in new[] { _bandwidth, Other(_bandwidth) })
+            {
+                var layout = CellLayout.For(mode, bandwidth);
+                if (!channels.TryGetValue(bandwidth, out var channel))
+                    channels[bandwidth] = channel = ChannelEstimator.Estimate(symbols, frame.FirstSymbol, layout);
+                var cells = layout.FacCells.Select(c => symbols.Cells[s0 + c.Symbol][c.Carrier]).ToArray();
+                var h = layout.FacCells.Select(c => channel[s0 + c.Symbol][c.Carrier]).ToArray();
+                info = FacDecoder.Decode(cells, h);
+                if (info is not null) break;
+            }
+
+            if (info is null) { FacFailed++; continue; }
+            Check(info, time);
+        }
+    }
+
+    // About 1 damaged FAC in 256 passes its checksum by chance, so a FAC is only trusted
+    // when it agrees with the last trusted one: same settings, and the right frame number
+    // for how much time has passed (frames go 0, 1, 2, 0, ... every 0.4 s). A FAC that
+    // doesn't agree waits as a "candidate"; if the next one agrees with it, both are
+    // trusted (that's how a new transmission with new settings is picked up).
+    private (FacInfo Info, double Time)? _trusted, _candidate;
+
+    private void Check(FacInfo info, double time)
+    {
+        if (_trusted is { } t && Agrees(t, info, time))
+        {
+            Trust(info, time);
+        }
+        else if (_candidate is { } c && Agrees(c, info, time))
+        {
+            Trust(c.Info, c.Time);
+            Trust(info, time);
+        }
+        else
+        {
+            if (_candidate is not null) FacFailed++;   // the old candidate never agreed with anything
+            _candidate = (info, time);
+        }
+    }
+
+    private static bool Agrees((FacInfo Info, double Time) earlier, FacInfo info, double time)
+    {
+        int framesLater = (int)Math.Round((time - earlier.Time) / SampleClock.FramePeriod);
+        int expected = ((earlier.Info.FrameInSuperframe + framesLater) % 3 + 3) % 3;
+        return info.FrameInSuperframe == expected && info.SameSettings(earlier.Info);
+    }
+
+    private void Trust(FacInfo info, double time)
+    {
+        FacGood++;
+        Fac = info;
+        _trusted = (info, time);
+        _candidate = null;
+        _bandwidth = info.Bandwidth;
+
+        // The callsign letters have less protection than the settings (a damaged letter can
+        // slip past the checksum while the settings are right), so each third of the
+        // callsign must arrive the same way twice before it's shown.
+        var votes = _labelVotes[info.FrameInSuperframe];
+        votes[info.LabelPart] = votes.GetValueOrDefault(info.LabelPart) + 1;
+        var parts = _labelVotes.Select(v => v.Where(p => p.Value >= 2).OrderByDescending(p => p.Value)
+                                              .Select(p => p.Key).FirstOrDefault()).ToArray();
+        if (parts.All(part => part is not null)) Callsign = string.Concat(parts).Trim();
+    }
+
+    private static HamDrmBandwidth Other(HamDrmBandwidth b) =>
+        b == HamDrmBandwidth.Wide ? HamDrmBandwidth.Narrow : HamDrmBandwidth.Wide;
+
+    private void ForgetFac()
+    {
+        Fac = null;
+        Callsign = null;
+        FacGood = FacFailed = 0;
+        _lastFacTime = null;
+        _trusted = _candidate = null;
+        _bandwidth = HamDrmBandwidth.Wide;
+        foreach (var votes in _labelVotes) votes.Clear();
+    }
+
+    /// <summary>The settings from the latest trusted FAC (passed its checksum and agreed
+    /// with the FACs around it), or null.</summary>
+    public FacInfo? Fac { get; private set; }
+
+    /// <summary>The sender's callsign, once each third of it has arrived the same way twice
+    /// (2.4 s on a clean signal); null until then. Empty if the sender didn't set one.</summary>
+    public string? Callsign { get; private set; }
+
+    /// <summary>How many frames' FACs were trusted, or failed (checksum, or didn't agree with
+    /// the FACs around them), since the signal appeared.</summary>
+    public int FacGood { get; private set; }
+    public int FacFailed { get; private set; }
+
+    /// <summary>A second line for the screen: the transmission's settings and callsign,
+    /// e.g. "2.5 kHz · 16-QAM · long interleave · high protection  ·  from RFPIX  ·  FAC 25/25 ok".</summary>
+    public string TransmissionText
+    {
+        get
+        {
+            if (Problem is not null || Detection.Mode is null) return "";
+            var fac = Fac;
+            int good = FacGood, total = FacGood + FacFailed;
+            if (fac is null)
+                return total == 0 ? "Reading the transmission's settings…"
+                                  : $"Reading the transmission's settings…  (FAC 0/{total} ok)";
+            string from = Callsign switch { null => "…", "" => "(no callsign)", var c => c };
+            return $"{fac.Description}  ·  from {from}  ·  FAC {good}/{total} ok";
+        }
     }
 
     private readonly SampleClock _clock = new();
@@ -173,6 +319,7 @@ public sealed class HamDrmReceiver
             FrameStartTime = null;
             _clock.Reset();
             _recentFrameStarts.Clear();
+            ForgetFac();
             Problem = null;
         }
     }

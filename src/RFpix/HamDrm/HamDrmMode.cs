@@ -52,12 +52,18 @@ public static class HamDrmModes
     /// <summary>Lowest carrier number used.</summary>
     public static int FirstCarrier(HamDrmMode mode) => mode == HamDrmMode.A ? 2 : 1;
 
-    /// <summary>Highest carrier number used at 2.5 kHz bandwidth (2.2 kHz stops a few sooner).</summary>
-    public static int LastCarrier(HamDrmMode mode) => mode switch
+    /// <summary>Highest carrier number used at 2.5 kHz bandwidth (the most any transmission uses).</summary>
+    public static int LastCarrier(HamDrmMode mode) => LastCarrier(mode, HamDrmBandwidth.Wide);
+
+    /// <summary>Highest carrier number used at the given bandwidth.</summary>
+    public static int LastCarrier(HamDrmMode mode, HamDrmBandwidth bandwidth) => (mode, bandwidth) switch
     {
-        HamDrmMode.A => 58,   // 2.2 kHz: 54
-        HamDrmMode.B => 51,   // 2.2 kHz: 45
-        _ => 31,              // 2.2 kHz: 29
+        (HamDrmMode.A, HamDrmBandwidth.Narrow) => 54,
+        (HamDrmMode.A, _) => 58,
+        (HamDrmMode.B, HamDrmBandwidth.Narrow) => 45,
+        (HamDrmMode.B, _) => 51,
+        (_, HamDrmBandwidth.Narrow) => 29,
+        _ => 31,
     };
 
     /// <summary>The three steady pilot carriers (always at 725, 1475 and 1850 Hz).</summary>
@@ -70,13 +76,13 @@ public static class HamDrmModes
 
     /// <summary>The "time reference cells": carriers sent with fixed, known phase angles in
     /// the first symbol of every frame, so a receiver can find where frames start.
-    /// Angles are in 1024ths of a full turn. From QSSTV's drm.cpp tables.</summary>
+    /// Angles are in 1024ths of a full turn. From QSSTV's transmitter tables (TableCarMap.h).</summary>
     public static (int[] Carriers, int[] Angles1024) TimeReferenceCells(HamDrmMode mode) => mode switch
     {
         HamDrmMode.A => (new[] { 6, 7, 11, 12, 15, 16, 23, 29, 30, 33, 34, 38, 39, 41, 45, 46 },
                          new[] { 973, 205, 717, 264, 357, 357, 952, 440, 856, 88, 88, 68, 836, 836, 836, 1008 }),
         HamDrmMode.B => (new[] { 6, 10, 11, 14, 17, 18, 27, 28, 30, 33, 34, 38, 40, 41, 44 },
-                         new[] { 304, 331, 108, 620, 192, 704, 44, 432, 588, 844, 651, 651, 651, 460, 950 }),
+                         new[] { 304, 331, 108, 620, 192, 704, 44, 432, 588, 844, 651, 651, 651, 460, 944 }),   // 944 as sent (QSSTV's receiver table says 950)
         _ => (new[] { 7, 8, 13, 14, 21, 22, 26, 27 },
               new[] { 432, 331, 108, 620, 192, 704, 44, 304 }),
     };

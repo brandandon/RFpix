@@ -10,7 +10,8 @@
 //   6. "Play recording…" does the same with a WAV file instead of the radio:
 //      a second input (_player) feeds the very same steps 3 to 5.
 //   7. The same audio also goes to the HamDRM receiver, which says whether it
-//      hears a HamDRM signal and in which mode. The timer shows that too.
+//      hears a HamDRM signal, in which mode, and (from the FAC) the transmission's
+//      settings and the sender's callsign. The timer shows those too.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -168,6 +169,7 @@ public partial class ReceivePage : UserControl, IDisposable
         LevelText.Text = "Not listening";
         FormatText.Text = "";
         SignalText.Text = "";
+        TransmissionText.Text = "";
         // Start fresh next time, so a signal from one source isn't carried over to another.
         _receiver.Reset();
     }
@@ -280,6 +282,7 @@ public partial class ReceivePage : UserControl, IDisposable
             LevelMeter.ClearValue(ForegroundProperty);   // back to the theme's colour
 
         SignalText.Text = _receiver.StatusText;
+        TransmissionText.Text = _receiver.TransmissionText;
 
         // While a recording plays, show which one and how far along it is.
         if (_player.IsRunning)

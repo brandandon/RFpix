@@ -21,6 +21,10 @@ sends, which is also what EasyPal stations understand.
 
 - `drmwav.cpp`, `drmwav_soundout.cpp`: the transmit tool
 - `drmrxwav.cpp`: the receive (checking) tool
+- `dumpcells.cpp`: prints QSSTV's transmit cell layout (which cells are pilots, FAC or
+  picture data, and each pilot's value) for every mode and bandwidth.
+  `tests/reference/qsstv-cell-layouts.txt` was made from its output (one frame per
+  layout, picture-data cells left out), and a test checks RFpix's layout against it
 - `manifest.txt`: one line per recording: number, image, mode, bandwidth, QAM,
   interleave, protection, Reed-Solomon level
 - `build-and-generate.sh`: installs the libraries, builds QSSTV at a fixed commit,

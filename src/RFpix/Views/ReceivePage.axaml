@@ -42,6 +42,8 @@
         <TextBlock x:Name="FormatText" Classes="Hint" FontSize="12" />
         <!-- What the HamDRM decoder hears: "No HamDRM signal" or "HamDRM mode B (strength 98%)" -->
         <TextBlock x:Name="SignalText" FontWeight="SemiBold" />
+        <!-- The transmission's settings and callsign, from its FAC -->
+        <TextBlock x:Name="TransmissionText" />
       </StackPanel>
     </StackPanel>
 

@@ -23,13 +23,15 @@ make -j"$(nproc)"
 # 2. Build the two headless tools from QSSTV's objects plus our small replacements.
 mk() { sed -n "s/^$1 *= *//p" Makefile | sed 's/\$(shell[^)]*)//g;s/\$(DEFINES)//g'; }
 CXXFLAGS="$(mk CXXFLAGS)"; DEFINES="$(mk DEFINES)"; INCPATH="$(mk INCPATH)"; LIBS="$(mk LIBS)"; LFLAGS="$(mk LFLAGS)"
-for s in drmwav drmwav_soundout drmrxwav; do
+for s in drmwav drmwav_soundout drmrxwav dumpcells; do
   eval g++ -c $CXXFLAGS $DEFINES $INCPATH -I../qsstv/src -o "$s.tool.o" "$HERE/$s.cpp"
 done
 TX_OBJS=$(ls *.o | grep -v '\.tool\.o$' | grep -v -x -e main.o -e csoundout.o)
 RX_OBJS=$(ls *.o | grep -v '\.tool\.o$' | grep -v -x -e main.o -e logbook.o)
 eval g++ $LFLAGS -o drmwav drmwav.tool.o drmwav_soundout.tool.o $TX_OBJS $LIBS
 eval g++ $LFLAGS -o drmrxwav drmrxwav.tool.o $RX_OBJS $LIBS
+DUMP_OBJS=$(ls *.o | grep -v '\.tool\.o$' | grep -v -x -e main.o)
+eval g++ $LFLAGS -o dumpcells dumpcells.tool.o $DUMP_OBJS $LIBS
 
 # 3. Generate each recording, then decode it and check it matches the source image.
 export QT_QPA_PLATFORM=offscreen
