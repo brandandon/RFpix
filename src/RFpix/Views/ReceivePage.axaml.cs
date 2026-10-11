@@ -9,6 +9,8 @@
 //   5. Each time the analyzer finishes a line, it's added to the waterfall.
 //   6. "Play recording…" does the same with a WAV file instead of the radio:
 //      a second input (_player) feeds the very same steps 3 to 5.
+//   7. The same audio also goes to the HamDRM receiver, which says whether it
+//      hears a HamDRM signal and in which mode. The timer shows that too.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -18,6 +20,7 @@ using Avalonia.Threading;
 using Avalonia.Input;
 using RFpix.Audio;
 using RFpix.Dsp;
+using RFpix.HamDrm;
 using RFpix.Settings;
 
 namespace RFpix.Views;
@@ -28,6 +31,7 @@ public partial class ReceivePage : UserControl, IDisposable
     private readonly WavFileAudioInput _player = new();
     private readonly DispatcherTimer _meterTimer;
     private readonly SpectrumAnalyzer _analyzer = new(maxFrequency: 3000);
+    private readonly HamDrmReceiver _receiver = new();
 
     // The latest loudness measurement, written by the audio thread and read by the timer.
     private volatile float _latestRms;
@@ -163,6 +167,9 @@ public partial class ReceivePage : UserControl, IDisposable
         LevelMeter.ClearValue(ForegroundProperty);
         LevelText.Text = "Not listening";
         FormatText.Text = "";
+        SignalText.Text = "";
+        // Start fresh next time, so a signal from one source isn't carried over to another.
+        _receiver.Reset();
     }
 
     private void UpdateStartButton()
@@ -239,8 +246,10 @@ public partial class ReceivePage : UserControl, IDisposable
         }
         if (e.Count > 0) _latestRms = (float)Math.Sqrt(sum / e.Count);
 
-        // Feed the same audio to the waterfall's spectrum analyzer.
+        // Feed the same audio to the waterfall's spectrum analyzer...
         _analyzer.AddSamples(e.Samples, e.Count, e.SampleRate);
+        // ...and to the HamDRM receiver.
+        _receiver.AddSamples(e.Samples, e.Count, e.SampleRate);
     }
 
     // The radio was unplugged (or a recording couldn't be played): show why, on the screen's own thread.
@@ -269,6 +278,8 @@ public partial class ReceivePage : UserControl, IDisposable
             LevelMeter.Foreground = Brushes.OrangeRed;   // too loud
         else
             LevelMeter.ClearValue(ForegroundProperty);   // back to the theme's colour
+
+        SignalText.Text = _receiver.StatusText;
 
         // While a recording plays, show which one and how far along it is.
         if (_player.IsRunning)

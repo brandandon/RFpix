@@ -40,6 +40,8 @@
           <TextBlock x:Name="LevelText" Classes="Hint" VerticalAlignment="Center" MinWidth="60" Text="Not listening" />
         </StackPanel>
         <TextBlock x:Name="FormatText" Classes="Hint" FontSize="12" />
+        <!-- What the HamDRM decoder hears: "No HamDRM signal" or "HamDRM mode B (strength 98%)" -->
+        <TextBlock x:Name="SignalText" FontWeight="SemiBold" />
       </StackPanel>
     </StackPanel>
 
