@@ -77,7 +77,7 @@
     <Grid Grid.Row="4" ColumnDefinitions="Auto,*">
       <TextBlock x:Name="PointerFrequencyText" Grid.Column="0" MinWidth="140" FontWeight="SemiBold" />
       <TextBlock Grid.Column="1" Classes="Hint" HorizontalAlignment="Right"
-                 Text="Point at the waterfall to read a frequency. A HamDRM signal shows as a wide band, roughly 300 to 2800 Hz." />
+                 Text="A HamDRM signal shows as a wide band, roughly 300 to 2800 Hz." />
     </Grid>
 
     <!-- Row 5: problems are explained here -->
