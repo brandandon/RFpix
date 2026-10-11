@@ -33,6 +33,9 @@
     <!-- NAudio talks to Windows' own sound system (WASAPI). Windows only;
          Linux and Mac will get their own audio backend later. -->
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <!-- CoreJ2K reads JPEG 2000 pictures, which EasyPal sends by default. Written in C#,
+         so it works on Windows, Linux and Mac alike (BSD licence). -->
+    <PackageReference Include="CoreJ2K" Version="2.3.3" />
   </ItemGroup>
 
 </Project>

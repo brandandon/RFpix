@@ -13,7 +13,7 @@
 //      hears a HamDRM signal, in which mode, and (from the FAC) the transmission's
 //      settings and the sender's callsign. The timer shows those too.
 //   8. When the receiver finishes a file, it's saved to the received folder and,
-//      if it's a picture, shown on the right.
+//      if it's a picture (JPEG, JPEG 2000, PNG...), shown on the right.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -24,7 +24,10 @@ using Avalonia.Input;
 using RFpix.Audio;
 using RFpix.Dsp;
 using RFpix.HamDrm;
+using RFpix.Imaging;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
+using System.Runtime.InteropServices;
 using RFpix.Receive;
 using RFpix.Settings;
 
@@ -328,7 +331,10 @@ public partial class ReceivePage : UserControl, IDisposable
 
     private static string ReceivedFolder => AppSettings.Current.ReceivedFolder ?? ReceivedFileSaver.DefaultFolder;
 
-    private void ShowReceivedFile(ReceivedFile file, string? callsign)
+    // Counts received pictures, so a slow decode can't replace a newer picture on the screen.
+    private int _pictureCount;
+
+    private async void ShowReceivedFile(ReceivedFile file, string? callsign)
     {
         string from = string.IsNullOrEmpty(callsign) ? "" : $" from {callsign}";
         string savedAs;
@@ -341,25 +347,68 @@ public partial class ReceivePage : UserControl, IDisposable
             ShowError($"Received {file.Name}{from}, but couldn't save it to {ReceivedFolder}: {ex.Message}");
             return;
         }
+        if (file.Problem is not null) ShowError($"{file.Name}: {file.Problem}");
+        string caption = $"{file.Name}{from}  ·  {DateTime.Now:HH:mm}\nSaved as \"{savedAs}\"";
+        int number = ++_pictureCount;
 
-        // Show it if it's a picture Avalonia can draw (JPEG, PNG, BMP, GIF).
-        try
+        // JPEG 2000 is decoded by RFpix (in the background: a big picture takes a moment);
+        // anything else is shown if Avalonia can draw it (JPEG, PNG, BMP, GIF).
+        Bitmap? bitmap = null;
+        string? why = null;
+        if (Jpeg2000.IsJpeg2000(file.Data))
         {
-            using var stream = new MemoryStream(file.Data);
+            try
+            {
+                var picture = await Task.Run(() => Jpeg2000.Decode(file.Data));
+                bitmap = ToBitmap(picture);
+            }
+            catch (Exception ex)
+            {
+                why = ex is PictureException ? ex.Message : "This JPEG 2000 picture can't be shown.";
+            }
+        }
+        else
+        {
+            try
+            {
+                using var stream = new MemoryStream(file.Data);
+                bitmap = new Bitmap(stream);
+            }
+            catch
+            {
+                why = "It isn't a picture RFpix can show.";
+            }
+        }
+
+        if (number != _pictureCount)
+        {
+            bitmap?.Dispose();   // a newer picture arrived while this one was decoded
+            return;
+        }
+        if (bitmap is not null)
+        {
             var old = PictureImage.Source as IDisposable;
-            PictureImage.Source = new Bitmap(stream);
+            PictureImage.Source = bitmap;
             old?.Dispose();
             PicturePlaceholder.IsVisible = false;
-            PictureCaption.Text = $"{file.Name}{from}  ·  {DateTime.Now:HH:mm}\nSaved as \"{savedAs}\"";
+            PictureCaption.Text = caption;
         }
-        catch
+        else
         {
-            string why = Path.GetExtension(file.Name).ToLowerInvariant() is ".jp2" or ".j2k"
-                ? "JPEG 2000 pictures can't be shown here yet"
-                : "it isn't a picture RFpix can show";
-            PictureCaption.Text = $"{file.Name}{from}  ·  {DateTime.Now:HH:mm}\nSaved as \"{savedAs}\" ({why})";
+            PictureCaption.Text = $"{caption}\n{why}";
         }
-        if (file.Problem is not null) ShowError($"{file.Name}: {file.Problem}");
+    }
+
+    /// <summary>Copies decoded pixels into a picture Avalonia can show.</summary>
+    private static WriteableBitmap ToBitmap(DecodedPicture picture)
+    {
+        var bitmap = new WriteableBitmap(new Avalonia.PixelSize(picture.Width, picture.Height), new Avalonia.Vector(96, 96),
+                                         PixelFormat.Bgra8888, AlphaFormat.Opaque);
+        using var buffer = bitmap.Lock();
+        int rowBytes = picture.Width * 4;
+        for (int y = 0; y < picture.Height; y++)
+            Marshal.Copy(picture.Bgra, y * rowBytes, buffer.Address + y * buffer.RowBytes, rowBytes);
+        return bitmap;
     }
 
     private async void OnOpenFolderClick(object? sender, RoutedEventArgs e)
