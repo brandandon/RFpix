@@ -23,7 +23,7 @@ running EasyPal or QSSTV.
 
 - C# and .NET
 - [Avalonia](https://avaloniaui.net/) for the user interface
-- NAudio (WASAPI) for sound on Windows
+- NAudio (WASAPI) for sound on Windows.
 
 HamDRM support follows the open-source [QSSTV](https://github.com/ON4QZ/QSSTV)
 implementation by Johan Maes, ON4QZ.
