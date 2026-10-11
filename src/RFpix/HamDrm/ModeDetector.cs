@@ -70,6 +70,10 @@ public sealed class ModeDetector
     /// Only valid until the next decision.</summary>
     public ReadOnlySpan<Complex> Window => _window;
 
+    /// <summary>How many samples have been fed in since the last reset. At a decision,
+    /// the window covers the last <see cref="WindowLength"/> of them.</summary>
+    public long SamplesSeen { get; private set; }
+
     /// <summary>Each mode's score at the latest decision (for tests and troubleshooting).</summary>
     public IReadOnlyDictionary<HamDrmMode, double> Scores => _scores;
     private readonly Dictionary<HamDrmMode, double> _scores = new();
@@ -83,6 +87,7 @@ public sealed class ModeDetector
         foreach (var s in samples)
         {
             _ring[_ringPos] = s;
+            SamplesSeen++;
             if (++_ringPos == WindowLength) _ringPos = 0;
             if (_filled < WindowLength) _filled++;
 
@@ -99,6 +104,7 @@ public sealed class ModeDetector
     {
         _filled = 0;
         _ringPos = 0;
+        SamplesSeen = 0;
         _sinceDecision = 0;
         Current = ModeDetection.None;
         _scores.Clear();

@@ -47,6 +47,10 @@ public sealed class Downconverter
 
     public int InputRate { get; }
 
+    /// <summary>How late the output is compared with the input, in seconds: the filter
+    /// works on samples either side of each moment, so it must wait for the later ones.</summary>
+    public double Delay => (_filterLength - 1) / 2.0 / InputRate;
+
     /// <summary>Is this sound card rate one we can convert exactly? (12, 24, 48, 96 kHz...)</summary>
     public static bool Supports(int inputRate) => inputRate >= OutputRate && inputRate % OutputRate == 0;
 

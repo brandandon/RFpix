@@ -7,7 +7,8 @@ using RFpix.HamDrm;
 namespace RFpix.Tests;
 
 /// <summary>One receiver decision, with when it happened (seconds into the audio).</summary>
-public sealed record Decision(double Time, ModeDetection Detection, FrequencyLockResult? Lock);
+public sealed record Decision(double Time, ModeDetection Detection, FrequencyLockResult? Lock,
+                              FrameSyncResult? Frame = null, double? FrameStartTime = null, double? ClockPpm = null);
 
 public static class TestAudio
 {
@@ -19,7 +20,8 @@ public static class TestAudio
         var decisions = new List<Decision>();
         int fed = 0;
         // The receiver measures the frequency before announcing a decision, so Lock is current here.
-        receiver.Decided += d => decisions.Add(new Decision(fed / (double)rate, d, receiver.Lock));
+        receiver.Decided += d => decisions.Add(new Decision(fed / (double)rate, d, receiver.Lock,
+                                                            receiver.Frame, receiver.FrameStartTime, receiver.ClockPpm));
 
         int chunk = rate / 100;
         for (int pos = 0; pos < audio.Length; pos += chunk)
@@ -83,6 +85,26 @@ public static class TestAudio
             double a = re[i] / n, b = -im[i] / n;   // the analytic signal at sample i
             double angle = 2 * Math.PI * hz * i / rate;
             output[i] = (float)(a * Math.Cos(angle) - b * Math.Sin(angle));
+        }
+        return output;
+    }
+
+    /// <summary>Makes audio sound as if the receiving sound card's clock ran <paramref name="ppm"/>
+    /// parts per million fast (positive) or slow (negative): it takes that many more (or fewer)
+    /// samples per second of real sound.</summary>
+    public static float[] ChangeClock(float[] audio, double ppm)
+    {
+        double ratio = 1 + ppm * 1e-6;
+        var output = new float[(int)((audio.Length - 3) * ratio)];
+        for (int i = 0; i < output.Length; i++)
+        {
+            // Output sample i is taken at this moment of the original, in its samples:
+            double t = i / ratio;
+            int n = (int)t;
+            double f = t - n;
+            // Cubic (Catmull-Rom) interpolation between the original samples around that moment.
+            float p0 = audio[Math.Max(n - 1, 0)], p1 = audio[n], p2 = audio[n + 1], p3 = audio[n + 2];
+            output[i] = (float)(p1 + 0.5 * f * (p2 - p0 + f * (2 * p0 - 5 * p1 + 4 * p2 - p3 + f * (3 * (p1 - p2) + p3 - p0))));
         }
         return output;
     }

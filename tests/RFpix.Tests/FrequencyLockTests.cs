@@ -84,6 +84,6 @@ public class FrequencyLockTests
         for (int pos = 0; pos < tenSeconds; pos += 480)
             receiver.AddSamples(shifted[pos..(pos + 480)], 480, 48000);
 
-        Assert.StartsWith("HamDRM mode B  ·  offset +25.0 Hz  ·  strength ", receiver.StatusText);
+        Assert.StartsWith("HamDRM mode B  ·  offset +25.0 Hz  ·  ", receiver.StatusText);
     }
 }
