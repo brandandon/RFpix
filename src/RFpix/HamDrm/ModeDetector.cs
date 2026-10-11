@@ -26,8 +26,11 @@ namespace RFpix.HamDrm;
 /// <summary>What the detector currently thinks it hears.</summary>
 /// <param name="Mode">The HamDRM mode, or null if there's no HamDRM signal.</param>
 /// <param name="Strength">How clearly the mode was recognised, 0 to 1.</param>
-/// <param name="SymbolStart">Where a symbol starts within the detector's window, in 12 kHz samples.</param>
-public sealed record ModeDetection(HamDrmMode? Mode, double Strength, int SymbolStart)
+/// <param name="SymbolStart">Where a symbol (its guard) starts within the detector's window, in 12 kHz samples.</param>
+/// <param name="GuardPhase">The angle (in radians) of the guard match. A guard and its copy
+/// differ only by how far each wave has turned in between, so this angle reveals the
+/// signal's frequency to within one carrier spacing. Used by <see cref="FrequencyLock"/>.</param>
+public sealed record ModeDetection(HamDrmMode? Mode, double Strength, int SymbolStart, double GuardPhase = 0)
 {
     public static readonly ModeDetection None = new(null, 0, 0);
 }
@@ -62,6 +65,10 @@ public sealed class ModeDetector
 
     /// <summary>The latest decision.</summary>
     public ModeDetection Current { get; private set; } = ModeDetection.None;
+
+    /// <summary>The 0.8 s of sound the latest decision was made on, oldest sample first.
+    /// Only valid until the next decision.</summary>
+    public ReadOnlySpan<Complex> Window => _window;
 
     /// <summary>Each mode's score at the latest decision (for tests and troubleshooting).</summary>
     public IReadOnlyDictionary<HamDrmMode, double> Scores => _scores;
@@ -117,15 +124,16 @@ public sealed class ModeDetector
         HamDrmMode best = HamDrmMode.A;
         double bestScore = -1, secondScore = 0;
         int bestStart = 0;
+        double bestPhase = 0;
 
         foreach (var mode in HamDrmModes.All)
         {
-            var (score, start) = Score(mode);
+            var (score, start, phase) = Score(mode);
             _scores[mode] = score;
             if (score > bestScore)
             {
                 secondScore = Math.Max(secondScore, bestScore);
-                best = mode; bestScore = score; bestStart = start;
+                best = mode; bestScore = score; bestStart = start; bestPhase = phase;
             }
             else secondScore = Math.Max(secondScore, score);
         }
@@ -135,13 +143,14 @@ public sealed class ModeDetector
         bool stillThere = alreadyLocked && bestScore >= LostScore;
 
         Current = found || stillThere
-            ? new ModeDetection(best, bestScore, bestStart)
+            ? new ModeDetection(best, bestScore, bestStart, bestPhase)
             : ModeDetection.None;
         Decided?.Invoke(Current);
     }
 
-    /// <summary>How well the sound matches one mode's timing, 0 to 1, and where its symbols start.</summary>
-    private (double Score, int Start) Score(HamDrmMode mode)
+    /// <summary>How well the sound matches one mode's timing, 0 to 1, where its symbols
+    /// start, and the angle of the guard match there.</summary>
+    private (double Score, int Start, double Phase) Score(HamDrmMode mode)
     {
         int tu = HamDrmModes.UsefulLength(mode);
         int tg = HamDrmModes.GuardLength(mode);
@@ -185,7 +194,7 @@ public sealed class ModeDetector
             double score = stackedLikeness[p].Magnitude / stackedEnergy[p];
             if (score > bestScore) { bestScore = score; bestStart = p; }
         }
-        return (Math.Min(bestScore, 1), bestStart);
+        return (Math.Min(bestScore, 1), bestStart, stackedLikeness[bestStart].Phase);
     }
 
     private static double Power(Complex c) => c.Real * c.Real + c.Imaginary * c.Imaginary;
