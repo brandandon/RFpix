@@ -5,7 +5,7 @@
 // from a background task. A lock lets only one command reach the radio at a time.
 //
 // Safety: keying is always given a time limit. If nothing un-keys the radio in time
-// (a fault, a crash in the sending code), a timer un-keys it. Closing the connection
+// (a fault, a crash in the sending code), a watcher thread un-keys it. Closing the connection
 // un-keys it too, and restores the mode if data mode was switched on for transmitting.
 
 namespace RFpix.Radio;
@@ -18,13 +18,13 @@ public sealed class RadioConnection : IDisposable
     private readonly object _lock = new();
     private readonly RadioSettings _settings;
     private IntPtr _rig;
-    private Timer? _pttLimit;
+    private ManualResetEventSlim? _pttLimit;   // set = keying ended in time
     private ulong? _modeBeforeTransmit;   // set while data mode was switched on for transmitting
 
     /// <summary>True while RFpix is transmitting (keyed, or with VOX, between Key and Unkey).</summary>
     public bool IsKeyed { get; private set; }
 
-    /// <summary>Raised (on a timer thread) if the time limit un-keyed the radio.</summary>
+    /// <summary>Raised (on the watcher thread) if the time limit un-keyed the radio.</summary>
     public event Action? KeyedTooLong;
 
     private RadioConnection(RadioSettings settings, IntPtr rig)
@@ -149,7 +149,14 @@ public sealed class RadioConnection : IDisposable
             if (_settings.Ptt != PttMethod.Vox)
                 Check(HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOn), "Couldn't key the transmitter");
             IsKeyed = true;
-            _pttLimit = new Timer(_ => { if (UnkeyIfKeyed()) KeyedTooLong?.Invoke(); }, null, limit, Timeout.InfiniteTimeSpan);
+
+            // The time limit has its own thread, so a busy computer can't delay it.
+            var ended = new ManualResetEventSlim();
+            _pttLimit = ended;
+            new Thread(() =>
+            {
+                if (!ended.Wait(limit) && UnkeyIfKeyed()) KeyedTooLong?.Invoke();
+            }) { IsBackground = true, Name = "RFpix transmit time limit" }.Start();
         }
     }
 
@@ -159,7 +166,7 @@ public sealed class RadioConnection : IDisposable
         lock (_lock)
         {
             if (!IsKeyed) return;
-            _pttLimit?.Dispose();
+            _pttLimit?.Set();
             _pttLimit = null;
             // Un-key (try twice before giving up). With VOX there's nothing to un-key.
             int result = 0;

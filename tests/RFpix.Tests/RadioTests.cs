@@ -64,7 +64,9 @@ public class RadioTests
 
         radio.Key(TimeSpan.FromMilliseconds(300));
         Assert.True(radio.ReadPtt());
-        Thread.Sleep(1500);
+        // Released after 0.3 s, plus a quarter second to switch back from data mode.
+        for (int waited = 0; radio.IsKeyed && waited < 5000; waited += 50) Thread.Sleep(50);
+        Thread.Sleep(400);
 
         Assert.False(radio.IsKeyed);
         Assert.False(radio.ReadPtt());
