@@ -25,6 +25,9 @@ sends, which is also what EasyPal stations understand.
   picture data, and each pilot's value) for every mode and bandwidth.
   `tests/reference/qsstv-cell-layouts.txt` was made from its output (one frame per
   layout, picture-data cells left out), and a test checks RFpix's layout against it
+- `dumpmsc.cpp`: runs QSSTV's transmitter on a file and prints, frame by frame, the
+  picture-data bits going into its coder and the cells coming out. Used while building
+  RFpix's picture decoder, to check each step bit for bit (not needed to rebuild recordings)
 - `manifest.txt`: one line per recording: number, image, mode, bandwidth, QAM,
   interleave, protection, Reed-Solomon level
 - `build-and-generate.sh`: installs the libraries, builds QSSTV at a fixed commit,

@@ -1,7 +1,7 @@
 <!--
   ReceivePage.axaml - the Receive page.
-  Milestone 1 so far: pick the radio's sound device, check the level, and watch the waterfall.
-  The decoded HamDRM image will be added later.
+  Pick the radio's sound device, check the level, watch the waterfall, and see
+  each HamDRM picture as it's received (saved automatically to the received folder).
 
   The page is a Grid with rows stacked top to bottom. "Auto" rows are as tall as
   their contents; the "*" row (the waterfall) takes all the space that's left.
@@ -44,16 +44,34 @@
         <TextBlock x:Name="SignalText" FontWeight="SemiBold" />
         <!-- The transmission's settings and callsign, from its FAC -->
         <TextBlock x:Name="TransmissionText" />
+        <!-- The file arriving: name, size and how far along -->
+        <TextBlock x:Name="FileText" />
       </StackPanel>
     </StackPanel>
 
-    <!-- Row 3: the waterfall, filling the rest of the page -->
-    <Border Grid.Row="3" CornerRadius="6" ClipToBounds="True" MinHeight="180"
-            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
-      <controls:WaterfallControl x:Name="Waterfall"
-                                 PointerMoved="OnWaterfallPointerMoved"
-                                 PointerExited="OnWaterfallPointerExited" />
-    </Border>
+    <!-- Row 3: the waterfall (filling the space) and the last picture received (right) -->
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="14">
+      <Border Grid.Column="0" CornerRadius="6" ClipToBounds="True" MinHeight="180"
+              BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+        <controls:WaterfallControl x:Name="Waterfall"
+                                   PointerMoved="OnWaterfallPointerMoved"
+                                   PointerExited="OnWaterfallPointerExited" />
+      </Border>
+
+      <Grid Grid.Column="1" Width="340" RowDefinitions="*,Auto,Auto" RowSpacing="6">
+        <Border Grid.Row="0" CornerRadius="6" ClipToBounds="True"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+          <Panel>
+            <TextBlock x:Name="PicturePlaceholder" Classes="Hint" TextWrapping="Wrap" TextAlignment="Center"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16"
+                       Text="Received pictures appear here, and are saved automatically." />
+            <Image x:Name="PictureImage" Stretch="Uniform" />
+          </Panel>
+        </Border>
+        <TextBlock Grid.Row="1" x:Name="PictureCaption" TextWrapping="Wrap" />
+        <Button Grid.Row="2" Content="Open received folder" Click="OnOpenFolderClick" />
+      </Grid>
+    </Grid>
 
     <!-- Row 4: frequency under the mouse, and a hint -->
     <Grid Grid.Row="4" ColumnDefinitions="Auto,*">

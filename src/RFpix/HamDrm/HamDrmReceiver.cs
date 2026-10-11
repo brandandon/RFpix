@@ -1,14 +1,15 @@
 // HamDrmReceiver.cs - the HamDRM decoder, fed with audio from the audio layer.
 //
-// So far (milestone 1, decoder stages 1 to 4) it finds a HamDRM signal, names
-// its mode, measures how far off frequency it is, reads every carrier in every
-// symbol, finds where each 400 ms frame starts, measures the difference between
-// the two sound cards' clocks, and reads each frame's FAC: the transmission's
-// settings and the sender's callsign. Later stages read the picture data.
+// It finds a HamDRM signal, names its mode, measures how far off frequency it is,
+// reads every carrier in every symbol, finds where each 400 ms frame starts,
+// measures the difference between the two sound cards' clocks, reads each frame's
+// FAC (the transmission's settings and the sender's callsign), and decodes the
+// picture data into files.
 //
 //   audio (48 kHz) -> Downconverter (12 kHz complex) -> ModeDetector -> FrequencyLock
 //                  -> OfdmSymbols -> FrameSync + SampleClock
-//                  -> ChannelEstimator -> Fac -> Status
+//                  -> ChannelEstimator -> FacDecoder            (settings, callsign)
+//                                      -> TimeDeinterleaver -> MscDecoder -> MotReceiver (files)
 
 using System.Numerics;
 using RFpix.Dsp;
@@ -116,8 +117,116 @@ public sealed class HamDrmReceiver
                 if (info is not null) break;
             }
 
-            if (info is null) { FacFailed++; continue; }
-            Check(info, time);
+            // Keep the frame's cells and channel for the picture data, using the channel
+            // estimate made with the bandwidth that worked (or the best guess).
+            var usedBandwidth = info?.Bandwidth ?? _bandwidth;
+            if (!channels.TryGetValue(usedBandwidth, out var frameChannel))
+                channels[usedBandwidth] = frameChannel = ChannelEstimator.Estimate(symbols, frame.FirstSymbol, CellLayout.For(mode, usedBandwidth));
+            KeepFrame(mode, time, symbols.Cells[s0..(s0 + perFrame)], frameChannel[s0..(s0 + perFrame)]);
+
+            if (info is null) FacFailed++;
+            else Check(info, time);
+            DecodePictureData();
+        }
+    }
+
+    // ---- the picture data ----
+
+    // Frames waiting to be decoded (until the settings are known from the FAC).
+    private readonly Queue<(long Number, HamDrmMode Mode, Complex[][] Cells, Complex[][] Channel)> _waitingFrames = new();
+    private double? _frameZeroTime;   // when the first frame of this signal started
+    private (HamDrmMode, HamDrmBandwidth, int, HamDrmProtection, HamDrmInterleave)? _dataSettings;
+    private TimeDeinterleaver? _deinterleaver;
+    private MscDecoder? _mscDecoder;
+    private MotReceiver _mot = new();
+
+    private void KeepFrame(HamDrmMode mode, double time, Complex[][] cells, Complex[][] channel)
+    {
+        _frameZeroTime ??= time;
+        long number = (long)Math.Round((time - _frameZeroTime.Value) / SampleClock.FramePeriod);
+        _waitingFrames.Enqueue((number, mode, cells, channel));
+        while (_waitingFrames.Count > 12) _waitingFrames.Dequeue();   // settings never arrived
+    }
+
+    private void DecodePictureData()
+    {
+        if (Fac is not { } fac) return;   // settings not known yet: frames wait
+        while (_waitingFrames.TryDequeue(out var frame))
+        {
+            var layout = CellLayout.For(frame.Mode, fac.Bandwidth);
+            var settings = (frame.Mode, fac.Bandwidth, fac.Qam, fac.Protection, fac.Interleave);
+            if (_dataSettings != settings)
+            {
+                // New settings (or a new transmission): start the decoding chain afresh.
+                _dataSettings = settings;
+                _deinterleaver = new TimeDeinterleaver(layout.DataCellsPerFrame, fac.Interleave);
+                _mscDecoder = new MscDecoder(layout.DataCellsPerFrame, fac.Qam, fac.Protection);
+            }
+
+            // The frame's data cells, in the order they were sent, with the channel divided out.
+            var cells = new Complex[layout.DataCellsPerFrame];
+            var weights = new double[layout.DataCellsPerFrame];
+            for (int i = 0; i < cells.Length; i++)
+            {
+                var (sym, k) = layout.DataCells[i];
+                Complex h = frame.Channel[sym][k];
+                double power = h.Real * h.Real + h.Imaginary * h.Imaginary;
+                if (power < 1e-12) continue;
+                cells[i] = frame.Cells[sym][k] / h;
+                weights[i] = power;
+            }
+
+            foreach (var original in _deinterleaver!.Add(frame.Number, cells, weights))
+            {
+                var bits = _mscDecoder!.Decode(original.Cells, original.Weights);
+                var packet = MscDecoder.ToBytes(bits);
+                if (_mot.AddPacket(packet) is { } file) Finish(file);
+            }
+        }
+    }
+
+    private void Finish(ReceivedFile file)
+    {
+        // (An .rs1-.rs4 file arrives already unwrapped by the MotReceiver.)
+        LastFile = file;
+        FileReceived?.Invoke(file);
+    }
+
+    /// <summary>Raised (on the audio thread) when a file has been received complete.</summary>
+    public event Action<ReceivedFile>? FileReceived;
+
+    /// <summary>The most recent file received complete, or null.</summary>
+    public ReceivedFile? LastFile { get; private set; }
+
+    /// <summary>The file currently arriving, or null.</summary>
+    public TransferProgress? FileProgress => _mot.Progress;
+
+    /// <summary>Data packets received with a good or bad checksum (one per frame).</summary>
+    public int PacketsGood => _mot.PacketsGood;
+    public int PacketsBad => _mot.PacketsBad;
+
+    /// <summary>A third line for the screen, about the file arriving,
+    /// e.g. "Receiving img04.jpg  ·  6.3 kB  ·  34 of 56 pieces (61%)".</summary>
+    public string FileText
+    {
+        get
+        {
+            var progress = FileProgress;
+            var last = LastFile;
+            if (last is not null && progress?.TransportId == last.TransportId)
+                return last.Problem is not null ? $"Received {last.Name}, but: {last.Problem}"
+                     : $"Received {last.Name}  ·  {last.Data.Length / 1000.0:0.0} kB" +
+                       (last.ReedSolomonLevel is int rs ? $"  ·  Reed-Solomon RS{rs}" : "") +
+                       (last.RepairedPieces > 0 ? $" rebuilt {last.RepairedPieces} missing pieces" : "");
+            if (progress is null) return Detection.Mode is null ? "" : PacketsGood + PacketsBad > 0 ? "Waiting for a file…" : "";
+            string name = progress.Name is { } n
+                ? (RsFile.LevelOf(n) is int rsLevel ? $"{n} (Reed-Solomon RS{rsLevel})" : n)
+                : "a file";
+            string size = progress.Size > 0 ? $"  ·  {progress.Size / 1000.0:0.0} kB" : "";
+            string pieces = progress.SegmentsExpected > 0
+                ? $"  ·  {progress.SegmentsReceived} of {progress.SegmentsExpected} pieces ({progress.Fraction:P0})"
+                : $"  ·  {progress.SegmentsReceived} pieces";
+            return $"Receiving {name}{size}{pieces}";
         }
     }
 
@@ -182,6 +291,13 @@ public sealed class HamDrmReceiver
         _lastFacTime = null;
         _trusted = _candidate = null;
         _bandwidth = HamDrmBandwidth.Wide;
+        // A new signal starts the picture-data chain afresh (files in progress are kept,
+        // so a transmission that fades out for a moment can carry on).
+        _waitingFrames.Clear();
+        _frameZeroTime = null;
+        _dataSettings = null;
+        _deinterleaver = null;
+        _mscDecoder = null;
         foreach (var votes in _labelVotes) votes.Clear();
     }
 
@@ -320,6 +436,8 @@ public sealed class HamDrmReceiver
             _clock.Reset();
             _recentFrameStarts.Clear();
             ForgetFac();
+            _mot = new MotReceiver();   // a new source: forget files in progress too
+            LastFile = null;
             Problem = null;
         }
     }

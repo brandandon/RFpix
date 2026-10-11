@@ -12,6 +12,8 @@
 //   7. The same audio also goes to the HamDRM receiver, which says whether it
 //      hears a HamDRM signal, in which mode, and (from the FAC) the transmission's
 //      settings and the sender's callsign. The timer shows those too.
+//   8. When the receiver finishes a file, it's saved to the received folder and,
+//      if it's a picture, shown on the right.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -22,6 +24,8 @@ using Avalonia.Input;
 using RFpix.Audio;
 using RFpix.Dsp;
 using RFpix.HamDrm;
+using Avalonia.Media.Imaging;
+using RFpix.Receive;
 using RFpix.Settings;
 
 namespace RFpix.Views;
@@ -56,6 +60,13 @@ public partial class ReceivePage : UserControl, IDisposable
             StopPlayback();
             FormatText.Text = $"Finished playing {name}";
         });
+
+        // A finished file arrives on the audio thread; save and show it on the screen's thread.
+        _receiver.FileReceived += file =>
+        {
+            string? callsign = _receiver.Callsign;
+            Dispatcher.UIThread.Post(() => ShowReceivedFile(file, callsign));
+        };
 
         _meterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
         _meterTimer.Tick += (_, _) => UpdateMeter();
@@ -170,6 +181,7 @@ public partial class ReceivePage : UserControl, IDisposable
         FormatText.Text = "";
         SignalText.Text = "";
         TransmissionText.Text = "";
+        FileText.Text = "";
         // Start fresh next time, so a signal from one source isn't carried over to another.
         _receiver.Reset();
     }
@@ -283,6 +295,7 @@ public partial class ReceivePage : UserControl, IDisposable
 
         SignalText.Text = _receiver.StatusText;
         TransmissionText.Text = _receiver.TransmissionText;
+        FileText.Text = _receiver.FileText;
 
         // While a recording plays, show which one and how far along it is.
         if (_player.IsRunning)
@@ -304,6 +317,58 @@ public partial class ReceivePage : UserControl, IDisposable
     private void OnWaterfallPointerExited(object? sender, PointerEventArgs e)
     {
         PointerFrequencyText.Text = "";
+    }
+
+    // ---- received files ----
+
+    private static string ReceivedFolder => AppSettings.Current.ReceivedFolder ?? ReceivedFileSaver.DefaultFolder;
+
+    private void ShowReceivedFile(ReceivedFile file, string? callsign)
+    {
+        string from = string.IsNullOrEmpty(callsign) ? "" : $" from {callsign}";
+        string savedAs;
+        try
+        {
+            savedAs = Path.GetFileName(ReceivedFileSaver.Save(file, ReceivedFolder, callsign, DateTime.Now));
+        }
+        catch (Exception ex)
+        {
+            ShowError($"Received {file.Name}{from}, but couldn't save it to {ReceivedFolder}: {ex.Message}");
+            return;
+        }
+
+        // Show it if it's a picture Avalonia can draw (JPEG, PNG, BMP, GIF).
+        try
+        {
+            using var stream = new MemoryStream(file.Data);
+            var old = PictureImage.Source as IDisposable;
+            PictureImage.Source = new Bitmap(stream);
+            old?.Dispose();
+            PicturePlaceholder.IsVisible = false;
+            PictureCaption.Text = $"{file.Name}{from}  ·  {DateTime.Now:HH:mm}\nSaved as \"{savedAs}\"";
+        }
+        catch
+        {
+            string why = Path.GetExtension(file.Name).ToLowerInvariant() is ".jp2" or ".j2k"
+                ? "JPEG 2000 pictures can't be shown here yet"
+                : "it isn't a picture RFpix can show";
+            PictureCaption.Text = $"{file.Name}{from}  ·  {DateTime.Now:HH:mm}\nSaved as \"{savedAs}\" ({why})";
+        }
+        if (file.Problem is not null) ShowError($"{file.Name}: {file.Problem}");
+    }
+
+    private async void OnOpenFolderClick(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Directory.CreateDirectory(ReceivedFolder);
+            var launcher = TopLevel.GetTopLevel(this)?.Launcher;
+            if (launcher is not null) await launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(ReceivedFolder));
+        }
+        catch (Exception ex)
+        {
+            ShowError($"Couldn't open {ReceivedFolder}: {ex.Message}");
+        }
     }
 
     // ---- messages ----

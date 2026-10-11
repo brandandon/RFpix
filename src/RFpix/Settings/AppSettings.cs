@@ -19,6 +19,9 @@ public sealed class AppSettings
     /// <summary>Folder the "Play recording…" button opened last time.</summary>
     public string? LastRecordingFolder { get; set; }
 
+    /// <summary>Where received files are saved. Null means the default, Documents\RFpix\Received.</summary>
+    public string? ReceivedFolder { get; set; }
+
     // ---- loading and saving ----
 
     private static readonly string FilePath = Path.Combine(

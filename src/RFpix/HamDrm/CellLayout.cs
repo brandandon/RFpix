@@ -55,7 +55,11 @@ public sealed class CellLayout
     public IReadOnlyList<(int Symbol, int Carrier)> FacCells { get; }
 
     /// <summary>How many picture-data cells one frame holds.</summary>
-    public int DataCellsPerFrame { get; }
+    public int DataCellsPerFrame => DataCells.Count;
+
+    /// <summary>The picture-data cells as (symbol, carrier), in the order the data is written
+    /// into them: symbol by symbol, low carrier to high.</summary>
+    public IReadOnlyList<(int Symbol, int Carrier)> DataCells { get; }
 
     /// <summary>Gain pilots come back to the same carrier every this many symbols (5, 3 or 4).</summary>
     public int PilotSymbolSpacing { get; }
@@ -160,9 +164,11 @@ public sealed class CellLayout
         }
 
         FacCells = t.Fac.Where(c => (_kinds[c.Symbol, c.Carrier] & CellKind.Fac) != 0).ToArray();
-        int data = 0;
-        foreach (var kind in _kinds) if (kind == CellKind.Data) data++;
-        DataCellsPerFrame = data;
+        var dataCells = new List<(int, int)>();
+        for (int s = 0; s < SymbolsPerFrame; s++)
+            for (int k = FirstCarrier; k <= LastCarrier; k++)
+                if (_kinds[s, k] == CellKind.Data) dataCells.Add((s, k));
+        DataCells = dataCells;
     }
 
     /// <summary>A value of the given size, turned by angle/1024 of a full turn.</summary>

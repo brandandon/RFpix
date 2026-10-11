@@ -55,6 +55,42 @@ public static class ConvolutionalCode
         new[] { P0011, P0001, P0001, P0001, P0001, P0001, P0001, P0001 },
     };
 
+    /// <summary>The 12 patterns for the 6 tail bits of picture data (QSSTV's iPunctPatTailbits).
+    /// Which one is used is chosen so the coded block fills its cells exactly.</summary>
+    public static readonly int[][][] TailPatterns =
+    {
+        new[] { P0011, P0011, P0011, P0011, P0011, P0011 },
+        new[] { P0111, P0011, P0011, P0011, P0011, P0011 },
+        new[] { P0111, P0011, P0011, P0111, P0011, P0011 },
+        new[] { P0111, P0111, P0011, P0111, P0011, P0011 },
+        new[] { P0111, P0111, P0011, P0111, P0111, P0011 },
+        new[] { P0111, P0111, P0111, P0111, P0111, P0011 },
+        new[] { P0111, P0111, P0111, P0111, P0111, P0111 },
+        new[] { P1111, P0111, P0111, P0111, P0111, P0111 },
+        new[] { P1111, P0111, P0111, P1111, P0111, P0111 },
+        new[] { P1111, P1111, P0111, P1111, P0111, P0111 },
+        new[] { P1111, P1111, P0111, P1111, P0111, P1111 },
+        new[] { P1111, P1111, P1111, P1111, P0111, P1111 },
+    };
+
+    /// <summary>The steps for one level of a frame's picture data, which must fill exactly
+    /// 2 x <paramref name="cells"/> coded bits. Also says how many data bits that carries.
+    /// (DRM standard 7.3.1: M = RX x floor((2N - 12) / RY), and the leftover picks the tail pattern.)</summary>
+    public static int[][] FillCells(int cells, int patternIndex, out int dataBits)
+    {
+        var pattern = Patterns[patternIndex];
+        int inPerPattern = pattern.Length;                       // RX: bits in per repeat
+        int outPerPattern = pattern.Sum(step => step.Length);    // RY: bits out per repeat
+        int repeats = (2 * cells - 12) / outPerPattern;
+        dataBits = inPerPattern * repeats;
+        int leftover = 2 * cells - 12 - outPerPattern * repeats;
+
+        var steps = new int[dataBits + TailBits][];
+        for (int i = 0; i < dataBits; i++) steps[i] = pattern[i % inPerPattern];
+        for (int i = 0; i < TailBits; i++) steps[dataBits + i] = TailPatterns[leftover][i];
+        return steps;
+    }
+
     /// <summary>The outputs to send at each step, repeating one pattern for the whole
     /// message including its tail (how the FAC does it).</summary>
     public static int[][] RepeatPattern(int[][] pattern, int dataBits)
