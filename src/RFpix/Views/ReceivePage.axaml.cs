@@ -14,6 +14,8 @@
 //      settings and the sender's callsign. The timer shows those too.
 //   8. When the receiver finishes a file, it's saved to the received folder and,
 //      if it's a picture (JPEG, JPEG 2000, PNG...), shown on the right.
+//   9. "Record" saves what the radio hears to a WAV file (see Receive/AudioRecorder.cs),
+//      starting with the 30 seconds before it was pressed.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -40,6 +42,9 @@ public partial class ReceivePage : UserControl, IDisposable
     private readonly DispatcherTimer _meterTimer;
     private readonly SpectrumAnalyzer _analyzer = new(maxFrequency: 3000);
     private readonly HamDrmReceiver _receiver = new();
+    private readonly AudioRecorder _recorder = new();
+    // Callsigns heard while recording, for the file's name.
+    private readonly List<string> _recordingCallsigns = new();
 
     // The latest loudness measurement, written by the audio thread and read by the timer.
     private volatile float _latestRms;
@@ -75,6 +80,13 @@ public partial class ReceivePage : UserControl, IDisposable
             string? callsign = _receiver.Callsign;
             Dispatcher.UIThread.Post(() => ShowReceivedFile(file, callsign));
         };
+
+        // A recording that stops by itself (too long, disk full): say so on the screen's thread.
+        _recorder.StoppedByItself += (path, why) => Dispatcher.UIThread.Post(() =>
+        {
+            ShowRecordingSaved(path, why);
+            UpdateStartButton();
+        });
 
         _meterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
         _meterTimer.Tick += (_, _) => UpdateMeter();
@@ -173,7 +185,9 @@ public partial class ReceivePage : UserControl, IDisposable
 
     private void StopListening()
     {
+        if (_recorder.IsRecording) StopRecording();
         _input.Stop();
+        _recorder.Reset();   // forget the last 30 seconds: the next start is a fresh source
         if (!_player.IsRunning) ResetMeter();
         UpdateStartButton();
     }
@@ -199,6 +213,63 @@ public partial class ReceivePage : UserControl, IDisposable
         StartButton.Content = _input.IsRunning ? "Stop" : "Start listening";
         StartButton.IsEnabled = _input.IsRunning || DeviceBox.SelectedItem is not null;
         PlayButton.Content = _player.IsRunning ? "Stop playback" : "Play recording…";
+        RecordButton.IsEnabled = _input.IsRunning;   // records the radio only, not a recording playing
+        RecordButton.Content = _recorder.IsRecording ? "Stop recording" : "Record";
+    }
+
+    // ---- recording what the radio hears ----
+
+    private static string RecordingsFolder => AudioRecorder.DefaultFolder;
+
+    private void OnRecordClick(object? sender, RoutedEventArgs e)
+    {
+        if (_recorder.IsRecording)
+        {
+            StopRecording();
+            return;
+        }
+        try
+        {
+            _recordingCallsigns.Clear();
+            string path = _recorder.Start(RecordingsFolder, DateTime.Now);
+            RecordText.Text = $"Recording to \"{Path.GetFileName(path)}\"…";
+            RecordText.Foreground = Brushes.OrangeRed;
+            RecordText.IsVisible = true;
+            HideError();
+        }
+        catch (InvalidOperationException)
+        {
+            ShowError("No sound has come from the radio yet. Wait a moment, then press Record again.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ShowError($"Couldn't start a recording in {RecordingsFolder}: {ex.Message}");
+        }
+        UpdateStartButton();
+    }
+
+    private void StopRecording()
+    {
+        var (length, bytes) = _recorder.Progress;
+        string? path = _recorder.Stop(_recordingCallsigns);
+        ShowRecordingSaved(path, null, length, bytes);
+        UpdateStartButton();
+    }
+
+    private void ShowRecordingSaved(string? path, string? why, TimeSpan length = default, long bytes = 0)
+    {
+        RecordText.ClearValue(TextBlock.ForegroundProperty);
+        RecordText.IsVisible = true;
+        if (path is null)
+        {
+            RecordText.Text = why ?? "";
+            return;
+        }
+        // Next time "Play recording…" is pressed, start in the recordings folder.
+        AppSettings.Current.LastRecordingFolder = Path.GetDirectoryName(path);
+        AppSettings.Current.Save();
+        string size = bytes > 0 ? $" ({length:h\\:mm\\:ss}, {bytes / 1e6:0.0} MB)" : "";
+        RecordText.Text = (why is null ? "" : why + " ") + $"Saved \"{Path.GetFileName(path)}\"{size} in Documents\\RFpix\\Recordings";
     }
 
     // ---- playing a recording ----
@@ -272,6 +343,8 @@ public partial class ReceivePage : UserControl, IDisposable
         _analyzer.AddSamples(e.Samples, e.Count, e.SampleRate);
         // ...and to the HamDRM receiver.
         _receiver.AddSamples(e.Samples, e.Count, e.SampleRate);
+        // The radio's sound is also kept for recording (the last 30 seconds, or all of it while recording).
+        if (sender == _input) _recorder.AddSamples(e.Samples, e.Count, e.SampleRate);
     }
 
     // The radio was unplugged (or a recording couldn't be played): show why, on the screen's own thread.
@@ -304,6 +377,14 @@ public partial class ReceivePage : UserControl, IDisposable
         SignalText.Text = _receiver.StatusText;
         TransmissionText.Text = _receiver.TransmissionText;
         FileText.Text = _receiver.FileText;
+
+        // While recording, show how long and how big, and note any callsign heard for the file's name.
+        if (_recorder.IsRecording)
+        {
+            var (length, bytes) = _recorder.Progress;
+            RecordText.Text = $"● Recording  ·  {length:h\\:mm\\:ss}  ·  {bytes / 1e6:0.0} MB  (includes the 30 seconds before)";
+            if (_receiver.Callsign is { Length: > 0 } call && !_recordingCallsigns.Contains(call)) _recordingCallsigns.Add(call);
+        }
 
         // While a recording plays, show which one and how far along it is.
         if (_player.IsRunning)
@@ -438,6 +519,7 @@ public partial class ReceivePage : UserControl, IDisposable
     public void Dispose()
     {
         _meterTimer.Stop();
+        if (_recorder.IsRecording) _recorder.Stop(_recordingCallsigns);   // closing RFpix: keep what was recorded
         _player.Dispose();
         _input.Dispose();
     }

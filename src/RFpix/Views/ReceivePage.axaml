@@ -27,9 +27,11 @@
                  Text="Radios usually appear as &quot;USB Audio CODEC&quot;. Renaming it in Windows Sound settings (for example &quot;FT-991A RX&quot;) makes it easy to spot. RFpix remembers your choice." />
     </StackPanel>
 
-    <!-- Row 2: start/stop, play a recording, format, and level meter on one line -->
+    <!-- Row 2: start/stop, record, play a recording, format, and level meter on one line -->
     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16">
       <Button x:Name="StartButton" Content="Start listening" Click="OnStartStopClick" MinWidth="130" />
+      <Button x:Name="RecordButton" Content="Record" Click="OnRecordClick" MinWidth="130" IsEnabled="False"
+              ToolTip.Tip="Save what the radio hears as a WAV file in Documents\RFpix\Recordings, starting 30 seconds before you press it. Handy for a transmission that didn't decode: it can be played back and studied." />
       <Button x:Name="PlayButton" Content="Play recording…" Click="OnPlayClick" MinWidth="140"
               ToolTip.Tip="Play a WAV recording into the waterfall instead of the radio. Handy for testing, or for recordings other stations send you." />
       <StackPanel Spacing="2" VerticalAlignment="Center">
@@ -40,6 +42,8 @@
           <TextBlock x:Name="LevelText" Classes="Hint" VerticalAlignment="Center" MinWidth="60" Text="Not listening" />
         </StackPanel>
         <TextBlock x:Name="FormatText" Classes="Hint" FontSize="12" />
+        <!-- While recording: how long and how big; afterwards: where it was saved -->
+        <TextBlock x:Name="RecordText" FontSize="12" IsVisible="False" />
         <!-- What the HamDRM decoder hears: "No HamDRM signal" or "HamDRM mode B (strength 98%)" -->
         <TextBlock x:Name="SignalText" FontWeight="SemiBold" />
         <!-- The transmission's settings and callsign, from its FAC -->
