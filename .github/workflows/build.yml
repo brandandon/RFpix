@@ -24,7 +24,20 @@ jobs:
 
       # If any test fails, the build stops here and no new RFpix.exe is made.
       - name: Run the tests (uses the recordings in tests/recordings)
-        run: dotnet test tests/RFpix.Tests/RFpix.Tests.csproj -c Release
+        run: dotnet test tests/RFpix.Tests/RFpix.Tests.csproj -c Release --logger "trx;LogFileName=results.trx" --results-directory test-results
+
+      # If a test failed, list it (with its message) at the top of the run's page.
+      - name: Show failed tests
+        if: failure()
+        shell: pwsh
+        run: |
+          foreach ($file in Get-ChildItem test-results -Filter *.trx -Recurse) {
+            [xml]$trx = Get-Content $file.FullName
+            foreach ($r in $trx.TestRun.Results.UnitTestResult | Where-Object { $_.outcome -eq 'Failed' }) {
+              $message = ($r.Output.ErrorInfo.Message -replace '\r?\n', ' ')
+              Write-Output "::error title=Test failed: $($r.testName)::$message"
+            }
+          }
 
       - name: Build RFpix (one self-contained RFpix.exe)
         run: >
