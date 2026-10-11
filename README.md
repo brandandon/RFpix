@@ -25,6 +25,7 @@ running EasyPal or QSSTV.
 - [Avalonia](https://avaloniaui.net/) for the user interface
 - NAudio (WASAPI) for sound on Windows.
 - [CoreJ2K](https://github.com/cinderblocks/CoreJ2K) (BSD licence) for JPEG 2000 pictures.
+- [Hamlib](https://hamlib.github.io/) (LGPL licence) for radio control (CAT and PTT).
 
 HamDRM support follows the open-source [QSSTV](https://github.com/ON4QZ/QSSTV)
 implementation by Johan Maes, ON4QZ.

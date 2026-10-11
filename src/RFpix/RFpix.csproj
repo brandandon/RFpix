@@ -23,6 +23,40 @@
     <ApplicationIcon>Assets\RFpix.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <!--
+    Hamlib, the radio-control library (LGPL licence), for Windows.
+    The first build downloads Hamlib's official Windows package from GitHub, checks it's
+    exactly the expected file (its SHA-256 fingerprint), and unpacks it under obj\.
+    Its DLLs are then copied next to RFpix.exe. On Linux and Mac, RFpix uses the
+    system's hamlib package instead.
+  -->
+  <PropertyGroup>
+    <HamlibVersion>4.7.2</HamlibVersion>
+    <HamlibSha256>8553bc6c5c6032e8debf99c017e98f58fed7e07e7c25d04815dc3e8bbe3304c7</HamlibSha256>
+    <HamlibDir>$(MSBuildProjectDirectory)\obj\hamlib\</HamlibDir>
+    <HamlibBin>$(HamlibDir)hamlib-w64-$(HamlibVersion)\bin\</HamlibBin>
+    <!-- A one-file RFpix.exe carries the Hamlib DLLs inside and unpacks them when it starts. -->
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+  </PropertyGroup>
+
+  <Target Name="GetHamlib" BeforeTargets="AssignTargetPaths" Condition="'$(OS)' == 'Windows_NT'">
+    <PropertyGroup>
+      <HamlibZip>$(HamlibDir)hamlib-w64-$(HamlibVersion).zip</HamlibZip>
+    </PropertyGroup>
+    <DownloadFile Condition="!Exists('$(HamlibBin)libhamlib-4.dll')" Retries="3"
+                  SourceUrl="https://github.com/Hamlib/Hamlib/releases/download/$(HamlibVersion)/hamlib-w64-$(HamlibVersion).zip"
+                  DestinationFolder="$(HamlibDir)" />
+    <VerifyFileHash Condition="!Exists('$(HamlibBin)libhamlib-4.dll')" File="$(HamlibZip)" Hash="$(HamlibSha256)" />
+    <Unzip Condition="!Exists('$(HamlibBin)libhamlib-4.dll')" SourceFiles="$(HamlibZip)" DestinationFolder="$(HamlibDir)" />
+    <ItemGroup>
+      <None Include="$(HamlibBin)libhamlib-4.dll" Link="libhamlib-4.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+      <None Include="$(HamlibBin)libgcc_s_seh-1.dll" Link="libgcc_s_seh-1.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+      <None Include="$(HamlibBin)libwinpthread-1.dll" Link="libwinpthread-1.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+      <None Include="$(HamlibBin)libusb-1.0.dll" Link="libusb-1.0.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+      <None Include="$(HamlibDir)hamlib-w64-$(HamlibVersion)\COPYING.LIB.txt" Link="hamlib-licence.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
   <ItemGroup>
     <!-- Pictures built into the program: the icon (window and taskbar) and the logo. -->
     <AvaloniaResource Include="Assets\**" />

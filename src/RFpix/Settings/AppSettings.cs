@@ -5,6 +5,7 @@
 // If the file is missing or damaged, RFpix just starts with the defaults.
 
 using System.Text.Json;
+using RFpix.Radio;
 
 namespace RFpix.Settings;
 
@@ -21,6 +22,9 @@ public sealed class AppSettings
 
     /// <summary>Where received files are saved. Null means the default, Documents\RFpix\Received.</summary>
     public string? ReceivedFolder { get; set; }
+
+    /// <summary>How RFpix reaches the radio (Radio page).</summary>
+    public RadioSettings Radio { get; set; } = new();
 
     // ---- loading and saving ----
 
