@@ -240,8 +240,6 @@ public sealed class HamDrmReceiver
         {
             var progress = FileProgress;
             var last = LastFile;
-            if (_heldFile is { } held && progress?.TransportId == held.TransportId)
-                return $"Received all of {held.Name}  ·  {held.Data.Length / 1000.0:0.0} kB  ·  showing it when the transmission ends";
             if (last is not null && progress?.TransportId == last.TransportId)
                 return last.Problem is not null ? $"Received {last.Name}, but: {last.Problem}"
                      : $"Received {last.Name}  ·  {last.Data.Length / 1000.0:0.0} kB" +

@@ -96,11 +96,11 @@ public class PictureTests
         Assert.InRange(at, signalEnd, signalEnd + 1.5);   // after the signal stops (measured: 0.8 s), not before
         Assert.StartsWith("Received", text);
 
-        // While the sender is still going, the third line says the picture is waiting.
+        // While the sender is still going, the picture waits and the third line shows the progress.
         var (early, earlyText, _) = Play(audio[..((int)((signalEnd - 1) * 48000))], endOfAudio: false);
         Assert.Null(early);
-        Assert.StartsWith("Received all of", earlyText);
-        Assert.Contains("showing it when the transmission ends", earlyText);
+        Assert.StartsWith("Receiving", earlyText);
+        Assert.Contains("pieces (100", earlyText);   // all pieces in ("100%" or "100 %", by language setting)
     }
 
     // ---- the Reed-Solomon pieces ----
