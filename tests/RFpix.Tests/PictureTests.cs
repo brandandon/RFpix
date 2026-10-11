@@ -2,7 +2,8 @@
 //
 // Limits come from measurements (Oct 11, 2026): every recording decodes to a file identical
 // to the original; perfect files at 9 dB SNR for 4-QAM and 12 dB for 16-QAM; RS-protected
-// files still come through at 11 dB, where pieces go missing.
+// files still come through at 11 dB, where pieces go missing. Pictures appear 0.8 s after the
+// signal stops, never before.
 
 using System.Numerics;
 using RFpix.Audio;
@@ -23,7 +24,7 @@ public class PictureTests
     public void Every_recording_decodes_to_the_exact_original_file(string file)
     {
         var wav = WavFile.Read(Recordings.Path(file));
-        var (received, text) = Play(wav.Samples);
+        var (received, text, _) = Play(wav.Samples);
 
         var original = Original(file);
         Assert.NotNull(received);
@@ -31,6 +32,7 @@ public class PictureTests
         Assert.Equal(File.ReadAllBytes(original), received.Data);
         Assert.Null(received.Problem);
         Assert.StartsWith($"Received {received.Name}", text);
+        Assert.Equal(0, received.RepairedPieces);   // a clean signal: nothing to rebuild
         if (file.Contains("_rs0")) Assert.Null(received.ReedSolomonLevel);
         else Assert.Equal(file[file.IndexOf("_rs") + 3] - '0', received.ReedSolomonLevel);
     }
@@ -42,7 +44,7 @@ public class PictureTests
     public void Tuning_and_clock_errors_make_no_difference(string file, double offsetHz, double ppm)
     {
         var audio = ChangeClock(ShiftFrequency(WavFile.Read(Recordings.Path(file)).Samples, offsetHz, 48000), ppm);
-        var (received, _) = Play(audio);
+        var (received, _, _) = Play(audio);
 
         Assert.Equal(File.ReadAllBytes(Original(file)), received?.Data);
     }
@@ -55,7 +57,7 @@ public class PictureTests
     public void Decodes_perfectly_down_to_its_working_SNR(string file, double snrDb)
     {
         var audio = AddNoise(WavFile.Read(Recordings.Path(file)).Samples, snrDb, seed: 21);
-        var (received, _) = Play(audio);
+        var (received, _, _) = Play(audio);
 
         Assert.Equal(File.ReadAllBytes(Original(file)), received?.Data);
     }
@@ -70,11 +72,35 @@ public class PictureTests
         // ...but an RS4-protected one is rebuilt.
         var file = "13_modeB_2p5khz_qam16_long_high_rs4.wav";
         var protectedAudio = AddNoise(WavFile.Read(Recordings.Path(file)).Samples, 11, seed: 21);
-        var (received, text) = Play(protectedAudio);
+        var (received, text, _) = Play(protectedAudio);
 
         Assert.Equal(File.ReadAllBytes(Original(file)), received?.Data);
         Assert.True(received!.RepairedPieces > 0);
         Assert.Contains("rebuilt", text);
+    }
+
+    [Theory]
+    [InlineData("04_modeB_2p5khz_qam16_long_high_rs0.wav")]
+    [InlineData("13_modeB_2p5khz_qam16_long_high_rs4.wav")]
+    public void The_picture_appears_when_the_transmission_ends(string file)
+    {
+        // As off the air: the signal, then band noise (no "end of audio" from a player).
+        var wav = WavFile.Read(Recordings.Path(file));
+        double level = Math.Sqrt(wav.Samples.Skip(48000).Take(48000 * 10).Average(s => (double)s * s));
+        var audio = wav.Samples.Concat(Noise(48000 * 6, level, seed: 3)).ToArray();
+        double signalEnd = wav.Duration.TotalSeconds - 1.0;
+
+        var (received, text, at) = Play(audio, endOfAudio: false);
+
+        Assert.Equal(File.ReadAllBytes(Original(file)), received?.Data);
+        Assert.InRange(at, signalEnd, signalEnd + 1.5);   // after the signal stops (measured: 0.8 s), not before
+        Assert.StartsWith("Received", text);
+
+        // While the sender is still going, the third line says the picture is waiting.
+        var (early, earlyText, _) = Play(audio[..((int)((signalEnd - 1) * 48000))], endOfAudio: false);
+        Assert.Null(early);
+        Assert.StartsWith("Received all of", earlyText);
+        Assert.Contains("showing it when the transmission ends", earlyText);
     }
 
     // ---- the Reed-Solomon pieces ----
@@ -230,17 +256,27 @@ public class PictureTests
     private static string Original(string recording) =>
         Directory.GetFiles(Path.Combine(Recordings.Folder, "images"), $"img{recording[..2]}.*").Single();
 
-    /// <summary>Plays audio through a receiver; returns the first file received and the last
-    /// file line shown while the signal was there.</summary>
-    private static (ReceivedFile? Received, string FileText) Play(float[] audio)
+    /// <summary>Plays audio through a receiver, then (like the app when a recording finishes)
+    /// tells it the audio has ended. Returns the first file received, the last file line shown,
+    /// and when the file arrived (seconds into the audio).</summary>
+    private static (ReceivedFile? Received, string FileText, double At) Play(float[] audio, bool endOfAudio = true)
     {
         var receiver = new HamDrmReceiver();
         ReceivedFile? received = null;
         string text = "";
-        receiver.FileReceived += f => received ??= f;
+        double at = double.NaN, now = 0;
+        receiver.FileReceived += f => { if (received is null) { received = f; at = now; } };
         receiver.Decided += _ => { if (receiver.FileText is { Length: > 0 } t) text = t; };
         for (int pos = 0; pos + 480 <= audio.Length; pos += 480)
+        {
+            now = (pos + 480) / 48000.0;
             receiver.AddSamples(audio[pos..(pos + 480)], 480, 48000);
-        return (received, text);
+        }
+        if (endOfAudio)
+        {
+            receiver.EndOfAudio();
+            if (receiver.FileText is { Length: > 0 } t) text = t;
+        }
+        return (received, text, at);
     }
 }

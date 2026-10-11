@@ -40,7 +40,9 @@ public sealed class HamDrmReceiver
             FrameStartTime = null;
             if (detection.Mode is null)
             {
-                // Signal gone: start afresh next time.
+                // Signal gone: the transmission is over, so show what it brought.
+                TransmissionEnded();
+                // Start afresh next time.
                 _clock.Reset();
                 _recentFrameStarts.Clear();
                 ForgetFac();
@@ -180,9 +182,34 @@ public sealed class HamDrmReceiver
             {
                 var bits = _mscDecoder!.Decode(original.Cells, original.Weights);
                 var packet = MscDecoder.ToBytes(bits);
-                if (_mot.AddPacket(packet) is { } file) Finish(file);
+                if (_mot.AddPacket(packet) is { } file) Hold(file);
             }
         }
+    }
+
+    // A file received complete is held until the transmission ends, so the picture appears
+    // when the sender stops (senders keep repeating pieces for a few seconds after the last one).
+    private ReceivedFile? _heldFile;
+
+    private void Hold(ReceivedFile file)
+    {
+        if (_heldFile is not null) Finish(_heldFile);   // a second file in one transmission
+        _heldFile = file;
+    }
+
+    private void TransmissionEnded()
+    {
+        // A Reed-Solomon file with pieces missing is rebuilt now, once every repeat has had its chance.
+        var file = _heldFile ?? _mot.FinishWithRepairs();
+        _heldFile = null;
+        if (file is not null) Finish(file);
+    }
+
+    /// <summary>Call when the audio stops (e.g. a recording has finished playing), so a file
+    /// still waiting for the end of the transmission is finished.</summary>
+    public void EndOfAudio()
+    {
+        lock (_lock) TransmissionEnded();
     }
 
     private void Finish(ReceivedFile file)
@@ -213,6 +240,8 @@ public sealed class HamDrmReceiver
         {
             var progress = FileProgress;
             var last = LastFile;
+            if (_heldFile is { } held && progress?.TransportId == held.TransportId)
+                return $"Received all of {held.Name}  ·  {held.Data.Length / 1000.0:0.0} kB  ·  showing it when the transmission ends";
             if (last is not null && progress?.TransportId == last.TransportId)
                 return last.Problem is not null ? $"Received {last.Name}, but: {last.Problem}"
                      : $"Received {last.Name}  ·  {last.Data.Length / 1000.0:0.0} kB" +
@@ -438,6 +467,7 @@ public sealed class HamDrmReceiver
             ForgetFac();
             _mot = new MotReceiver();   // a new source: forget files in progress too
             LastFile = null;
+            _heldFile = null;
             Problem = null;
         }
     }

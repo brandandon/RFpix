@@ -204,28 +204,37 @@ public sealed class MotReceiver
                                         : new ReceivedFile(t.Name, data, transportId);
         }
 
-        // An RS-protected file can be finished with pieces missing, if few enough are:
-        // their bytes are marked as known-missing ("erasures") and rebuilt from the repair data.
-        if (rsLevel is int rs && t.SegmentSize > 0 && have < total)
-        {
-            // Each block can rebuild at most 255 - k of its bytes; don't try with less than k/255 in.
-            if (have * ReedSolomon.BlockSize < total * RsFile.DataBytes(rs)) return null;
-            var data = new byte[t.BodySize];
-            var missing = new bool[total];
-            for (int i = 0; i < total; i++)
-            {
-                if (t.Segments.TryGetValue(i, out var seg))
-                    Array.Copy(seg, 0, data, i * t.SegmentSize, Math.Min(seg.Length, t.BodySize - i * t.SegmentSize));
-                else missing[i] = true;
-            }
-            var file = Unwrapped(t.Name, data, rs, transportId, at => missing[Math.Min(at / t.SegmentSize, total - 1)]);
-            if (file.Problem is null)
-            {
-                t.Done = true;
-                return file with { RepairedPieces = total - have };
-            }
-        }
         return null;
+    }
+
+    /// <summary>Call when the transmission has ended. If the file being received is protected by
+    /// Reed-Solomon and still has pieces missing, tries to rebuild them. Returns the file if that
+    /// worked, or null (nothing to finish, or too many pieces missing).</summary>
+    public ReceivedFile? FinishWithRepairs()
+    {
+        if (_currentId is not int id || !_transfers.TryGetValue(id, out var t) || t.Done) return null;
+        if (t.Name is null || t.BodySize < 0 || RsFile.LevelOf(t.Name) is not int rs || t.SegmentSize <= 0) return null;
+
+        int total = t.LastSegment is int last ? last + 1 : (t.BodySize + t.SegmentSize - 1) / t.SegmentSize;
+        int have = Enumerable.Range(0, total).Count(t.Segments.ContainsKey);
+        if (have == total) return null;   // (a complete file is finished as its last piece arrives)
+
+        // Missing pieces' bytes are marked as known-missing ("erasures") and rebuilt from the
+        // repair data. Each block can rebuild at most 255 - k of its bytes, so don't try with
+        // less than k/255 of the pieces in.
+        if (have * ReedSolomon.BlockSize < total * RsFile.DataBytes(rs)) return null;
+        var data = new byte[t.BodySize];
+        var missing = new bool[total];
+        for (int i = 0; i < total; i++)
+        {
+            if (t.Segments.TryGetValue(i, out var seg))
+                Array.Copy(seg, 0, data, i * t.SegmentSize, Math.Min(seg.Length, t.BodySize - i * t.SegmentSize));
+            else missing[i] = true;
+        }
+        var file = Unwrapped(t.Name, data, rs, id, at => missing[Math.Min(at / t.SegmentSize, total - 1)]);
+        if (file.Problem is not null) return null;
+        t.Done = true;
+        return file with { RepairedPieces = total - have };
     }
 
     private static ReceivedFile Unwrapped(string name, byte[] data, int level, int transportId, Func<int, bool>? missing)

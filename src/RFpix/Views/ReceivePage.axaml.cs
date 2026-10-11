@@ -54,12 +54,17 @@ public partial class ReceivePage : UserControl, IDisposable
         // The recording player feeds the same handler as the radio.
         _player.SamplesAvailable += OnSamples;
         _player.Failed += OnAudioFailed;
-        _player.Finished += (_, _) => Dispatcher.UIThread.Post(() =>
+        _player.Finished += (_, _) =>
         {
-            string name = _player.FileName ?? "the recording";
-            StopPlayback();
-            FormatText.Text = $"Finished playing {name}";
-        });
+            // The recording is over, so its transmission is too: show any picture still waiting.
+            _receiver.EndOfAudio();
+            Dispatcher.UIThread.Post(() =>
+            {
+                string name = _player.FileName ?? "the recording";
+                StopPlayback();
+                FormatText.Text = $"Finished playing {name}";
+            });
+        };
 
         // A finished file arrives on the audio thread; save and show it on the screen's thread.
         _receiver.FileReceived += file =>
