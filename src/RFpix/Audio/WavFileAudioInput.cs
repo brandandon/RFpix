@@ -27,7 +27,10 @@ public sealed class WavFileAudioInput : IAudioInput
     /// <summary>The file being played, or null.</summary>
     public string? FileName { get; private set; }
 
-    public bool IsRunning => _thread is { IsAlive: true } && !_stopRequested;
+    public bool IsRunning => _thread is { IsAlive: true } && !_stopRequested && !_reachedEnd;
+
+    // Set just before Finished is raised, so IsRunning is already false when anyone hears it.
+    private volatile bool _reachedEnd;
 
     public string FormatDescription => _audio?.Description ?? "";
 
@@ -57,6 +60,7 @@ public sealed class WavFileAudioInput : IAudioInput
         FileName = Path.GetFileName(path);
         Interlocked.Exchange(ref _position, 0);
         _stopRequested = false;
+        _reachedEnd = false;
 
         _thread = new Thread(PlayLoop) { IsBackground = true, Name = "RFpix WAV playback" };
         _thread.Start();
@@ -101,7 +105,11 @@ public sealed class WavFileAudioInput : IAudioInput
                 SamplesAvailable?.Invoke(this, new AudioSamplesEventArgs(buffer, count, audio.SampleRate));
             }
 
-            if (!_stopRequested) Finished?.Invoke(this, EventArgs.Empty);
+            if (!_stopRequested)
+            {
+                _reachedEnd = true;
+                Finished?.Invoke(this, EventArgs.Empty);
+            }
         }
         catch (Exception ex)
         {
