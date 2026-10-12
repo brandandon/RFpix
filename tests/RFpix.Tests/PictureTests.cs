@@ -103,6 +103,61 @@ public class PictureTests
         Assert.Contains("pieces (100", earlyText);   // all pieces in ("100%" or "100 %", by language setting)
     }
 
+    [Fact]
+    public void An_unfinished_picture_is_reported_and_doesnt_hang_over_the_next_transmission()
+    {
+        // As on the air: a picture cut short (recording 04 stops 12 s early), then a
+        // transmission whose data can't be read (64-QAM buried in noise), then a good one.
+        var cut = WavFile.Read(Recordings.Path("04_modeB_2p5khz_qam16_long_high_rs0.wav")).Samples;
+        cut = cut[..(cut.Length - 13 * 48000)];
+        var unreadable = AddNoise(WavFile.Read(Recordings.Path("01_modeA_2p5khz_qam64_long_high_rs0.wav")).Samples, 8, seed: 21);
+        var good = WavFile.Read(Recordings.Path("06_modeB_2p5khz_qam4_long_high_rs0.wav")).Samples;
+        var gap = new float[3 * 48000];
+
+        var receiver = new HamDrmReceiver();
+        var received = new List<ReceivedFile>();
+        receiver.FileReceived += received.Add;
+        var lines = new List<string>();
+        void Feed(float[] audio)
+        {
+            for (int pos = 0; pos + 480 <= audio.Length; pos += 480)
+            {
+                receiver.AddSamples(audio[pos..(pos + 480)], 480, 48000);
+                if (pos % 48000 == 0) lines.Add(receiver.FileText);
+            }
+        }
+
+        Feed(cut); Feed(gap);
+        Assert.Empty(received);
+        Assert.StartsWith("Couldn't finish img04.jpg:", receiver.FileText);
+        Assert.Matches(@"\d+ of \d+ pieces arrived\.$", receiver.FileText);
+
+        lines.Clear();
+        Feed(unreadable[48000..]); 
+        Assert.DoesNotContain(lines, l => l.StartsWith("Receiving img04"));        // the old picture's progress is gone
+        Assert.Contains(lines, l => l.StartsWith("The picture data can't be read: 0 of"));
+        Feed(gap);
+        Assert.StartsWith("No file came through: none of the", receiver.FileText);
+
+        Feed(good); Feed(gap);
+        Assert.Single(received);
+        Assert.Equal("img06.jpg", received[0].Name);                              // and the next picture comes through
+        Assert.StartsWith("Received img06.jpg", receiver.FileText);
+    }
+
+    [Fact]
+    public void The_same_picture_sent_twice_is_shown_twice()
+    {
+        var audio = WavFile.Read(Recordings.Path("04_modeB_2p5khz_qam16_long_high_rs0.wav")).Samples;
+        var receiver = new HamDrmReceiver();
+        int count = 0;
+        receiver.FileReceived += _ => count++;
+        foreach (var copy in new[] { audio, new float[3 * 48000], audio, new float[3 * 48000] })
+            for (int pos = 0; pos + 480 <= copy.Length; pos += 480)
+                receiver.AddSamples(copy[pos..(pos + 480)], 480, 48000);
+        Assert.Equal(2, count);
+    }
+
     // ---- the Reed-Solomon pieces ----
 
     [Theory]

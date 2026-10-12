@@ -197,13 +197,40 @@ public sealed class HamDrmReceiver
         _heldFile = file;
     }
 
+    // Packet counts when the current transmission began, so its own packets can be counted.
+    private int _goodAtStart, _badAtStart;
+    // What the last transmission brought, for the file line once it's over.
+    private string? _endedText;
+
+    private int TransmissionPacketsGood => PacketsGood - _goodAtStart;
+    private int TransmissionPacketsBad => PacketsBad - _badAtStart;
+
     private void TransmissionEnded()
     {
+        // Called again and again while there's no signal: only the first time counts.
+        if (_heldFile is null && TransmissionPacketsGood + TransmissionPacketsBad == 0) return;
+
         // A Reed-Solomon file with pieces missing is rebuilt now, once every repeat has had its chance.
         var file = _heldFile ?? _mot.FinishWithRepairs();
         _heldFile = null;
         if (file is not null) Finish(file);
+
+        // Close the books on this transmission, so the next one starts with a clean line.
+        var unfinished = _mot.EndOfTransmission();
+        _endedText = file is not null ? ReceivedText(file)
+            : unfinished is { Name: { } name } ? $"Couldn't finish {name}: {unfinished.SegmentsReceived} of {unfinished.SegmentsExpected} pieces arrived" +
+                  (RsFile.LevelOf(name) is not null ? ", too few for Reed-Solomon to rebuild the rest." : ".")
+            : TransmissionPacketsGood == 0 ? $"No file came through: none of the {TransmissionPacketsBad} data packets could be read."
+            : "No file came through.";
+        _goodAtStart = PacketsGood;
+        _badAtStart = PacketsBad;
     }
+
+    private static string ReceivedText(ReceivedFile file) =>
+        file.Problem is not null ? $"Received {file.Name}, but: {file.Problem}"
+        : $"Received {file.Name}  ·  {file.Data.Length / 1000.0:0.0} kB" +
+          (file.ReedSolomonLevel is int rs ? $"  ·  Reed-Solomon RS{rs}" : "") +
+          (file.RepairedPieces > 0 ? $" rebuilt {file.RepairedPieces} missing pieces" : "");
 
     /// <summary>Call when the audio stops (e.g. a recording has finished playing), so a file
     /// still waiting for the end of the transmission is finished.</summary>
@@ -238,14 +265,19 @@ public sealed class HamDrmReceiver
     {
         get
         {
-            var progress = FileProgress;
+            var progress = FileProgress;   // the file arriving in this transmission, if any
             var last = LastFile;
-            if (last is not null && progress?.TransportId == last.TransportId)
-                return last.Problem is not null ? $"Received {last.Name}, but: {last.Problem}"
-                     : $"Received {last.Name}  ·  {last.Data.Length / 1000.0:0.0} kB" +
-                       (last.ReedSolomonLevel is int rs ? $"  ·  Reed-Solomon RS{rs}" : "") +
-                       (last.RepairedPieces > 0 ? $" rebuilt {last.RepairedPieces} missing pieces" : "");
-            if (progress is null) return Detection.Mode is null ? "" : PacketsGood + PacketsBad > 0 ? "Waiting for a file…" : "";
+            if (last is not null && progress?.TransportId == last.TransportId) return ReceivedText(last);
+            if (progress is null)
+            {
+                int good = TransmissionPacketsGood, bad = TransmissionPacketsBad;
+                if (Detection.Mode is null || good + bad == 0) return _endedText ?? "";   // between transmissions
+                // A signal, but no file yet. If no data at all gets through, say so.
+                return good == 0 && bad >= 5
+                    ? $"The picture data can't be read: 0 of {bad} packets came through. The signal may be too weak or distorted" +
+                      (Fac is { } fac ? $" for {fac.Qam}-QAM." : ".")
+                    : "Waiting for a file…";
+            }
             string name = progress.Name is { } n
                 ? (RsFile.LevelOf(n) is int rsLevel ? $"{n} (Reed-Solomon RS{rsLevel})" : n)
                 : "a file";
@@ -466,6 +498,8 @@ public sealed class HamDrmReceiver
             _mot = new MotReceiver();   // a new source: forget files in progress too
             LastFile = null;
             _heldFile = null;
+            _endedText = null;
+            _goodAtStart = _badAtStart = 0;
             Problem = null;
         }
     }

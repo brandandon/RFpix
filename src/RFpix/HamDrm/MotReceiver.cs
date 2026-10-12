@@ -139,7 +139,16 @@ public sealed class MotReceiver
         _currentId = transportId;
         if (t.Done) return null;   // already received: this is a repeat
 
-        if (type == 3) ReadHeader(t, data);
+        if (type == 3)
+        {
+            // A different file under the same transport ID (IDs come from a 16-bit hash of
+            // the name, so this is rare): start that transfer afresh rather than mix them.
+            var header = new Transfer();
+            ReadHeader(header, data);
+            if (t.Name is not null && header.Name is not null && (header.Name != t.Name || header.BodySize != t.BodySize))
+                _transfers[transportId] = t = new Transfer();
+            ReadHeader(t, data);
+        }
         else
         {
             t.Segments.TryAdd(segment, data);
@@ -205,6 +214,21 @@ public sealed class MotReceiver
         }
 
         return null;
+    }
+
+    /// <summary>Call when the transmission has ended (after <see cref="FinishWithRepairs"/>).
+    /// Returns the progress of a file that didn't finish, or null. Files already received are
+    /// forgotten, so the same file sent again later is shown again; unfinished ones are kept,
+    /// so a repeat of the same file (same transport ID) can fill in the missing pieces.</summary>
+    public TransferProgress? EndOfTransmission()
+    {
+        TransferProgress? unfinished = null;
+        if (_currentId is int id && _transfers.TryGetValue(id, out var t) && !t.Done && t.Name is not null)
+            unfinished = ProgressOf(id, t);
+        foreach (int done in _transfers.Where(p => p.Value.Done).Select(p => p.Key).ToList()) _transfers.Remove(done);
+        _assembling.Clear();
+        _currentId = null;
+        return unfinished;
     }
 
     /// <summary>Call when the transmission has ended. If the file being received is protected by
