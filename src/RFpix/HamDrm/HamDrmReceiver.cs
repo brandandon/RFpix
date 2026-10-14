@@ -124,7 +124,7 @@ public sealed class HamDrmReceiver
             var usedBandwidth = info?.Bandwidth ?? _bandwidth;
             if (!channels.TryGetValue(usedBandwidth, out var frameChannel))
                 channels[usedBandwidth] = frameChannel = ChannelEstimator.Estimate(symbols, frame.FirstSymbol, CellLayout.For(mode, usedBandwidth));
-            KeepFrame(mode, time, symbols.Cells[s0..(s0 + perFrame)], frameChannel[s0..(s0 + perFrame)]);
+            KeepFrame(mode, time, symbols.Cells[s0..(s0 + perFrame)], frameChannel[s0..(s0 + perFrame)], facRead: info is not null);
 
             if (info is null) FacFailed++;
             else Check(info, time);
@@ -135,18 +135,18 @@ public sealed class HamDrmReceiver
     // ---- the picture data ----
 
     // Frames waiting to be decoded (until the settings are known from the FAC).
-    private readonly Queue<(long Number, HamDrmMode Mode, Complex[][] Cells, Complex[][] Channel)> _waitingFrames = new();
+    private readonly Queue<(long Number, HamDrmMode Mode, Complex[][] Cells, Complex[][] Channel, bool FacRead)> _waitingFrames = new();
     private double? _frameZeroTime;   // when the first frame of this signal started
     private (HamDrmMode, HamDrmBandwidth, int, HamDrmProtection, HamDrmInterleave)? _dataSettings;
     private TimeDeinterleaver? _deinterleaver;
     private MscDecoder? _mscDecoder;
     private MotReceiver _mot = new();
 
-    private void KeepFrame(HamDrmMode mode, double time, Complex[][] cells, Complex[][] channel)
+    private void KeepFrame(HamDrmMode mode, double time, Complex[][] cells, Complex[][] channel, bool facRead)
     {
         _frameZeroTime ??= time;
         long number = (long)Math.Round((time - _frameZeroTime.Value) / SampleClock.FramePeriod);
-        _waitingFrames.Enqueue((number, mode, cells, channel));
+        _waitingFrames.Enqueue((number, mode, cells, channel, facRead));
         while (_waitingFrames.Count > 12) _waitingFrames.Dequeue();   // settings never arrived
     }
 
@@ -178,6 +178,11 @@ public sealed class HamDrmReceiver
                 weights[i] = power;
             }
 
+            // Quality is measured on a frame once the next frame's FAC has been read too, which
+            // shows the signal lasted all through it (not the silence as a transmission ends).
+            if (frame.FacRead && _qualityPending is { } pending) MeasureQuality(pending.Cells, pending.Weights, pending.Qam);
+            _qualityPending = frame.FacRead ? ((Complex[])cells.Clone(), (double[])weights.Clone(), fac.Qam) : null;
+
             foreach (var original in _deinterleaver!.Add(frame.Number, cells, weights))
             {
                 var bits = _mscDecoder!.Decode(original.Cells, original.Weights);
@@ -195,6 +200,71 @@ public sealed class HamDrmReceiver
     {
         if (_heldFile is not null) Finish(_heldFile);   // a second file in one transmission
         _heldFile = file;
+    }
+
+    // ---- signal quality ----
+    //
+    // How cleanly the picture-data cells arrive: each cell, once the radio path is undone,
+    // should sit exactly on one of the QAM points that could have been sent. The distance
+    // to the nearest point is the error. Quality = power of the points / power of the errors,
+    // in dB (the "MER", modulation error ratio). Averaged over the last few frames.
+    private double _qualitySignal, _qualityError;
+    private (Complex[] Cells, double[] Weights, int Qam)? _qualityPending;
+
+    /// <summary>Signal quality in dB, or null until picture data has been measured.</summary>
+    public double? QualityDb => _qualityError > 0 ? 10 * Math.Log10(_qualitySignal / _qualityError) : null;
+
+    /// <summary>Roughly the quality each QAM needs for pictures to come through
+    /// (measured with noise added to the clean recordings).</summary>
+    public static double QualityNeeded(int qam, HamDrmProtection protection) => (qam, protection) switch
+    {
+        (4, _) => QualityNeeded4,
+        (16, HamDrmProtection.High) => QualityNeeded16High,
+        (16, _) => QualityNeeded16Low,
+        (_, HamDrmProtection.High) => QualityNeeded64High,
+        _ => QualityNeeded64Low,
+    };
+    // The lowest quality at which every test picture still came through (Oct 13, 2026: recordings
+    // 06, 04, 02, 01 and 05 with noise added in 1 dB steps). Low protection needs about 1 dB more.
+    private const double QualityNeeded4 = 6, QualityNeeded16High = 11, QualityNeeded16Low = 12,
+                         QualityNeeded64High = 17, QualityNeeded64Low = 18;
+
+    private void MeasureQuality(Complex[] cells, double[] weights, int qam)
+    {
+        // DRM's QAM points sit at odd numbers (±1, ±3, ±5, ±7) once scaled up by this much.
+        int levels = qam == 4 ? 2 : qam == 16 ? 4 : 8;
+        double scale = Math.Sqrt(qam == 4 ? 2 : qam == 16 ? 10 : 42);
+        double signal = 0, error = 0;
+        for (int i = 0; i < cells.Length; i++)
+        {
+            if (weights[i] <= 0) continue;
+            var c = cells[i] * scale;
+            var point = new Complex(NearestLevel(c.Real, levels), NearestLevel(c.Imaginary, levels));
+            signal += point.Real * point.Real + point.Imaginary * point.Imaginary;
+            var e = c - point;
+            error += e.Real * e.Real + e.Imaginary * e.Imaginary;
+        }
+        // Each new frame counts for a quarter: the figure follows changes within a few seconds.
+        _qualitySignal = 0.75 * _qualitySignal + 0.25 * signal;
+        _qualityError = 0.75 * _qualityError + 0.25 * error;
+    }
+
+    private static double NearestLevel(double v, int levels)
+    {
+        // Levels are -(levels-1), ..., -1, +1, ..., +(levels-1) in steps of 2.
+        double p = 2 * Math.Floor(v / 2) + 1;
+        return Math.Clamp(p, -(levels - 1), levels - 1);
+    }
+
+    /// <summary>The quality, for the screen: "quality 14 dB (64-QAM needs about 20)".</summary>
+    public string QualityText
+    {
+        get
+        {
+            if (QualityDb is not double q || Fac is not { } fac) return "";
+            double needed = QualityNeeded(fac.Qam, fac.Protection);
+            return $"quality {q:0} dB" + (q < needed + 3 ? $" ({fac.Qam}-QAM needs about {needed:0})" : "");
+        }
     }
 
     // Packet counts when the current transmission began, so its own packets can be counted.
@@ -354,6 +424,8 @@ public sealed class HamDrmReceiver
         // so a transmission that fades out for a moment can carry on).
         _waitingFrames.Clear();
         _frameZeroTime = null;
+        _qualitySignal = _qualityError = 0;
+        _qualityPending = null;
         _dataSettings = null;
         _deinterleaver = null;
         _mscDecoder = null;
@@ -460,7 +532,8 @@ public sealed class HamDrmReceiver
                 ? $"offset {lockResult.OffsetHz:+0.0;-0.0;0.0} Hz"
                 : "finding frequency…";
             string clock = ClockPpm is double ppm ? $"  ·  clock {ppm:+0;-0;0} ppm" : "";
-            return $"HamDRM mode {mode}  ·  {offset}{clock}  ·  strength {detection.Strength:P0}";
+            string quality = QualityText is { Length: > 0 } q ? $"  ·  {q}" : "";
+            return $"HamDRM mode {mode}  ·  {offset}{clock}  ·  strength {detection.Strength:P0}{quality}";
         }
     }
 
