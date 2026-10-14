@@ -32,3 +32,4 @@ Thumbs.db
 *.wav
 !testdata/**/*.wav
 !tests/recordings/*.wav
+!tests/recordings/offair/*.wav
