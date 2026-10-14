@@ -45,6 +45,7 @@ public sealed class HamDrmReceiver
                 // Start afresh next time.
                 _clock.Reset();
                 _recentFrameStarts.Clear();
+                _lastFoundFrame = null;
                 ForgetFac();
             }
             return;
@@ -52,12 +53,21 @@ public sealed class HamDrmReceiver
 
         Symbols = OfdmSymbols.Read(_detector.Window, mode, detection.SymbolStart, locked.OffsetHz);
 
+        long windowStart = _detector.SamplesSeen - ModeDetector.WindowLength;
         Frame = FrameSync.Find(Symbols);
+        FramePredicted = false;
+        if (Frame is { IsFound: true } found) _lastFoundFrame = (windowStart + found.FrameStart, mode);
+        else if (PredictFrame(Symbols, mode, windowStart) is { } predicted)
+        {
+            // The frame finder had a lapse (it happens for a look or two in a distorted signal):
+            // read the frame where it's due. Its FAC checksum still confirms the reading.
+            Frame = predicted;
+            FramePredicted = true;
+        }
         FrameStartTime = null;
         if (Frame is { IsFound: true } frame && _downconverter is not null)
         {
             // Turn "sample N of this window" into "seconds since the audio began".
-            long windowStart = _detector.SamplesSeen - ModeDetector.WindowLength;
             int step = _downconverter.InputRate / Downconverter.OutputRate;
             double start = (windowStart + frame.FrameStart) / (double)Downconverter.OutputRate
                          + (step - 1.0) / _downconverter.InputRate - _downconverter.Delay;
@@ -65,10 +75,14 @@ public sealed class HamDrmReceiver
             // Frames come like clockwork, every 0.4 s. In heavy noise the frame finder
             // occasionally picks the wrong symbol, so only trust a frame start that
             // agrees with most of the recent ones.
-            _recentFrameStarts.Enqueue(start);
-            while (_recentFrameStarts.Count > FrameVotes) _recentFrameStarts.Dequeue();
-            int agreeing = _recentFrameStarts.Count(t => FrameTimingAgrees(t, start));
-            if (agreeing >= FrameVotesNeeded) FrameStartTime = start;
+            // (A predicted frame start isn't a measurement, so it doesn't vote.)
+            if (!FramePredicted)
+            {
+                _recentFrameStarts.Enqueue(start);
+                while (_recentFrameStarts.Count > FrameVotes) _recentFrameStarts.Dequeue();
+                int agreeing = _recentFrameStarts.Count(t => FrameTimingAgrees(t, start));
+                if (agreeing >= FrameVotesNeeded) FrameStartTime = start;
+            }
 
             // Read the FAC of each whole frame in this window that hasn't been read yet.
             // (The FAC's own checksum confirms the frame start, so no vote is needed.)
@@ -77,6 +91,38 @@ public sealed class HamDrmReceiver
 
         // Frame starts, followed over several seconds, reveal the clock difference.
         if (FrameStartTime is double confirmed) _clock.AddFrameStart(confirmed);
+    }
+
+    // Where the last frame start found was, in 12 kHz samples since the audio began.
+    private (long Sample, HamDrmMode Mode)? _lastFoundFrame;
+
+    /// <summary>True when this window's frame start was predicted from earlier ones, not found.</summary>
+    public bool FramePredicted { get; private set; }
+
+    /// <summary>How long a frame start can be predicted after the last one found.</summary>
+    public const double FramePredictionSeconds = 3;
+
+    /// <summary>Where a frame should start in this window, from the last frame start found
+    /// (frames come every 0.4 s exactly), or null if that's too long ago or doesn't line up
+    /// with a symbol in this window.</summary>
+    private FrameSyncResult? PredictFrame(OfdmSymbols symbols, HamDrmMode mode, long windowStart)
+    {
+        if (_lastFoundFrame is not { } last || last.Mode != mode || symbols.Count == 0) return null;
+        const int frameSamples = (int)(SampleClock.FramePeriod * Downconverter.OutputRate);   // 4800
+        long since = windowStart - last.Sample;
+        if (since > FramePredictionSeconds * Downconverter.OutputRate) return null;
+
+        // The first frame start at or after the window's first symbol.
+        int ts = HamDrmModes.SymbolLength(mode);
+        long firstInWindow = last.Sample + (long)Math.Ceiling((double)(windowStart + symbols.Starts[0] - ts / 2 - last.Sample) / frameSamples) * frameSamples;
+        int position = (int)(firstInWindow - windowStart);
+
+        // It must fall on one of this window's symbols (within a quarter symbol).
+        int nearest = 0;
+        for (int s = 1; s < symbols.Count; s++)
+            if (Math.Abs(symbols.Starts[s] - position) < Math.Abs(symbols.Starts[nearest] - position)) nearest = s;
+        if (Math.Abs(symbols.Starts[nearest] - position) > ts / 4) return null;
+        return new FrameSyncResult(nearest, symbols.Starts[nearest], FrameSyncResult.MinimumClarity);
     }
 
     // ---- the FAC ----
@@ -142,10 +188,14 @@ public sealed class HamDrmReceiver
     private MscDecoder? _mscDecoder;
     private MotReceiver _mot = new();
 
+    /// <summary>For diagnostics: raised for every frame kept for picture decoding (number, time, FAC read).</summary>
+    public event Action<long, double, bool>? FrameKept;
+
     private void KeepFrame(HamDrmMode mode, double time, Complex[][] cells, Complex[][] channel, bool facRead)
     {
         _frameZeroTime ??= time;
         long number = (long)Math.Round((time - _frameZeroTime.Value) / SampleClock.FramePeriod);
+        FrameKept?.Invoke(number, time, facRead);
         _waitingFrames.Enqueue((number, mode, cells, channel, facRead));
         while (_waitingFrames.Count > 12) _waitingFrames.Dequeue();   // settings never arrived
     }
@@ -175,7 +225,8 @@ public sealed class HamDrmReceiver
                 double power = h.Real * h.Real + h.Imaginary * h.Imaginary;
                 if (power < 1e-12) continue;
                 cells[i] = frame.Cells[sym][k] / h;
-                weights[i] = power;
+                // A frame whose FAC couldn't be read is suspect: its cells count as missing.
+                weights[i] = frame.FacRead ? power : 0;
             }
 
             // Quality is measured on a frame once the next frame's FAC has been read too, which
@@ -224,9 +275,9 @@ public sealed class HamDrmReceiver
         (_, HamDrmProtection.High) => QualityNeeded64High,
         _ => QualityNeeded64Low,
     };
-    // The lowest quality at which every test picture still came through (Oct 13, 2026: recordings
-    // 06, 04, 02, 01 and 05 with noise added in 1 dB steps). Low protection needs about 1 dB more.
-    private const double QualityNeeded4 = 6, QualityNeeded16High = 11, QualityNeeded16Low = 12,
+    // The quality at which the test pictures still came through, with multi-stage decoding
+    // (Oct 13, 2026: recordings 06, 07, 04, 02, 01 and 05 with noise added in 0.5 dB steps).
+    private const double QualityNeeded4 = 6, QualityNeeded16High = 11, QualityNeeded16Low = 11,
                          QualityNeeded64High = 17, QualityNeeded64Low = 18;
 
     private void MeasureQuality(Complex[] cells, double[] weights, int qam)
@@ -567,6 +618,7 @@ public sealed class HamDrmReceiver
             FrameStartTime = null;
             _clock.Reset();
             _recentFrameStarts.Clear();
+            _lastFoundFrame = null;
             ForgetFac();
             _mot = new MotReceiver();   // a new source: forget files in progress too
             LastFile = null;

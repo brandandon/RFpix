@@ -1,8 +1,9 @@
 // PictureTests.cs - checks that RFpix decodes the picture data back into the exact files sent.
 //
-// Limits come from measurements (Oct 11, 2026): every recording decodes to a file identical
-// to the original; perfect files at 9 dB SNR for 4-QAM and 12 dB for 16-QAM; RS-protected
-// files still come through at 11 dB, where pieces go missing. Pictures appear 0.8 s after the
+// Limits come from measurements (Oct 13, 2026, with multi-stage decoding): every recording
+// decodes to a file identical to the original; perfect files at 7.5-8 dB SNR for 4-QAM,
+// 11-11.5 dB for 16-QAM and 15-16.5 dB for 64-QAM; an RS4-protected file still comes
+// through at 9.5 dB, where pieces go missing. Pictures appear 0.8 s after the
 // signal stops, never before.
 
 using System.Numerics;
@@ -50,10 +51,12 @@ public class PictureTests
     }
 
     [Theory]
-    [InlineData("06_modeB_2p5khz_qam4_long_high_rs0.wav", 9)]
-    [InlineData("07_modeE_2p5khz_qam4_long_high_rs0.wav", 9)]
-    [InlineData("04_modeB_2p5khz_qam16_long_high_rs0.wav", 12)]
-    [InlineData("01_modeA_2p5khz_qam64_long_high_rs0.wav", 20)]
+    [InlineData("06_modeB_2p5khz_qam4_long_high_rs0.wav", 8)]
+    [InlineData("07_modeE_2p5khz_qam4_long_high_rs0.wav", 7.5)]
+    [InlineData("04_modeB_2p5khz_qam16_long_high_rs0.wav", 11)]
+    [InlineData("02_modeA_2p5khz_qam16_short_low_rs0.wav", 11.5)]
+    [InlineData("01_modeA_2p5khz_qam64_long_high_rs0.wav", 15)]
+    [InlineData("05_modeB_2p2khz_qam64_short_low_rs0.wav", 16.5)]
     public void Decodes_perfectly_down_to_its_working_SNR(string file, double snrDb)
     {
         var audio = AddNoise(WavFile.Read(Recordings.Path(file)).Samples, snrDb, seed: 21);
@@ -65,13 +68,13 @@ public class PictureTests
     [Fact]
     public void Reed_Solomon_rebuilds_pieces_lost_to_noise()
     {
-        // At 11 dB SNR, 16-QAM loses about 1 frame in 7. A plain picture can't be finished...
-        var plain = AddNoise(WavFile.Read(Recordings.Path("04_modeB_2p5khz_qam16_long_high_rs0.wav")).Samples, 11, seed: 21);
+        // At 9.5 dB SNR, 16-QAM loses about 1 frame in 10. A plain picture can't be finished...
+        var plain = AddNoise(WavFile.Read(Recordings.Path("04_modeB_2p5khz_qam16_long_high_rs0.wav")).Samples, 9.5, seed: 21);
         Assert.Null(Play(plain).Received);
 
         // ...but an RS4-protected one is rebuilt.
         var file = "13_modeB_2p5khz_qam16_long_high_rs4.wav";
-        var protectedAudio = AddNoise(WavFile.Read(Recordings.Path(file)).Samples, 11, seed: 21);
+        var protectedAudio = AddNoise(WavFile.Read(Recordings.Path(file)).Samples, 9.5, seed: 21);
         var (received, text, _) = Play(protectedAudio);
 
         Assert.Equal(File.ReadAllBytes(Original(file)), received?.Data);

@@ -38,11 +38,11 @@ public class QualityTests
     }
 
     [Fact]
-    public void The_needed_quality_rises_with_QAM_and_low_protection()
+    public void The_needed_quality_rises_with_QAM()
     {
         Assert.Equal(6, HamDrmReceiver.QualityNeeded(4, HamDrmProtection.High));
         Assert.Equal(11, HamDrmReceiver.QualityNeeded(16, HamDrmProtection.High));
-        Assert.Equal(12, HamDrmReceiver.QualityNeeded(16, HamDrmProtection.Low));
+        Assert.Equal(11, HamDrmReceiver.QualityNeeded(16, HamDrmProtection.Low));
         Assert.Equal(17, HamDrmReceiver.QualityNeeded(64, HamDrmProtection.High));
         Assert.Equal(18, HamDrmReceiver.QualityNeeded(64, HamDrmProtection.Low));
     }
