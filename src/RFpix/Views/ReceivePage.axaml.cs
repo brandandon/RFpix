@@ -43,6 +43,8 @@ public partial class ReceivePage : UserControl, IDisposable
     private readonly SpectrumAnalyzer _analyzer = new(maxFrequency: 3000);
     private readonly HamDrmReceiver _receiver = new();
     private readonly AudioRecorder _recorder = new();
+    // Takes audio off the sound card's thread at once; the work happens on its own thread.
+    private readonly AudioPump _pump;
     // Callsigns heard while recording, for the file's name.
     private readonly List<string> _recordingCallsigns = new();
 
@@ -56,15 +58,19 @@ public partial class ReceivePage : UserControl, IDisposable
     {
         InitializeComponent();
 
+        _pump = new AudioPump(ProcessSamples);
+        _pump.Failed += ex => Dispatcher.UIThread.Post(() => ShowError($"Something went wrong decoding the audio: {ex.Message}"));
+
         _input.SamplesAvailable += OnSamples;
         _input.Failed += OnAudioFailed;
 
         // The recording player feeds the same handler as the radio.
         _player.SamplesAvailable += OnSamples;
         _player.Failed += OnAudioFailed;
-        _player.Finished += (_, _) =>
+        _player.Finished += (_, _) => _pump.Post(() =>
         {
-            // The recording is over, so its transmission is too: show any picture still waiting.
+            // The recording is over (and all its audio processed), so its transmission is
+            // too: show any picture still waiting.
             _receiver.EndOfAudio();
             Dispatcher.UIThread.Post(() =>
             {
@@ -72,7 +78,7 @@ public partial class ReceivePage : UserControl, IDisposable
                 StopPlayback();
                 FormatText.Text = $"Finished playing {name}";
             });
-        };
+        });
 
         // A finished file arrives on the audio thread; save and show it on the screen's thread.
         _receiver.FileReceived += file =>
@@ -187,7 +193,7 @@ public partial class ReceivePage : UserControl, IDisposable
     {
         if (_recorder.IsRecording) StopRecording();
         _input.Stop();
-        _recorder.Reset();   // forget the last 30 seconds: the next start is a fresh source
+        _pump.Post(() => _recorder.Reset());   // forget the last 30 seconds: the next start is a fresh source
         if (!_player.IsRunning) ResetMeter();
         UpdateStartButton();
     }
@@ -205,7 +211,8 @@ public partial class ReceivePage : UserControl, IDisposable
         TransmissionText.Text = "";
         FileText.Text = "";
         // Start fresh next time, so a signal from one source isn't carried over to another.
-        _receiver.Reset();
+        // (Through the pump, so it happens after any audio still waiting.)
+        _pump.Post(_receiver.Reset);
     }
 
     private void UpdateStartButton()
@@ -326,10 +333,16 @@ public partial class ReceivePage : UserControl, IDisposable
         UpdateStartButton();
     }
 
-    // ---- audio arriving (runs on the audio thread, so keep it quick) ----
+    // ---- audio arriving ----
 
-    private void OnSamples(object? sender, AudioSamplesEventArgs e)
+    // On the sound card's (or player's) thread: just hand the chunk over and return.
+    private void OnSamples(object? sender, AudioSamplesEventArgs e) =>
+        _pump.Add(e.Samples, e.Count, e.SampleRate, sender);
+
+    // On the pump's worker thread, chunk by chunk, in order.
+    private void ProcessSamples(float[] samples, int count, int sampleRate, object? source)
     {
+        var e = new AudioSamplesEventArgs(samples, count, sampleRate);
         // RMS ("root mean square") is the usual way to measure how loud audio is.
         double sum = 0;
         for (int i = 0; i < e.Count; i++)
@@ -344,7 +357,7 @@ public partial class ReceivePage : UserControl, IDisposable
         // ...and to the HamDRM receiver.
         _receiver.AddSamples(e.Samples, e.Count, e.SampleRate);
         // The radio's sound is also kept for recording (the last 30 seconds, or all of it while recording).
-        if (sender == _input) _recorder.AddSamples(e.Samples, e.Count, e.SampleRate);
+        if (source == _input) _recorder.AddSamples(e.Samples, e.Count, e.SampleRate);
     }
 
     // The radio was unplugged (or a recording couldn't be played): show why, on the screen's own thread.
@@ -385,6 +398,10 @@ public partial class ReceivePage : UserControl, IDisposable
             RecordText.Text = $"● Recording  ·  {length:h\\:mm\\:ss}  ·  {bytes / 1e6:0.0} MB  (includes the 30 seconds before)";
             if (_receiver.Callsign is { Length: > 0 } call && !_recordingCallsigns.Contains(call)) _recordingCallsigns.Add(call);
         }
+
+        // Audio lost because the computer fell far behind (should never happen): say so.
+        if (_pump.Dropped > 0 && _input.IsRunning)
+            FormatText.Text = $"{_input.FormatDescription}  ·  {_pump.Dropped} chunks of audio lost: the computer is too busy";
 
         // While a recording plays, show which one and how far along it is.
         if (_player.IsRunning)
@@ -522,5 +539,6 @@ public partial class ReceivePage : UserControl, IDisposable
         if (_recorder.IsRecording) _recorder.Stop(_recordingCallsigns);   // closing RFpix: keep what was recorded
         _player.Dispose();
         _input.Dispose();
+        _pump.Dispose();
     }
 }

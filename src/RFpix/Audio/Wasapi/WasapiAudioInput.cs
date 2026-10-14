@@ -42,8 +42,8 @@ public sealed class WasapiAudioInput : IAudioInput
         {
             var device = _enumerator.GetDevice(deviceId);
 
-            // Ask Windows for audio in 50 ms chunks, in shared mode.
-            var capture = new WasapiCapture(device, true, 50)
+            // Shared mode, with 200 ms of room in Windows' buffer (the AudioPump collects it at once).
+            var capture = new WasapiCapture(device, true, 200)
             {
                 ShareMode = AudioClientShareMode.Shared
             };
