@@ -279,18 +279,10 @@ public sealed class MotReceiver
         return new TransferProgress(id, t.Name, Math.Max(0, t.BodySize), received, expected);
     }
 
-    /// <summary>The DRM/DAB 16-bit CRC (CCITT polynomial x^16 + x^12 + x^5 + 1, start all ones,
-    /// result inverted) over all but the last two bytes, compared with those two.</summary>
+    /// <summary>Checks the 16-bit CRC in the last two bytes against all the bytes before them.</summary>
     public static bool CheckCrc16(byte[] data)
     {
-        int crc = 0xFFFF;
-        for (int i = 0; i < data.Length - 2; i++)
-            for (int b = 7; b >= 0; b--)
-            {
-                int top = ((crc >> 15) ^ (data[i] >> b)) & 1;
-                crc = ((crc << 1) & 0xFFFF) ^ (top != 0 ? 0x1021 : 0);
-            }
         int sent = (data[^2] << 8) | data[^1];
-        return (~crc & 0xFFFF) == sent;
+        return Crc.Crc16(data.AsSpan(0, data.Length - 2)) == sent;
     }
 }

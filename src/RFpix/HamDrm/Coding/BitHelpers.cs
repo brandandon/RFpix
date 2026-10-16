@@ -71,6 +71,20 @@ public static class Crc
         return ~crc & 0xFF;
     }
 
+    /// <summary>The DRM/DAB 16-bit CRC of whole bytes (ITU-T X.25: polynomial x^16 + x^12 + x^5 + 1,
+    /// start all ones, result inverted). Packets and MOT data groups end with it.</summary>
+    public static int Crc16(ReadOnlySpan<byte> data)
+    {
+        int crc = 0xFFFF;
+        foreach (byte d in data)
+            for (int b = 7; b >= 0; b--)
+            {
+                int top = ((crc >> 15) ^ (d >> b)) & 1;
+                crc = ((crc << 1) & 0xFFFF) ^ (top != 0 ? 0x1021 : 0);
+            }
+        return ~crc & 0xFFFF;
+    }
+
     /// <summary>Reads <paramref name="count"/> bits as a number, first bit most significant.</summary>
     public static int ToNumber(IReadOnlyList<byte> bits, int start, int count)
     {

@@ -32,10 +32,27 @@ namespace RFpix.HamDrm;
 public sealed class MscDecoder
 {
     // Where each point sits along one side of the cell, by its bits (first bit most significant).
-    private static readonly double[] Qam4 = { 0.7071067811, -0.7071067811 };
-    private static readonly double[] Qam16 = { 0.9486832980, -0.3162277660, 0.3162277660, -0.9486832980 };
-    private static readonly double[] Qam64 =
+    internal static readonly double[] Qam4 = { 0.7071067811, -0.7071067811 };
+    internal static readonly double[] Qam16 = { 0.9486832980, -0.3162277660, 0.3162277660, -0.9486832980 };
+    internal static readonly double[] Qam64 =
         { 1.0801234497, -0.1543033499, 0.4629100498, -0.7715167498, 0.7715167498, -0.4629100498, 0.1543033499, -1.0801234497 };
+
+    /// <summary>The points along one side for a QAM.</summary>
+    internal static double[] Axis(int qam) => qam switch { 4 => Qam4, 16 => Qam16, _ => Qam64 };
+
+    /// <summary>Per level: its code strength (an index into the puncturing patterns, from the
+    /// DRM standard's tables, QSSTV's iCodRateCombMSC..SM) and its bit shuffle (null = none).</summary>
+    internal static (int[] CodeRates, int?[] ShuffleT0) Levels(int qam, HamDrmProtection protection)
+    {
+        bool high = protection == HamDrmProtection.High;
+        return qam switch
+        {
+            4 => (new[] { 6 }, new int?[] { 21 }),
+            16 => (high ? new[] { 2, 7 } : new[] { 4, 9 }, new int?[] { 13, 21 }),
+            64 => (high ? new[] { 0, 4, 9 } : new[] { 2, 7, 10 }, new int?[] { null, 13, 21 }),
+            _ => throw new ArgumentException($"HamDRM has no {qam}-QAM."),
+        };
+    }
 
     private readonly int _cells;
     private readonly int _levels;
@@ -53,18 +70,9 @@ public sealed class MscDecoder
     public MscDecoder(int cellsPerFrame, int qam, HamDrmProtection protection)
     {
         _cells = cellsPerFrame;
-        bool high = protection == HamDrmProtection.High;
-        (int[] codeRates, int?[] shuffleT0) = qam switch
-        {
-            // Code strength per level (an index into the puncturing patterns), from the
-            // DRM standard's tables (QSSTV's iCodRateCombMSC..SM); the bit shuffle per level.
-            4 => (new[] { 6 }, new int?[] { 21 }),
-            16 => (high ? new[] { 2, 7 } : new[] { 4, 9 }, new int?[] { 13, 21 }),
-            64 => (high ? new[] { 0, 4, 9 } : new[] { 2, 7, 10 }, new int?[] { null, 13, 21 }),
-            _ => throw new ArgumentException($"HamDRM has no {qam}-QAM."),
-        };
+        (int[] codeRates, int?[] shuffleT0) = Levels(qam, protection);
         _levels = codeRates.Length;
-        _axis = qam switch { 4 => Qam4, 16 => Qam16, _ => Qam64 };
+        _axis = Axis(qam);
 
         _steps = new int[_levels][][];
         _dataBits = new int[_levels];
