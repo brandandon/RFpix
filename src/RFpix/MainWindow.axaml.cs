@@ -30,6 +30,7 @@ public partial class MainWindow : Window
         {
             page.Dispose();
         }
+        RFpix.Radio.RadioService.Close();   // release PTT, restore the mode, close the port
         base.OnClosed(e);
     }
 

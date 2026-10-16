@@ -1,12 +1,85 @@
 <!--
-  SendPage.axaml - the Send page. For now it only shows what is coming.
+  SendPage.axaml - the Send page. For now: the test transmissions (fixed pictures
+  with fixed settings), the sound output to the radio, the level, and Send / Stop.
+  Sending your own pictures comes with the image optimizer.
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:RFpix.Views"
              x:Class="RFpix.Views.SendPage">
-  <StackPanel Spacing="8">
-    <TextBlock Classes="PageTitle" Text="Send" />
-    <TextBlock Text="Pick an image, optimize it to fit the transmit time, and send it." TextWrapping="Wrap" />
-    <TextBlock Classes="Hint" Text="Coming in milestone 3, with the image optimizer and repeater profiles." />
-  </StackPanel>
+  <ScrollViewer>
+    <StackPanel Spacing="18" MaxWidth="900" HorizontalAlignment="Left">
+      <TextBlock Classes="PageTitle" Text="Send" />
+
+      <!-- The test transmissions -->
+      <StackPanel Spacing="6">
+        <TextBlock Text="Test transmissions" FontWeight="SemiBold" />
+        <TextBlock Classes="Hint" TextWrapping="Wrap"
+                   Text="Each sends its own picture with fixed settings, and the picture says what they are. Whoever receives it knows exactly what was sent, so they can report which tests came through." />
+        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+          <ListBox x:Name="TestList" Grid.Column="0" SelectionChanged="OnTestChanged" MaxHeight="330">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="v:TestListItem">
+                <StackPanel Spacing="2" Margin="0,2">
+                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Detail}" Classes="Hint" FontSize="12" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <Border Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Top"
+                  BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+            <Image x:Name="Preview" Width="320" Height="240" />
+          </Border>
+        </Grid>
+      </StackPanel>
+
+      <!-- Callsign -->
+      <StackPanel Spacing="6">
+        <TextBlock Text="Your callsign" FontWeight="SemiBold" />
+        <TextBox x:Name="CallsignBox" Width="160" MaxLength="9" Watermark="e.g. KD9DD"
+                 LostFocus="OnCallsignLostFocus" />
+        <TextBlock Classes="Hint" Text="Sent with every transmission; receivers show it (up to 9 characters)." />
+      </StackPanel>
+
+      <!-- Sound output -->
+      <StackPanel Spacing="6">
+        <TextBlock Text="Sound output to the radio" FontWeight="SemiBold" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <ComboBox x:Name="OutputBox" Width="440" PlaceholderText="Pick the radio's sound device"
+                    SelectionChanged="OnOutputChanged" />
+          <Button Content="Refresh" Click="OnRefreshClick" />
+        </StackPanel>
+        <TextBlock Classes="Hint" TextWrapping="Wrap"
+                   Text="Usually &quot;Speakers (USB Audio CODEC)&quot; for the FT-991A and IC-9700. Not your computer's own speakers." />
+      </StackPanel>
+
+      <!-- Level -->
+      <StackPanel Spacing="6">
+        <TextBlock Text="Transmit level" FontWeight="SemiBold" />
+        <StackPanel Orientation="Horizontal" Spacing="12">
+          <Slider x:Name="LevelSlider" Width="300" Minimum="0" Maximum="100" TickFrequency="5"
+                  IsSnapToTickEnabled="True" ValueChanged="OnLevelChanged" />
+          <TextBlock x:Name="LevelText" VerticalAlignment="Center" Width="50" />
+        </StackPanel>
+        <TextBlock Classes="Hint" TextWrapping="Wrap"
+                   Text="100% is QSSTV's level. Start low and raise it until the radio's ALC barely moves. Too much level distorts HamDRM: the settings still decode but the picture doesn't." />
+      </StackPanel>
+
+      <!-- Send -->
+      <StackPanel Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button x:Name="SendButton" Content="Send" Click="OnSendClick" MinWidth="120" />
+          <Button x:Name="SaveButton" Content="Save as sound file…" Click="OnSaveClick"
+                  ToolTip.Tip="Saves the transmission as a WAV file instead of sending it: to play into another program, or to check it." />
+        </StackPanel>
+        <ProgressBar x:Name="Progress" Width="440" HorizontalAlignment="Left" Minimum="0" Maximum="1" IsVisible="False" />
+        <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
+        <TextBlock Classes="Hint" TextWrapping="Wrap"
+                   Text="RFpix keys the radio as set on the Radio page (CAT, RTS, DTR or VOX), switching to data mode first if that's ticked there. The transmitter is always released at the end, when you click Stop, or by a time limit if anything goes wrong." />
+      </StackPanel>
+
+      <TextBlock Classes="Hint" Text="Sending your own pictures comes next, with the image optimizer." />
+    </StackPanel>
+  </ScrollViewer>
 </UserControl>

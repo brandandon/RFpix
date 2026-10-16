@@ -14,6 +14,15 @@ public static class AudioSystem
         }
         return new UnsupportedAudioInput();
     }
+
+    public static IAudioOutput CreateOutput()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return new WasapiAudioOutput();
+        }
+        return new UnsupportedAudioOutput();
+    }
 }
 
 /// <summary>Stand-in used on Linux and Mac until their audio backend is written.</summary>

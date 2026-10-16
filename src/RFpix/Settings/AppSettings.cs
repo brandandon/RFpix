@@ -23,6 +23,15 @@ public sealed class AppSettings
     /// <summary>Where received files are saved. Null means the default, Documents\RFpix\Received.</summary>
     public string? ReceivedFolder { get; set; }
 
+    /// <summary>Permanent Windows ID of the radio's playback device (Send page).</summary>
+    public string? OutputDeviceId { get; set; }
+
+    /// <summary>Transmit level, 0 to 100 percent of QSSTV's level (Send page).</summary>
+    public int TransmitLevel { get; set; } = 50;
+
+    /// <summary>The operator's callsign, sent with every transmission.</summary>
+    public string? Callsign { get; set; }
+
     /// <summary>How RFpix reaches the radio (Radio page).</summary>
     public RadioSettings Radio { get; set; } = new();
 

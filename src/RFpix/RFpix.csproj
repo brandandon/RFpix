@@ -64,7 +64,9 @@
 
   <ItemGroup>
     <!-- Pictures built into the program: the icon (window and taskbar) and the logo. -->
-    <AvaloniaResource Include="Assets\**" />
+    <AvaloniaResource Include="Assets\**" Exclude="Assets\TestPictures\**" />
+    <!-- The test transmissions' pictures, read with GetManifestResourceStream. -->
+    <EmbeddedResource Include="Assets\TestPictures\*.jpg" LogicalName="RFpix.TestPictures.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

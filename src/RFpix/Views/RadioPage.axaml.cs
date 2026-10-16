@@ -4,7 +4,8 @@
 //   1. The radio list, COM ports and baud rates are filled in, and the saved settings shown.
 //   2. Picking a radio fills in the settings that suit it (e.g. the IC-9700's CI-V address).
 //   3. Connect saves the settings and opens the radio through Hamlib (in the background:
-//      a radio that doesn't answer can take a few seconds to time out).
+//      a radio that doesn't answer can take a few seconds to time out). The connection
+//      belongs to RadioService, so the Send page uses it too (and may open it itself).
 //   4. While connected, the frequency and mode are read once a second.
 //   5. Test PTT keys the transmitter for 2 seconds (switching to data mode first if that's
 //      ticked) and then releases it, reporting each step.
@@ -20,7 +21,7 @@ namespace RFpix.Views;
 
 public partial class RadioPage : UserControl, IDisposable
 {
-    private RadioConnection? _radio;
+    private static RadioConnection? Connection => RadioService.Current;
     private readonly DispatcherTimer _pollTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private bool _busy;       // a radio command is running in the background
     private bool _loading;    // filling in the controls, so changes aren't "the user picked"
@@ -31,6 +32,8 @@ public partial class RadioPage : UserControl, IDisposable
         RadioBox.ItemsSource = RadioChoices.All;
         BaudBox.ItemsSource = RadioChoices.BaudRates;
         _pollTimer.Tick += async (_, _) => await PollAsync();
+        RadioService.Changed += OnConnectionChanged;
+        RadioService.KeyedTooLong += OnKeyedTooLong;
         LoadPorts();
         ShowSettings(AppSettings.Current.Radio);
     }
@@ -104,7 +107,7 @@ public partial class RadioPage : UserControl, IDisposable
         PttRts.IsEnabled = PttDtr.IsEnabled = choice.Connection == "serial";
         PttCat.IsEnabled = choice.Connection != "none";
         DataModeBox.IsEnabled = choice.Connection != "none";
-        ConnectButton.IsEnabled = choice.Connection != "none" || _radio is not null;
+        ConnectButton.IsEnabled = choice.Connection != "none" || Connection is not null;
         if (choice.Connection == "none") { ShowPtt(PttMethod.Vox); DataModeBox.IsChecked = false; }
     }
 
@@ -125,7 +128,7 @@ public partial class RadioPage : UserControl, IDisposable
     private async void OnConnectClick(object? sender, RoutedEventArgs e)
     {
         if (_busy) return;
-        if (_radio is not null)
+        if (Connection is not null)
         {
             await DisconnectAsync("Disconnected.");
             return;
@@ -140,11 +143,8 @@ public partial class RadioPage : UserControl, IDisposable
         ShowStatus("Connecting…", problem: false);
         try
         {
-            _radio = await Task.Run(() => RadioConnection.Open(settings));
-            _radio.KeyedTooLong += () => Dispatcher.UIThread.Post(() =>
-                ShowStatus("The transmit time limit was reached, so RFpix released the transmitter.", problem: true));
+            await RadioService.ConnectAsync(settings);
             ShowStatus($"Connected to the {RadioChoices.Find(settings.Choice).Name}.", problem: false);
-            _pollTimer.Start();
         }
         catch (RadioException ex)
         {
@@ -161,17 +161,33 @@ public partial class RadioPage : UserControl, IDisposable
     private async Task DisconnectAsync(string message)
     {
         _pollTimer.Stop();
-        var radio = _radio;
-        _radio = null;
-        if (radio is not null) await Task.Run(radio.Dispose);   // releases PTT, restores the mode
+        await RadioService.DisconnectAsync();   // releases PTT, restores the mode
         FrequencyText.Text = "";
         ShowStatus(message, problem: false);
         UpdateButtons();
     }
 
+    // The connection opened or closed, here or on another page (Send connects by itself).
+    private void OnConnectionChanged() => Dispatcher.UIThread.Post(() =>
+    {
+        if (Connection is not null)
+        {
+            if (!_pollTimer.IsEnabled) _pollTimer.Start();
+        }
+        else
+        {
+            _pollTimer.Stop();
+            FrequencyText.Text = "";
+        }
+        UpdateButtons();
+    });
+
+    private void OnKeyedTooLong() => Dispatcher.UIThread.Post(() =>
+        ShowStatus("The transmit time limit was reached, so RFpix released the transmitter.", problem: true));
+
     private void UpdateButtons()
     {
-        bool connected = _radio is not null;
+        bool connected = Connection is not null;
         ConnectButton.Content = connected ? "Disconnect" : "Connect";
         ConnectButton.IsEnabled = !_busy && (connected || (RadioBox.SelectedItem as RadioChoice)?.Connection != "none");
         TestPttButton.IsEnabled = connected && !_busy;
@@ -183,7 +199,7 @@ public partial class RadioPage : UserControl, IDisposable
 
     private async Task PollAsync()
     {
-        if (_busy || _radio is not { } radio) return;
+        if (_busy || Connection is not { } radio) return;
         _busy = true;
         try
         {
@@ -207,7 +223,7 @@ public partial class RadioPage : UserControl, IDisposable
 
     private async void OnTestPttClick(object? sender, RoutedEventArgs e)
     {
-        if (_busy || _radio is not { } radio) return;
+        if (_busy || Connection is not { } radio) return;
         var settings = AppSettings.Current.Radio;
         _busy = true;
         UpdateButtons();
@@ -215,7 +231,7 @@ public partial class RadioPage : UserControl, IDisposable
         {
             string before = RadioConnection.ModeName(await Task.Run(radio.ReadMode));
             ShowStatus(settings.Ptt == PttMethod.Vox
-                ? "VOX: RFpix sends no key command" + (settings.DataModeForTransmit ? ", only switching data mode for 2 seconds…" : ". (The VOX test comes with the Send page, once RFpix plays audio.)")
+                ? "VOX: RFpix sends no key command" + (settings.DataModeForTransmit ? ", only switching data mode for 2 seconds…" : ". To check VOX trips, send a test from the Send page.")
                 : "Transmitting for 2 seconds…", problem: false);
 
             // Key with a 5-second limit: even if something below went wrong, the radio is released.
@@ -252,7 +268,8 @@ public partial class RadioPage : UserControl, IDisposable
     public void Dispose()
     {
         _pollTimer.Stop();
-        _radio?.Dispose();   // closing RFpix: release PTT, restore the mode, close the port
-        _radio = null;
+        RadioService.Changed -= OnConnectionChanged;
+        RadioService.KeyedTooLong -= OnKeyedTooLong;
+        // MainWindow closes the connection itself (RadioService.Close) when RFpix closes.
     }
 }
