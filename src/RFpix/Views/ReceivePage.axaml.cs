@@ -24,6 +24,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using RFpix.Audio;
 using RFpix.Dsp;
 using RFpix.HamDrm;
