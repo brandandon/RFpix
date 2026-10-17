@@ -1,7 +1,8 @@
 // Transmission.cs - puts a prepared HamDRM sound on the air: key, play, un-key.
 //
 // The steps, and the safety around them:
-//   1. Scale the sound to the chosen level.
+//   1. Add the silences around the signal. (The level is applied as it plays, so the
+//      Send page's slider works during a transmission.)
 //   2. Key the radio (unless it's VOX). The key has a time limit: the sound's length
 //      plus 15 seconds. If anything goes wrong, the radio un-keys itself then.
 //   3. Play a short silence first (keyed radios take a moment to switch to transmit;
@@ -34,17 +35,17 @@ public static class Transmission
         return sound;
     }
 
-    /// <summary>Sends a prepared sound.</summary>
+    /// <summary>Sends a prepared sound, at the level <paramref name="level"/> says as it plays (null: as it is).</summary>
     /// <param name="radio">The radio connection, or null with VOX and no radio control. With VOX
     /// and a connection, nothing is keyed but data mode is still switched, if that's ticked.</param>
     public static async Task SendAsync(float[] sound, IAudioOutput output, string deviceId, RadioConnection? radio,
-                                       IProgress<double>? progress, CancellationToken cancel)
+                                       Func<double>? level, IProgress<double>? progress, CancellationToken cancel)
     {
         var limit = TimeSpan.FromSeconds(sound.Length / (double)SampleRate) + ExtraKeyTime;
         if (radio is not null) await Task.Run(() => radio.Key(limit), cancel);
         try
         {
-            await output.PlayAsync(deviceId, sound, SampleRate, progress, cancel);
+            await output.PlayAsync(deviceId, sound, SampleRate, level, progress, cancel);
         }
         finally
         {

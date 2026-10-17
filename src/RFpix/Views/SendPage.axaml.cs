@@ -6,7 +6,8 @@
 //   2. The callsign, sound output and level are remembered between runs.
 //   3. Send: make the HamDRM sound (in the background, about a second), connect to
 //      the radio if the Radio page hasn't already (and keying needs it), then key,
-//      play and un-key (Transmission.SendAsync). Send becomes Stop meanwhile.
+//      play and un-key (Transmission.SendAsync). Send becomes Stop meanwhile, and the
+//      level slider still works: the sound follows it as it plays.
 //   4. Save as sound file: the same sound, written to a WAV file instead.
 
 using Avalonia.Controls;
@@ -30,6 +31,7 @@ public partial class SendPage : UserControl, IDisposable
     private readonly IAudioOutput _output = AudioSystem.CreateOutput();
     private CancellationTokenSource? _sending;   // set while sending; cancelling it = Stop
     private bool _loading;
+    private double _gain;   // the slider's level as a multiplier, read by the sound as it plays
 
     public SendPage()
     {
@@ -40,6 +42,7 @@ public partial class SendPage : UserControl, IDisposable
         CallsignBox.Text = AppSettings.Current.Callsign ?? "";
         LevelSlider.Value = Math.Clamp(Math.Round(AppSettings.Current.TransmitLevelDb), LevelSlider.Minimum, 0);
         LevelText.Text = LevelLabel;
+        _gain = Gain;
         LoadDevices();
         _loading = false;
         TestList.SelectedIndex = 0;
@@ -98,6 +101,7 @@ public partial class SendPage : UserControl, IDisposable
     {
         if (LevelText is null) return;   // still being built
         LevelText.Text = LevelLabel;
+        Volatile.Write(ref _gain, Gain);   // a transmission in progress follows the slider at once
         if (_loading) return;
         AppSettings.Current.TransmitLevelDb = LevelSlider.Value;
         AppSettings.Current.Save();
@@ -155,11 +159,10 @@ public partial class SendPage : UserControl, IDisposable
         try
         {
             ShowStatus("Preparing the transmission…", problem: false);
-            double level = Gain;
             var (sound, seconds) = await Task.Run(() =>
             {
                 var tx = new HamDrmTransmitter(test.FileName, test.Picture(), test.Settings, call);
-                return (Transmission.Prepare(tx.Audio(), level, keyed), tx.Duration.TotalSeconds);
+                return (Transmission.Prepare(tx.Audio(), 1, keyed), tx.Duration.TotalSeconds);
             });
 
             // Connect if keying or data mode needs the radio and the Radio page hasn't connected.
@@ -176,7 +179,7 @@ public partial class SendPage : UserControl, IDisposable
                 Progress.Value = f;
                 ShowStatus($"Transmitting test {test.Number}: {f * seconds:0} of {seconds:0} s", problem: false);
             });
-            await Transmission.SendAsync(sound, _output, device.Id, radio, progress, cancel);
+            await Transmission.SendAsync(sound, _output, device.Id, radio, () => Volatile.Read(ref _gain), progress, cancel);
             ShowStatus($"Sent test {test.Number} as {call}.", problem: false);
         }
         catch (OperationCanceledException)

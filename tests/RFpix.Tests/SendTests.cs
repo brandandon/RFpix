@@ -1,6 +1,7 @@
 // SendTests.cs - checks the Send page's parts without a screen or sound card:
 //   - the eight test transmissions: their pictures are built in, and every one decodes
 //     in RFpix's receiver to the exact picture, with its settings and the callsign;
+//   - the level, which follows the slider while the sound plays;
 //   - the send sequence: the radio (Hamlib's pretend "Dummy" radio) is keyed before the
 //     sound starts, stays keyed while it plays, and is always released: at the end,
 //     on Stop, and when the sound device fails.
@@ -69,6 +70,49 @@ public class SendTests
         Assert.Equal(48000 + tail, vox.Length);
     }
 
+    // ---- the level, live ----
+
+    [Fact]
+    public void Moving_the_level_during_sending_changes_the_sound_smoothly()
+    {
+        double wanted = 1;
+        var ramp = new LevelRamp(() => wanted);
+        var chunk = Enumerable.Repeat(1f, 480).ToArray();
+        ramp.Apply(chunk, 0, 480);
+        Assert.All(chunk, s => Assert.Equal(1f, s));
+
+        wanted = 0.1;                                  // the slider moves from 0 dB to -20 dB
+        chunk = Enumerable.Repeat(1f, 480).ToArray();
+        ramp.Apply(chunk, 0, 480);
+        Assert.Equal(0.1f, chunk[^1], 5);              // there by the end of the next 10 ms
+        for (int i = 1; i < 480; i++)                  // in small, even steps: no click
+            Assert.InRange(chunk[i - 1] - chunk[i], 0f, 0.0025f);
+
+        chunk = Enumerable.Repeat(1f, 480).ToArray();
+        ramp.Apply(chunk, 0, 480);
+        Assert.All(chunk, s => Assert.Equal(0.1f, s, 5));
+    }
+
+    [Fact]
+    public void The_level_never_goes_above_100_percent_or_below_silence()
+    {
+        double wanted = 3;
+        var ramp = new LevelRamp(() => wanted);
+        Assert.Equal(1, ramp.Current);
+        wanted = -1;
+        ramp.Apply(new float[10], 0, 10);
+        Assert.Equal(0, ramp.Current);
+    }
+
+    [Fact]
+    public async Task The_sound_is_played_with_the_level_the_page_gives()
+    {
+        using var radio = RadioConnection.Open(Dummy());
+        var output = new FakeOutput();
+        await Transmission.SendAsync(new float[4800], output, "radio", radio, () => 0.25, null, CancellationToken.None);
+        Assert.Equal(0.25, output.LevelSeen);
+    }
+
     // ---- keying around the sound ----
 
     private static RadioSettings Dummy(PttMethod ptt = PttMethod.Cat) =>
@@ -79,7 +123,7 @@ public class SendTests
     {
         using var radio = RadioConnection.Open(Dummy());
         var output = new FakeOutput { WhilePlaying = () => radio.ReadPtt() };
-        await Transmission.SendAsync(new float[4800], output, "radio", radio, null, CancellationToken.None);
+        await Transmission.SendAsync(new float[4800], output, "radio", radio, null, null, CancellationToken.None);
 
         Assert.Equal(new[] { true }, output.KeyedWhilePlaying);
         Assert.False(radio.IsKeyed);
@@ -94,7 +138,7 @@ public class SendTests
         var output = new FakeOutput { WhilePlaying = () => { stop.Cancel(); return radio.ReadPtt(); } };
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            Transmission.SendAsync(new float[4800], output, "radio", radio, null, stop.Token));
+            Transmission.SendAsync(new float[4800], output, "radio", radio, null, null, stop.Token));
         Assert.False(radio.IsKeyed);
         Assert.False(radio.ReadPtt());
     }
@@ -106,7 +150,7 @@ public class SendTests
         var output = new FakeOutput { Failure = new AudioException("The sound device disappeared.") };
 
         var ex = await Assert.ThrowsAsync<AudioException>(() =>
-            Transmission.SendAsync(new float[4800], output, "radio", radio, null, CancellationToken.None));
+            Transmission.SendAsync(new float[4800], output, "radio", radio, null, null, CancellationToken.None));
         Assert.Equal("The sound device disappeared.", ex.Message);
         Assert.False(radio.ReadPtt());
     }
@@ -116,7 +160,7 @@ public class SendTests
     {
         using var radio = RadioConnection.Open(Dummy(PttMethod.Vox));
         var output = new FakeOutput { WhilePlaying = () => radio.IsKeyed };
-        await Transmission.SendAsync(new float[4800], output, "radio", radio, null, CancellationToken.None);
+        await Transmission.SendAsync(new float[4800], output, "radio", radio, null, null, CancellationToken.None);
         Assert.Equal(new[] { true }, output.KeyedWhilePlaying);   // "transmitting", by RFpix's account
         Assert.False(radio.IsKeyed);
     }
@@ -127,13 +171,16 @@ public class SendTests
         public Func<bool>? WhilePlaying { get; init; }
         public Exception? Failure { get; init; }
         public List<bool> KeyedWhilePlaying { get; } = new();
+        public double? LevelSeen { get; private set; }
 
         public IReadOnlyList<AudioDeviceInfo> GetDevices() => new[] { new AudioDeviceInfo("radio", "Speakers (USB Audio CODEC)") };
 
-        public async Task PlayAsync(string deviceId, float[] samples, int sampleRate, IProgress<double>? progress, CancellationToken cancel)
+        public async Task PlayAsync(string deviceId, float[] samples, int sampleRate, Func<double>? level, IProgress<double>? progress,
+                                    CancellationToken cancel)
         {
             await Task.Yield();
             if (Failure is not null) throw Failure;
+            LevelSeen = level?.Invoke();
             if (WhilePlaying is not null) KeyedWhilePlaying.Add(WhilePlaying());
             cancel.ThrowIfCancellationRequested();
         }

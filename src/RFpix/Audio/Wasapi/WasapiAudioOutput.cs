@@ -28,10 +28,11 @@ public sealed class WasapiAudioOutput : IAudioOutput
         return devices;
     }
 
-    public async Task PlayAsync(string deviceId, float[] samples, int sampleRate, IProgress<double>? progress, CancellationToken cancel)
+    public async Task PlayAsync(string deviceId, float[] samples, int sampleRate, Func<double>? level, IProgress<double>? progress,
+                                CancellationToken cancel)
     {
         WasapiOut output;
-        var source = new ArraySource(samples, sampleRate);
+        var source = new ArraySource(samples, sampleRate, level is null ? null : new LevelRamp(level));
         try
         {
             var device = _enumerator.GetDevice(deviceId);
@@ -72,8 +73,8 @@ public sealed class WasapiAudioOutput : IAudioOutput
 
     public void Dispose() => _enumerator.Dispose();
 
-    /// <summary>One channel of samples, read from start to end.</summary>
-    private sealed class ArraySource(float[] samples, int sampleRate) : ISampleProvider
+    /// <summary>One channel of samples, read from start to end, at the level wanted as it goes.</summary>
+    private sealed class ArraySource(float[] samples, int sampleRate, LevelRamp? level) : ISampleProvider
     {
         private int _position;
         public WaveFormat WaveFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 1);
@@ -83,6 +84,7 @@ public sealed class WasapiAudioOutput : IAudioOutput
         {
             int n = Math.Min(count, samples.Length - _position);
             Array.Copy(samples, _position, buffer, offset, n);
+            level?.Apply(buffer, offset, n);
             _position += n;
             return n;
         }
