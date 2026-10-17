@@ -1,6 +1,10 @@
 # Tests and builds RFpix for Windows on GitHub's servers every time code is pushed.
 # The finished program can be downloaded from the run's Summary page,
 # under "Artifacts" (you need to be signed in to GitHub to download it).
+#
+# A version tag (e.g. v0.2.0) also makes a public Release: RFpix.exe for anyone to download,
+# with docs/TESTING.md as its instructions. The newest is always at
+# https://github.com/brandandon/RFpix/releases/latest
 
 name: Build
 
@@ -8,6 +12,9 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write   # to make a Release when a version tag is pushed
 
 jobs:
   windows:
@@ -52,3 +59,13 @@ jobs:
         with:
           name: RFpix-windows-x64
           path: publish/RFpix.exe
+
+      - name: Publish a Release (version tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ github.ref_name }}" publish/RFpix.exe
+          --title "RFpix ${{ github.ref_name }}"
+          --notes-file docs/TESTING.md

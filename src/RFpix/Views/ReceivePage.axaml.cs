@@ -38,6 +38,7 @@ namespace RFpix.Views;
 public partial class ReceivePage : UserControl, IDisposable
 {
     private readonly IAudioInput _input = AudioSystem.CreateInput();
+    private int _gapsAtLastReport;   // sound gaps counted up to the last transmission's end
     private readonly WavFileAudioInput _player = new();
     private readonly DispatcherTimer _meterTimer;
     private readonly SpectrumAnalyzer _analyzer = new(maxFrequency: 3000);
@@ -85,6 +86,27 @@ public partial class ReceivePage : UserControl, IDisposable
         {
             string? callsign = _receiver.Callsign;
             Dispatcher.UIThread.Post(() => ShowReceivedFile(file, callsign));
+        };
+
+        // When a transmission ends: if it was one of RFpix's test transmissions, say how it
+        // came through and add it to the test log.
+        _receiver.TransmissionReported += report =>
+        {
+            int gaps = _input.Gaps - _gapsAtLastReport;
+            _gapsAtLastReport = _input.Gaps;
+            if (TestResults.Recognise(report, Math.Max(0, gaps)) is not { } result) return;
+            string? problem = null;
+            try { TestResults.Append(result); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                problem = $"Couldn't add it to the test log ({ex.Message}). Is the file open in Excel?";
+            }
+            Dispatcher.UIThread.Post(() =>
+            {
+                TestResultText.Text = result.Text;
+                TestPanel.IsVisible = true;
+                if (problem is not null) ShowError(problem);
+            });
         };
 
         // A recording that stops by itself (too long, disk full): say so on the screen's thread.
@@ -178,6 +200,7 @@ public partial class ReceivePage : UserControl, IDisposable
         try
         {
             _input.Start(device.Id);
+            _gapsAtLastReport = 0;   // a new start counts gaps afresh
             HideError();
             FormatText.Text = _input.FormatDescription;
             _meterTimer.Start();
@@ -513,6 +536,20 @@ public partial class ReceivePage : UserControl, IDisposable
         for (int y = 0; y < picture.Height; y++)
             Marshal.Copy(picture.Bgra, y * rowBytes, buffer.Address + y * buffer.RowBytes, rowBytes);
         return bitmap;
+    }
+
+    private async void OnOpenTestResultsClick(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var launcher = TopLevel.GetTopLevel(this)?.Launcher;
+            if (!File.Exists(TestResults.LogPath)) { ShowError("No test transmissions have been received yet."); return; }
+            if (launcher is not null) await launcher.LaunchFileInfoAsync(new FileInfo(TestResults.LogPath));
+        }
+        catch (Exception ex)
+        {
+            ShowError($"Couldn't open {TestResults.LogPath}: {ex.Message}");
+        }
     }
 
     private async void OnOpenFolderClick(object? sender, RoutedEventArgs e)

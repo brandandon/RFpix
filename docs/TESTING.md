@@ -1,0 +1,51 @@
+# Testing RFpix on the air
+
+Thanks for helping test RFpix, a HamDRM (digital SSTV) program for Windows by KD9DD.
+RFpix has eight built-in **test transmissions**: fixed pictures sent with fixed settings,
+and each picture says what its settings are. When you receive one, RFpix checks it against
+its own copy of the original and writes down how it came through.
+
+## Getting it
+
+1. Download **RFpix.exe** (below, under *Assets*). It's one file; there's nothing to install.
+2. Windows may say *"Windows protected your PC"* the first time, because RFpix is new and
+   not yet signed. Click **More info**, then **Run anyway**.
+
+## Receiving tests (the most useful help)
+
+1. On the **Receive** page, pick your radio's sound device (usually *Microphone (USB Audio CODEC)*)
+   and click **Start listening**. Tune to the agreed frequency (USB on HF).
+2. That's all. When a test transmission ends, RFpix shows a line such as
+   **"Test 2 from KD9DD: perfect · quality 24 dB (needs about 11)"**,
+   or how many of the picture's pieces arrived if it didn't come through.
+3. Every test received is added to **Documents\RFpix\Test results.csv** (button:
+   **Open test results**). It opens in Excel. **Please email that file back** to the sender.
+4. If something odd happens, click **Record** before the next test: the recording
+   (in Documents\RFpix\Recordings) shows exactly what your radio heard.
+
+## Sending tests
+
+1. **Radio** page: pick your radio, its COM port and how it's keyed (CAT, RTS, DTR or VOX),
+   then **Connect** and **Test PTT**. (Use a dummy load or low power for the PTT test.)
+2. **Send** page: type your callsign, pick the radio's sound output
+   (usually *Speakers (USB Audio CODEC)*), pick a test, and click **Send**.
+3. **Level:** leave the radio's Windows volume where your other programs need it and set the
+   level with RFpix's slider. Start around **−30 dB** and raise it until the radio's ALC
+   barely moves. The slider works while sending. Too much level is the most common cause
+   of failed pictures: the settings still decode but the picture doesn't.
+
+| Test | Settings | Tests |
+| --- | --- | --- |
+| 1 | Mode B · 2.5 kHz · 4-QAM · long · high | the toughest: try this first |
+| 2 | Mode B · 2.5 kHz · 16-QAM · long · high | the usual net setting |
+| 3 | Mode B · 2.5 kHz · 16-QAM · long · low | less error correction, a little faster |
+| 4 | Mode B · 2.5 kHz · 64-QAM · long · high | fastest, needs a very clean signal |
+| 5 | Mode A · 2.5 kHz · 16-QAM · long · high | mode A: for steady paths |
+| 6 | Mode E · 2.5 kHz · 16-QAM · long · high | mode E: for fast-changing paths |
+| 7 | Mode B · 2.2 kHz · 16-QAM · long · high | the narrow 2.2 kHz width |
+| 8 | Mode B · 2.5 kHz · 16-QAM · short · high | short interleave: less protection against fading |
+
+QSSTV and EasyPal users can receive the tests too (they're ordinary HamDRM pictures);
+just tell the sender which ones arrived.
+
+73, Dan KD9DD

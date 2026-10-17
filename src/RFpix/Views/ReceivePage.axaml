@@ -50,6 +50,12 @@
         <TextBlock x:Name="TransmissionText" />
         <!-- The file arriving: name, size and how far along -->
         <TextBlock x:Name="FileText" />
+        <!-- The last RFpix test transmission received, and the log of them all -->
+        <StackPanel x:Name="TestPanel" Orientation="Horizontal" Spacing="10" IsVisible="False">
+          <TextBlock x:Name="TestResultText" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="900" />
+          <Button Content="Open test results" Click="OnOpenTestResultsClick" Padding="8,2"
+                  ToolTip.Tip="Every test transmission received, one line each (Documents\RFpix\Test results.csv; opens in Excel)." />
+        </StackPanel>
       </StackPanel>
     </StackPanel>
 

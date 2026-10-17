@@ -193,6 +193,7 @@ public sealed class HamDrmReceiver
 
     private void KeepFrame(HamDrmMode mode, double time, Complex[][] cells, Complex[][] channel, bool facRead)
     {
+        _transmissionMode = mode;
         _frameZeroTime ??= time;
         long number = (long)Math.Round((time - _frameZeroTime.Value) / SampleClock.FramePeriod);
         FrameKept?.Invoke(number, time, facRead);
@@ -290,15 +291,24 @@ public sealed class HamDrmReceiver
         {
             if (weights[i] <= 0) continue;
             var c = cells[i] * scale;
+            // An empty cell: at the start of a long-interleaved transmission the sender has
+            // nothing yet for part of each frame and sends nothing there. Not an error.
+            if (c.Magnitude < EmptyCell) continue;
             var point = new Complex(NearestLevel(c.Real, levels), NearestLevel(c.Imaginary, levels));
             signal += point.Real * point.Real + point.Imaginary * point.Imaginary;
             var e = c - point;
             error += e.Real * e.Real + e.Imaginary * e.Imaginary;
         }
         // Each new frame counts for a quarter: the figure follows changes within a few seconds.
+        // (And for the whole transmission's report, every frame counts the same.)
+        _transmissionSignal += signal;
+        _transmissionError += error;
         _qualitySignal = 0.75 * _qualitySignal + 0.25 * signal;
         _qualityError = 0.75 * _qualityError + 0.25 * error;
     }
+
+    // Far inside the smallest point (at ±1 ±1, size 1.4): noise rarely puts a real cell there.
+    private const double EmptyCell = 0.35;
 
     private static double NearestLevel(double v, int levels)
     {
@@ -330,6 +340,7 @@ public sealed class HamDrmReceiver
     {
         // Called again and again while there's no signal: only the first time counts.
         if (_heldFile is null && TransmissionPacketsGood + TransmissionPacketsBad == 0) return;
+        var progress = _mot.Progress;   // the file this transmission carried, if its name is known
 
         // A Reed-Solomon file with pieces missing is rebuilt now, once every repeat has had its chance.
         var file = _heldFile ?? _mot.FinishWithRepairs();
@@ -343,9 +354,27 @@ public sealed class HamDrmReceiver
                   (RsFile.LevelOf(name) is not null ? ", too few for Reed-Solomon to rebuild the rest." : ".")
             : TransmissionPacketsGood == 0 ? $"No file came through: none of the {TransmissionPacketsBad} data packets could be read."
             : "No file came through.";
+
+        int expected = unfinished?.SegmentsExpected ?? progress?.SegmentsExpected ?? 0;
+        TransmissionReported?.Invoke(new TransmissionReport(
+            DateTime.Now, file?.Name ?? unfinished?.Name ?? progress?.Name, file,
+            file is not null ? expected : unfinished?.SegmentsReceived ?? progress?.SegmentsReceived ?? 0, expected,
+            Callsign, _transmissionMode, Fac,
+            _transmissionError > 0 ? 10 * Math.Log10(_transmissionSignal / _transmissionError) : null,
+            TransmissionPacketsGood, TransmissionPacketsBad));
+
         _goodAtStart = PacketsGood;
         _badAtStart = PacketsBad;
+        _transmissionSignal = _transmissionError = 0;
+        _transmissionMode = null;
     }
+
+    // For the transmission's report: its mode, and its quality over every frame measured.
+    private HamDrmMode? _transmissionMode;
+    private double _transmissionSignal, _transmissionError;
+
+    /// <summary>Raised (on the audio thread) when a transmission ends: what it carried and how it went.</summary>
+    public event Action<TransmissionReport>? TransmissionReported;
 
     private static string ReceivedText(ReceivedFile file) =>
         file.Problem is not null ? $"Received {file.Name}, but: {file.Problem}"
@@ -642,3 +671,14 @@ public sealed class HamDrmReceiver
                       "Set the radio's sound device to 48000 Hz in Windows Sound settings.";
     }
 }
+
+/// <summary>How one transmission went, for test reports and logs.</summary>
+/// <param name="Name">The file's name, if its header arrived.</param>
+/// <param name="File">The file, if it came through complete.</param>
+/// <param name="PiecesReceived">Pieces of the file that arrived (all of them if it came through).</param>
+/// <param name="PiecesExpected">Pieces the file has (0 if unknown).</param>
+/// <param name="Settings">The settings announced (FAC), if read.</param>
+/// <param name="QualityDb">The signal quality over the whole transmission, if measured.</param>
+public sealed record TransmissionReport(
+    DateTime Ended, string? Name, ReceivedFile? File, int PiecesReceived, int PiecesExpected,
+    string? Callsign, HamDrmMode? Mode, FacInfo? Settings, double? QualityDb, int PacketsGood, int PacketsBad);
