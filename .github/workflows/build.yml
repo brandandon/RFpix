@@ -3,8 +3,9 @@
 # under "Artifacts" (you need to be signed in to GitHub to download it).
 #
 # A version tag (e.g. v0.2.0) also makes a public Release: RFpix.exe for anyone to download,
-# with docs/TESTING.md as its instructions. The newest is always at
-# https://github.com/brandandon/RFpix/releases/latest
+# with docs/TESTING.md as its instructions. To make one: GitHub > Releases > "Draft a new
+# release", type a new tag such as v0.2.0, and Publish; a few minutes later RFpix.exe is
+# attached. The newest is always at https://github.com/brandandon/RFpix/releases/latest
 
 name: Build
 
@@ -65,7 +66,14 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create "${{ github.ref_name }}" publish/RFpix.exe
-          --title "RFpix ${{ github.ref_name }}"
-          --notes-file docs/TESTING.md
+        run: |
+          $tag = "${{ github.ref_name }}"
+          # The release may already exist (made on GitHub's Releases page, which also makes the
+          # tag): then attach RFpix.exe and the tester instructions to it.
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag publish/RFpix.exe --clobber
+            gh release edit $tag --title "RFpix $tag" --notes-file docs/TESTING.md
+          } else {
+            gh release create $tag publish/RFpix.exe --title "RFpix $tag" --notes-file docs/TESTING.md
+          }
