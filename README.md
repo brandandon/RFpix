@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="src/RFpix/Assets/RFpix-logo.png" alt="RFpix: images over the air" width="480">
+</p>
+
 # RFpix
 
 Digital SSTV for ham radio: send and receive pictures over the air using **HamDRM**,
@@ -7,17 +11,35 @@ RFpix is a free, open-source replacement for EasyPal, built first for our SSTV n
 It aims to be easy to install, easy to use, and compatible with stations still
 running EasyPal or QSSTV.
 
-> **Status:** early development. Nothing to download yet.
+> **Status:** pre-alpha, for on-air testing (Windows only). Download the newest test release from
+> [Releases](https://github.com/brandandon/RFpix/releases/latest); how to test it is in
+> [docs/TESTING.md](docs/TESTING.md).
+
+## Progress
+
+| Date (2026) | Done |
+| --- | --- |
+| Oct 17 | TX/RX page with Receive and Send tabs; sound devices on the Settings page; wider picture area; logo above the menu (v0.3.0) |
+| Oct 17 | Tests 9 and 10 with Reed-Solomon for weak paths; each test sending judged on its own; test log joins a transmission split by a dropout |
+| Oct 17 | First on-air tests with a second station (W9BED): every test came through on the repeater |
+| Oct 17 | Windows installer with uninstaller, and public test releases (v0.2.0, v0.2.1) |
+| Oct 16 | Test results recognised on the Receive page and saved to a test log (opens in Excel) |
+| Oct 16 | Transmit level in dB, adjustable while sending; sound gaps from Windows filled so the decoder keeps its timing |
+| Oct 15 | Send page with the built-in test transmissions; HamDRM transmitter whose sound matches QSSTV's sample for sample |
+| Oct 13 | Decoder toughened with off-air recordings: signal-quality figure, multi-stage decoding, frame prediction |
+| Oct 11 | Radio control through Hamlib: CAT, RTS, DTR or VOX keying, IC-9700 data-mode switching, transmit time limit |
+| Oct 11 | Record button; JPEG 2000 pictures shown; the RFpix icon |
+| Oct 11 | HamDRM receiver complete: all 15 test recordings decode to files identical to the originals, including RS1–RS4 |
+| Oct 10 | Waterfall display, sound device picker and recording playback |
 
 ## Planned features
 
-- Receive and send HamDRM images (all modes: A, B, E; 2.2 / 2.5 kHz; 4/16/64-QAM)
-- Waterfall display with signal level and SNR
-- Radio control (CAT / PTT) through Hamlib
-- Image optimizer: resize and compress to fit a chosen transmit time
+- Sending your own pictures, with an image optimizer that resizes and compresses to fit a chosen transmit time
+- Send settings as drop-downs (mode, bandwidth, QAM, interleave, protection, Reed-Solomon) and saved profiles
 - Repeater support: time-out warning, key-up lead-in, missing-segment repair (BSR)
-- Image gallery, waterfall ID, and optional auto-upload to an FTP server
-- Windows first, then Linux and Mac
+- Image gallery, waterfall text and ID, and optional auto-upload to an FTP server
+- Sound-card calibration
+- Linux and Mac versions
 
 ## Built with
 
@@ -26,6 +48,7 @@ running EasyPal or QSSTV.
 - NAudio (WASAPI) for sound on Windows.
 - [CoreJ2K](https://github.com/cinderblocks/CoreJ2K) (BSD licence) for JPEG 2000 pictures.
 - [Hamlib](https://hamlib.github.io/) (LGPL licence) for radio control (CAT and PTT).
+- [Inno Setup](https://jrsoftware.org/isinfo.php) for the Windows installer.
 
 HamDRM support follows the open-source [QSSTV](https://github.com/ON4QZ/QSSTV)
 implementation by Johan Maes, ON4QZ.
