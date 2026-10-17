@@ -231,7 +231,7 @@ public partial class RadioPage : UserControl, IDisposable
         {
             string before = RadioConnection.ModeName(await Task.Run(radio.ReadMode));
             ShowStatus(settings.Ptt == PttMethod.Vox
-                ? "VOX: RFpix sends no key command" + (settings.DataModeForTransmit ? ", only switching data mode for 2 seconds…" : ". To check VOX trips, send a test from the Send page.")
+                ? "VOX: RFpix sends no key command" + (settings.DataModeForTransmit ? ", only switching data mode for 2 seconds…" : ". To check VOX trips, send a test from the TX/RX page (Send tab).")
                 : "Transmitting for 2 seconds…", problem: false);
 
             // Key with a 5-second limit: even if something below went wrong, the radio is released.

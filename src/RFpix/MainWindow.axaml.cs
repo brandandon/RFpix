@@ -20,7 +20,7 @@ public partial class MainWindow : Window
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         VersionText.Text = $"Version {version?.ToString(3)}";
 
-        NavList.SelectedIndex = 0;   // start on the first page (Receive)
+        NavList.SelectedIndex = 0;   // start on the first page (TX/RX, on its Receive tab)
     }
 
     // When the window closes, let pages tidy up (for example, release the sound device).
@@ -50,8 +50,7 @@ public partial class MainWindow : Window
         {
             page = pageName switch
             {
-                "Receive"  => new ReceivePage(),
-                "Send"     => new SendPage(),
+                "TxRx"     => new TxRxPage(),   // the Receive and Send tabs
                 "Gallery"  => new GalleryPage(),
                 "Radio"    => new RadioPage(),
                 "Settings" => new SettingsPage(),

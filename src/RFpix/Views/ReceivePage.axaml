@@ -1,34 +1,20 @@
 <!--
-  ReceivePage.axaml - the Receive page.
-  Pick the radio's sound device, check the level, watch the waterfall, and see
-  each HamDRM picture as it's received (saved automatically to the received folder).
+  ReceivePage.axaml - the Receive tab of the TX/RX page.
+  Check the level, watch the waterfall, and see each HamDRM picture as it's received
+  (saved automatically to the received folder). The sound device is chosen on the
+  Settings page.
 
   The page is a Grid with rows stacked top to bottom. "Auto" rows are as tall as
-  their contents; the "*" row (the waterfall) takes all the space that's left.
+  their contents; the "*" row (waterfall and picture) takes all the space that's left.
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:RFpix.Controls"
              x:Class="RFpix.Views.ReceivePage">
-  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" RowSpacing="14">
+  <Grid x:Name="PageGrid" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="14">
 
-    <TextBlock Grid.Row="0" Classes="PageTitle" Text="Receive" />
-
-    <!-- Row 1: device picker -->
-    <StackPanel Grid.Row="1" Spacing="6">
-      <TextBlock Text="Radio sound device (input)" FontWeight="SemiBold" />
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <ComboBox x:Name="DeviceBox" Width="440"
-                  PlaceholderText="Pick the radio's USB audio device"
-                  SelectionChanged="OnDeviceChanged" />
-        <Button Content="Refresh" Click="OnRefreshClick" />
-      </StackPanel>
-      <TextBlock Classes="Hint"
-                 Text="Radios usually appear as &quot;USB Audio CODEC&quot;. Renaming it in Windows Sound settings (for example &quot;FT-991A RX&quot;) makes it easy to spot. RFpix remembers your choice." />
-    </StackPanel>
-
-    <!-- Row 2: start/stop, record, play a recording, format, and level meter on one line -->
-    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16">
+    <!-- Row 0: start/stop, record, play a recording, format, and level meter on one line -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="16">
       <Button x:Name="StartButton" Content="Start listening" Click="OnStartStopClick" MinWidth="130" />
       <Button x:Name="RecordButton" Content="Record" Click="OnRecordClick" MinWidth="130" IsEnabled="False"
               ToolTip.Tip="Save what the radio hears as a WAV file in Documents\RFpix\Recordings, starting 30 seconds before you press it. Handy for a transmission that didn't decode: it can be played back and studied." />
@@ -59,8 +45,9 @@
       </StackPanel>
     </StackPanel>
 
-    <!-- Row 3: the waterfall (filling the space) and the last picture received (right) -->
-    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="14">
+    <!-- Row 1: the waterfall (from the left edge to the Record button's right edge, set in the
+         code) and the last picture received (the rest of the width) -->
+    <Grid Grid.Row="1" x:Name="WaterfallRow" ColumnDefinitions="276,*" ColumnSpacing="14">
       <Border Grid.Column="0" CornerRadius="6" ClipToBounds="True" MinHeight="180"
               BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
         <controls:WaterfallControl x:Name="Waterfall"
@@ -68,7 +55,7 @@
                                    PointerExited="OnWaterfallPointerExited" />
       </Border>
 
-      <Grid Grid.Column="1" Width="340" RowDefinitions="*,Auto,Auto" RowSpacing="6">
+      <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto" RowSpacing="6">
         <Border Grid.Row="0" CornerRadius="6" ClipToBounds="True"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
           <Panel>
@@ -79,19 +66,19 @@
           </Panel>
         </Border>
         <TextBlock Grid.Row="1" x:Name="PictureCaption" TextWrapping="Wrap" />
-        <Button Grid.Row="2" Content="Open received folder" Click="OnOpenFolderClick" />
+        <Button Grid.Row="2" Content="Open received folder" Click="OnOpenFolderClick" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
       </Grid>
     </Grid>
 
-    <!-- Row 4: frequency under the mouse, and a hint -->
-    <Grid Grid.Row="4" ColumnDefinitions="Auto,*">
+    <!-- Row 2: frequency under the mouse, and a hint -->
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,*">
       <TextBlock x:Name="PointerFrequencyText" Grid.Column="0" MinWidth="140" FontWeight="SemiBold" />
       <TextBlock Grid.Column="1" Classes="Hint" HorizontalAlignment="Right"
                  Text="A HamDRM signal shows as a wide band, roughly 300 to 2800 Hz." />
     </Grid>
 
-    <!-- Row 5: problems are explained here -->
-    <Border Grid.Row="5" x:Name="ErrorPanel" IsVisible="False"
+    <!-- Row 3: problems are explained here -->
+    <Border Grid.Row="3" x:Name="ErrorPanel" IsVisible="False"
             Padding="14" CornerRadius="6"
             Background="#33E5484D" BorderBrush="#99E5484D" BorderThickness="1">
       <TextBlock x:Name="ErrorText" TextWrapping="Wrap" />

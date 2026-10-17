@@ -1,8 +1,9 @@
-// ReceivePage.axaml.cs - the code half of the Receive page.
+// ReceivePage.axaml.cs - the code half of the Receive tab (on the TX/RX page).
 //
 // What happens here:
-//   1. Fill the drop-down with the computer's recording devices.
-//   2. When you press Start listening, open the chosen device through the audio layer.
+//   1. The radio's sound input is the one chosen on the Settings page (a change there
+//      switches over at once, if listening).
+//   2. When you press Start listening, open that device through the audio layer.
 //   3. Each chunk of audio is measured (how loud is it?) and handed to the
 //      spectrum analyzer, all on the audio thread.
 //   4. Twenty times a second a timer moves the level meter to match.
@@ -53,8 +54,6 @@ public partial class ReceivePage : UserControl, IDisposable
     // The latest loudness measurement, written by the audio thread and read by the timer.
     private volatile float _latestRms;
 
-    // True while we fill the drop-down, so that doesn't count as "you picked a device".
-    private bool _loadingDevices;
 
     public ReceivePage()
     {
@@ -125,59 +124,39 @@ public partial class ReceivePage : UserControl, IDisposable
         _analyzer.LineReady += (line, hzPerStep) =>
             Dispatcher.UIThread.Post(() => Waterfall.AddLine(line, hzPerStep));
 
-        LoadDevices();
-    }
-
-    // ---- device list ----
-
-    private void LoadDevices()
-    {
-        _loadingDevices = true;
-        try
-        {
-            var devices = _input.GetDevices();
-            DeviceBox.ItemsSource = devices;
-
-            var savedId = AppSettings.Current.InputDeviceId;
-            DeviceBox.SelectedItem = devices.FirstOrDefault(d => d.Id == savedId);
-
-            if (devices.Count == 0)
-                ShowError("No recording devices found. Check the radio's USB cable and power, then click Refresh.");
-            else if (savedId is not null && DeviceBox.SelectedItem is null)
-                ShowError("The sound device you used last time isn't connected. Switch on or plug in the radio and click Refresh, or pick another device.");
-            else
-                HideError();
-        }
-        catch (Exception ex)
-        {
-            ShowError(AudioErrors.Explain(ex));
-        }
-        finally
-        {
-            _loadingDevices = false;
-        }
+        AppSettings.SoundDevicesChanged += OnSoundDevicesChanged;
+        LayoutUpdated += OnLayoutUpdated;
         UpdateStartButton();
     }
 
-    private void OnRefreshClick(object? sender, RoutedEventArgs e)
+    // ---- the sound device (chosen on the Settings page) ----
+
+    /// <summary>The radio's sound input chosen on the Settings page, if it's plugged in.</summary>
+    private AudioDeviceInfo? ChosenDevice()
     {
-        bool wasRunning = _input.IsRunning;
-        StopListening();
-        LoadDevices();
-        if (wasRunning) StartListening();
+        var id = AppSettings.Current.InputDeviceId;
+        if (id is null) return null;
+        try { return _input.GetDevices().FirstOrDefault(d => d.Id == id); }
+        catch (Exception) { return null; }
     }
 
-    private void OnDeviceChanged(object? sender, SelectionChangedEventArgs e)
+    // The device was changed (or Refresh clicked) on the Settings page: switch over if listening.
+    private void OnSoundDevicesChanged()
     {
-        if (_loadingDevices || DeviceBox.SelectedItem is not AudioDeviceInfo device) return;
-
-        // Remember the choice by its permanent ID.
-        AppSettings.Current.InputDeviceId = device.Id;
-        AppSettings.Current.Save();
-
-        // Already listening? Switch straight over to the new device.
-        if (_input.IsRunning) StartListening();
+        if (_input.IsRunning && _listeningTo != AppSettings.Current.InputDeviceId) StartListening();
         UpdateStartButton();
+    }
+
+    private string? _listeningTo;   // the device ID being listened to
+    private string _deviceName = "";
+
+    // The waterfall ends at the Record button's right edge; the picture takes the rest.
+    private void OnLayoutUpdated(object? sender, EventArgs e)
+    {
+        if (RecordButton.TranslatePoint(new Avalonia.Point(RecordButton.Bounds.Width, 0), WaterfallRow) is not { } edge) return;
+        double width = Math.Max(160, Math.Round(edge.X));
+        if (Math.Abs(WaterfallRow.ColumnDefinitions[0].Width.Value - width) > 0.5)
+            WaterfallRow.ColumnDefinitions[0].Width = new GridLength(width);
     }
 
     // ---- start / stop ----
@@ -190,9 +169,11 @@ public partial class ReceivePage : UserControl, IDisposable
 
     private void StartListening()
     {
-        if (DeviceBox.SelectedItem is not AudioDeviceInfo device)
+        if (ChosenDevice() is not { } device)
         {
-            ShowError("Pick the radio's sound device first.");
+            ShowError(AppSettings.Current.InputDeviceId is null
+                ? "Pick the radio's sound input on the Settings page first."
+                : "The sound input chosen on the Settings page isn't connected. Switch on or plug in the radio, or pick another device there.");
             return;
         }
 
@@ -201,9 +182,11 @@ public partial class ReceivePage : UserControl, IDisposable
         try
         {
             _input.Start(device.Id);
+            _listeningTo = device.Id;
+            _deviceName = device.Name;
             _gapsAtLastReport = 0;   // a new start counts gaps afresh
             HideError();
-            FormatText.Text = _input.FormatDescription;
+            FormatText.Text = $"{device.Name}  ·  {_input.FormatDescription}";
             _meterTimer.Start();
         }
         catch (AudioException ex)
@@ -242,7 +225,7 @@ public partial class ReceivePage : UserControl, IDisposable
     private void UpdateStartButton()
     {
         StartButton.Content = _input.IsRunning ? "Stop" : "Start listening";
-        StartButton.IsEnabled = _input.IsRunning || DeviceBox.SelectedItem is not null;
+        StartButton.IsEnabled = _input.IsRunning || AppSettings.Current.InputDeviceId is not null;
         PlayButton.Content = _player.IsRunning ? "Stop playback" : "Play recording…";
         RecordButton.IsEnabled = _input.IsRunning;   // records the radio only, not a recording playing
         RecordButton.Content = _recorder.IsRecording ? "Stop recording" : "Record";
@@ -431,7 +414,7 @@ public partial class ReceivePage : UserControl, IDisposable
         // and audio lost because the computer fell far behind (should never happen): say so.
         if (_input.IsRunning)
         {
-            string text = _input.FormatDescription;
+            string text = $"{_deviceName}  ·  {_input.FormatDescription}";
             if (_input.Gaps > 0) text += $"  ·  {_input.Gaps} gap{(_input.Gaps == 1 ? "" : "s")} in the sound from Windows (filled)";
             if (_pump.Dropped > 0) text += $"  ·  {_pump.Dropped} chunks of audio lost: the computer is too busy";
             FormatText.Text = text;
@@ -584,6 +567,7 @@ public partial class ReceivePage : UserControl, IDisposable
     public void Dispose()
     {
         _meterTimer.Stop();
+        AppSettings.SoundDevicesChanged -= OnSoundDevicesChanged;
         try { _testLog.WriteHeld(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         if (_recorder.IsRecording) _recorder.Stop(_recordingCallsigns);   // closing RFpix: keep what was recorded
         _player.Dispose();

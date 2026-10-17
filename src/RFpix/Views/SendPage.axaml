@@ -1,6 +1,7 @@
 <!--
-  SendPage.axaml - the Send page. For now: the test transmissions (fixed pictures
-  with fixed settings), the sound output to the radio, the level, and Send / Stop.
+  SendPage.axaml - the Send tab of the TX/RX page. For now: the test transmissions
+  (fixed pictures with fixed settings), the callsign, the level, and Send / Stop.
+  The sound output is chosen on the Settings page, the keying on the Radio page.
   Sending your own pictures comes with the image optimizer.
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
@@ -9,8 +10,6 @@
              x:Class="RFpix.Views.SendPage">
   <ScrollViewer>
     <StackPanel Spacing="18" MaxWidth="900" HorizontalAlignment="Left">
-      <TextBlock Classes="PageTitle" Text="Send" />
-
       <!-- The test transmissions -->
       <StackPanel Spacing="6">
         <TextBlock Text="Test transmissions" FontWeight="SemiBold" />
@@ -42,18 +41,6 @@
         <TextBlock Classes="Hint" Text="Sent with every transmission; receivers show it (up to 9 characters)." />
       </StackPanel>
 
-      <!-- Sound output -->
-      <StackPanel Spacing="6">
-        <TextBlock Text="Sound output to the radio" FontWeight="SemiBold" />
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <ComboBox x:Name="OutputBox" Width="440" PlaceholderText="Pick the radio's sound device"
-                    SelectionChanged="OnOutputChanged" />
-          <Button Content="Refresh" Click="OnRefreshClick" />
-        </StackPanel>
-        <TextBlock Classes="Hint" TextWrapping="Wrap"
-                   Text="Usually &quot;Speakers (USB Audio CODEC)&quot; for the FT-991A and IC-9700. Not your computer's own speakers." />
-      </StackPanel>
-
       <!-- Level -->
       <StackPanel Spacing="6">
         <TextBlock Text="Transmit level" FontWeight="SemiBold" />
@@ -72,6 +59,8 @@
           <Button x:Name="SendButton" Content="Send" Click="OnSendClick" MinWidth="120" />
           <Button x:Name="SaveButton" Content="Save as sound file…" Click="OnSaveClick"
                   ToolTip.Tip="Saves the transmission as a WAV file instead of sending it: to play into another program, or to check it." />
+          <!-- Where the sound goes and how the radio is keyed (set on the Settings and Radio pages) -->
+          <TextBlock x:Name="RouteText" Classes="Hint" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="520" />
         </StackPanel>
         <ProgressBar x:Name="Progress" Width="440" HorizontalAlignment="Left" Minimum="0" Maximum="1" IsVisible="False" />
         <TextBlock x:Name="StatusText" TextWrapping="Wrap" />

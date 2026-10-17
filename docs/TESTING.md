@@ -23,23 +23,26 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 
 ## Receiving tests (the most useful help)
 
-1. On the **Receive** page, pick your radio's sound device (usually *Microphone (USB Audio CODEC)*)
-   and click **Start listening**. Tune to the agreed frequency (USB on HF).
-2. That's all. When a test transmission ends, RFpix shows a line such as
+1. On the **Settings** page, pick your radio's sound input (usually *Microphone (USB Audio CODEC)*)
+   and output (usually *Speakers (USB Audio CODEC)*).
+2. On the **TX/RX** page's **Receive** tab, click **Start listening**. Tune to the agreed
+   frequency (USB on HF).
+3. That's all. When a test transmission ends, RFpix shows a line such as
    **"Test 2 from KD9DD: perfect · quality 24 dB (needs about 11)"**,
    or how many of the picture's pieces arrived if it didn't come through. Each sending is judged
    on its own: if a test is sent twice, the second isn't helped by pieces from the first.
-3. Every test received is added to **Documents\RFpix\Test results.csv** (button:
+4. Every test received is added to **Documents\RFpix\Test results.csv** (button:
    **Open test results**). It opens in Excel. **Please email that file back** to the sender.
-4. If something odd happens, click **Record** before the next test: the recording
+5. If something odd happens, click **Record** before the next test: the recording
    (in Documents\RFpix\Recordings) shows exactly what your radio heard.
 
 ## Sending tests
 
 1. **Radio** page: pick your radio, its COM port and how it's keyed (CAT, RTS, DTR or VOX),
    then **Connect** and **Test PTT**. (Use a dummy load or low power for the PTT test.)
-2. **Send** page: type your callsign, pick the radio's sound output
-   (usually *Speakers (USB Audio CODEC)*), pick a test, and click **Send**.
+2. **TX/RX** page, **Send** tab: type your callsign, pick a test, and click **Send**. (The sound
+   output is the one picked on the Settings page.) RFpix goes on listening on the Receive tab
+   while you send.
 3. **Level:** leave the radio's Windows volume where your other programs need it and set the
    level with RFpix's slider. Start around **−30 dB** and raise it until the radio's ALC
    barely moves. The slider works while sending. Too much level is the most common cause

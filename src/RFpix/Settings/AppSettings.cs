@@ -35,6 +35,12 @@ public sealed class AppSettings
     /// <summary>How RFpix reaches the radio (Radio page).</summary>
     public RadioSettings Radio { get; set; } = new();
 
+    /// <summary>Raised (on the screen's thread) when the sound devices are changed on the Settings page,
+    /// so the TX/RX page can switch over at once.</summary>
+    public static event Action? SoundDevicesChanged;
+
+    public static void RaiseSoundDevicesChanged() => SoundDevicesChanged?.Invoke();
+
     // ---- loading and saving ----
 
     private static readonly string FilePath = Path.Combine(

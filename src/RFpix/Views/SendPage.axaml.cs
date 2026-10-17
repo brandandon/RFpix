@@ -3,7 +3,8 @@
 // What happens here:
 //   1. The test transmissions are listed, each with how long it takes; picking one
 //      shows its picture.
-//   2. The callsign, sound output and level are remembered between runs.
+//   2. The callsign and level are remembered between runs. The sound output is the one
+//      chosen on the Settings page, the keying the Radio page's; a line beside Send says which.
 //   3. Send: make the HamDRM sound (in the background, about a second), connect to
 //      the radio if the Radio page hasn't already (and keying needs it), then key,
 //      play and un-key (Transmission.SendAsync). Send becomes Stop meanwhile, and the
@@ -43,8 +44,10 @@ public partial class SendPage : UserControl, IDisposable
         LevelSlider.Value = Math.Clamp(Math.Round(AppSettings.Current.TransmitLevelDb), LevelSlider.Minimum, 0);
         LevelText.Text = LevelLabel;
         _gain = Gain;
-        LoadDevices();
         _loading = false;
+        // The sound output and keying are set on other pages: show them whenever this tab appears.
+        AttachedToVisualTree += (_, _) => ShowRoute();
+        AppSettings.SoundDevicesChanged += ShowRoute;
         TestList.SelectedIndex = 0;
     }
 
@@ -68,33 +71,29 @@ public partial class SendPage : UserControl, IDisposable
 
     // ---- remembered choices ----
 
-    private void LoadDevices()
+    /// <summary>The radio's sound output chosen on the Settings page, if it's plugged in.</summary>
+    private AudioDeviceInfo? ChosenOutput()
     {
-        try
-        {
-            var devices = _output.GetDevices();
-            OutputBox.ItemsSource = devices;
-            OutputBox.SelectedItem = devices.FirstOrDefault(d => d.Id == AppSettings.Current.OutputDeviceId);
-        }
-        catch (AudioException ex)
-        {
-            OutputBox.ItemsSource = null;
-            ShowStatus(ex.Message, problem: true);
-        }
+        var id = AppSettings.Current.OutputDeviceId;
+        if (id is null) return null;
+        try { return _output.GetDevices().FirstOrDefault(d => d.Id == id); }
+        catch (AudioException) { return null; }
     }
 
-    private void OnRefreshClick(object? sender, RoutedEventArgs e)
+    /// <summary>The line beside Send: where the sound goes and how the radio is keyed.</summary>
+    private void ShowRoute()
     {
-        _loading = true;
-        LoadDevices();
-        _loading = false;
-    }
-
-    private void OnOutputChanged(object? sender, SelectionChangedEventArgs e)
-    {
-        if (_loading || OutputBox.SelectedItem is not AudioDeviceInfo device) return;
-        AppSettings.Current.OutputDeviceId = device.Id;
-        AppSettings.Current.Save();
+        var radio = AppSettings.Current.Radio;
+        string keying = radio.Ptt switch
+        {
+            PttMethod.Vox => "VOX",
+            PttMethod.Rts => "RTS",
+            PttMethod.Dtr => "DTR",
+            _ => RadioChoices.Find(radio.Choice).Connection == "none" ? "nothing (no radio chosen)" : "CAT",
+        };
+        string output = ChosenOutput()?.Name
+            ?? (AppSettings.Current.OutputDeviceId is null ? "no sound output chosen yet" : "a sound output that isn't connected");
+        RouteText.Text = $"Sending to {output}, keyed by {keying}  ·  change in Settings and Radio";
     }
 
     private void OnLevelChanged(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
@@ -139,7 +138,13 @@ public partial class SendPage : UserControl, IDisposable
         if (Selected is not { } test) return;
         string call = SaveCallsign();
         if (call.Length == 0) { ShowStatus("Type your callsign first: it's sent with the transmission.", problem: true); return; }
-        if (OutputBox.SelectedItem is not AudioDeviceInfo device) { ShowStatus("Pick the sound output that goes to the radio.", problem: true); return; }
+        if (ChosenOutput() is not { } device)
+        {
+            ShowStatus(AppSettings.Current.OutputDeviceId is null
+                ? "Pick the radio's sound output on the Settings page first."
+                : "The sound output chosen on the Settings page isn't connected. Switch on or plug in the radio, or pick another there.", problem: true);
+            return;
+        }
 
         var radioSettings = AppSettings.Current.Radio;
         bool hasControl = RadioChoices.Find(radioSettings.Choice).Connection != "none";
@@ -243,6 +248,7 @@ public partial class SendPage : UserControl, IDisposable
 
     public void Dispose()
     {
+        AppSettings.SoundDevicesChanged -= ShowRoute;
         _sending?.Cancel();   // closing RFpix mid-send: stop (Transmission un-keys)
         _output.Dispose();
     }
