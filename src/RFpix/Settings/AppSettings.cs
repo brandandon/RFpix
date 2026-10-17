@@ -26,8 +26,8 @@ public sealed class AppSettings
     /// <summary>Permanent Windows ID of the radio's playback device (Send page).</summary>
     public string? OutputDeviceId { get; set; }
 
-    /// <summary>Transmit level, 0 to 100 percent of QSSTV's level (Send page).</summary>
-    public int TransmitLevel { get; set; } = 50;
+    /// <summary>Transmit level in dB below QSSTV's level (Send page): 0 is QSSTV's, -20 is a tenth of it.</summary>
+    public double TransmitLevelDb { get; set; } = -20;
 
     /// <summary>The operator's callsign, sent with every transmission.</summary>
     public string? Callsign { get; set; }

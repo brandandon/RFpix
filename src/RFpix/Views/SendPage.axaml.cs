@@ -38,8 +38,8 @@ public partial class SendPage : UserControl, IDisposable
         TestList.ItemsSource = TestTransmissions.All.Select(t => new TestListItem(t,
             $"Test {t.Number}: {t.Purpose}", $"{t.SettingsText}  ·  {Duration(t)}")).ToList();
         CallsignBox.Text = AppSettings.Current.Callsign ?? "";
-        LevelSlider.Value = Math.Clamp(AppSettings.Current.TransmitLevel, 0, 100);
-        LevelText.Text = $"{LevelSlider.Value:0}%";
+        LevelSlider.Value = Math.Clamp(Math.Round(AppSettings.Current.TransmitLevelDb), LevelSlider.Minimum, 0);
+        LevelText.Text = LevelLabel;
         LoadDevices();
         _loading = false;
         TestList.SelectedIndex = 0;
@@ -97,11 +97,16 @@ public partial class SendPage : UserControl, IDisposable
     private void OnLevelChanged(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
         if (LevelText is null) return;   // still being built
-        LevelText.Text = $"{LevelSlider.Value:0}%";
+        LevelText.Text = LevelLabel;
         if (_loading) return;
-        AppSettings.Current.TransmitLevel = (int)LevelSlider.Value;
+        AppSettings.Current.TransmitLevelDb = LevelSlider.Value;
         AppSettings.Current.Save();
     }
+
+    private string LevelLabel => LevelSlider.Value == 0 ? "0 dB" : $"{LevelSlider.Value:0} dB".Replace('-', '\u2212');
+
+    /// <summary>The level as a multiplier: 0 dB = 1, -20 dB = 0.1.</summary>
+    private double Gain => Math.Pow(10, LevelSlider.Value / 20);
 
     private void OnCallsignLostFocus(object? sender, RoutedEventArgs e) => SaveCallsign();
 
@@ -150,7 +155,7 @@ public partial class SendPage : UserControl, IDisposable
         try
         {
             ShowStatus("Preparing the transmission…", problem: false);
-            double level = LevelSlider.Value / 100;
+            double level = Gain;
             var (sound, seconds) = await Task.Run(() =>
             {
                 var tx = new HamDrmTransmitter(test.FileName, test.Picture(), test.Settings, call);
@@ -210,7 +215,7 @@ public partial class SendPage : UserControl, IDisposable
         try
         {
             ShowStatus("Making the sound file…", problem: false);
-            double level = LevelSlider.Value / 100;
+            double level = Gain;
             await Task.Run(() =>
             {
                 var tx = new HamDrmTransmitter(test.FileName, test.Picture(), test.Settings, call);
