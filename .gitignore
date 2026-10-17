@@ -33,3 +33,5 @@ Thumbs.db
 !testdata/**/*.wav
 !tests/recordings/*.wav
 !tests/recordings/offair/*.wav
+installer-output/
+publish-folder/

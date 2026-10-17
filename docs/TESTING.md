@@ -7,9 +7,19 @@ its own copy of the original and writes down how it came through.
 
 ## Getting it
 
-1. Download **RFpix.exe** (below, under *Assets*). It's one file; there's nothing to install.
-2. Windows may say *"Windows protected your PC"* the first time, because RFpix is new and
-   not yet signed. Click **More info**, then **Run anyway**.
+Download one of these (below, under *Assets*):
+
+- **RFpix-Setup-x.y.z.exe** (recommended) installs RFpix. You choose the folder (no administrator
+  rights needed), and it adds RFpix to the Start menu. Uninstall it from Windows' Settings > Apps
+  like any other program. Running a newer installer updates RFpix in place.
+- **RFpix.exe** runs without installing: one file, run it from anywhere. (It unpacks a copy of
+  its parts into a hidden temporary folder the first time each version runs.)
+
+Windows may say *"Windows protected your PC"* the first time, because RFpix is new and not yet
+signed. Click **More info**, then **Run anyway**.
+
+Your settings live in %AppData%\RFpix, and your received pictures, recordings and test results
+in Documents\RFpix. Uninstalling asks whether to remove the settings, and never removes your files.
 
 ## Receiving tests (the most useful help)
 
