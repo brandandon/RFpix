@@ -57,6 +57,10 @@ public interface IAudioInput : IDisposable
     /// <summary>A short description such as "48000 Hz, 32-bit, 2 channel(s)".</summary>
     string FormatDescription { get; }
 
+    /// <summary>How many times sound went missing on its way in since listening started (Windows
+    /// lost some). Each gap is filled with silence of the same length, so the timing is kept.</summary>
+    int Gaps => 0;
+
     /// <summary>Raised many times a second while listening (on a background thread).</summary>
     event EventHandler<AudioSamplesEventArgs>? SamplesAvailable;
 

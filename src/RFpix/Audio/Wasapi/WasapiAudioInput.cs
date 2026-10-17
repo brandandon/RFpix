@@ -1,10 +1,18 @@
-// WasapiAudioInput.cs - the Windows backend for the audio layer.
+// WasapiAudioInput.cs - the Windows backend for sound coming in from the radio.
 //
-// It uses NAudio to talk to WASAPI, Windows' own sound system. Shared mode is
-// used for receiving: Windows can still play other sounds, and nothing gets
-// mixed INTO a recording, so it's safe. (Transmit will use exclusive mode later,
-// so nothing else can leak onto the air.)
+// It talks to WASAPI, Windows' own sound system, through NAudio's thin wrappers.
+// Shared mode is used for receiving: Windows can still play other sounds, and
+// nothing gets mixed INTO a recording, so it's safe.
+//
+// RFpix runs its own capture loop (rather than NAudio's WasapiCapture) for one
+// reason: Windows numbers every sample it captures, and only the raw loop can see
+// those numbers. When they jump, sound was lost, and GapDetector puts silence of
+// the same length in its place so the decoder's timing stays right.
+//
+// The loop runs on its own high-priority thread and only converts and hands over;
+// the decoding happens elsewhere (AudioPump), so this thread is never late.
 
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
@@ -14,13 +22,19 @@ namespace RFpix.Audio.Wasapi;
 [SupportedOSPlatform("windows")]
 public sealed class WasapiAudioInput : IAudioInput
 {
+    private const int BufferMilliseconds = 200;   // Windows holds this much for us if we're late
+
     private readonly MMDeviceEnumerator _enumerator = new();
-    private WasapiCapture? _capture;
+    private AudioClient? _client;
+    private EventWaitHandle? _ready;
+    private Thread? _thread;
+    private GapDetector? _gaps;
     private float[] _buffer = Array.Empty<float>();
     private volatile bool _running;
 
     public bool IsRunning => _running;
     public string FormatDescription { get; private set; } = "";
+    public int Gaps => _gaps?.Gaps ?? 0;
 
     public event EventHandler<AudioSamplesEventArgs>? SamplesAvailable;
     public event EventHandler<string>? Failed;
@@ -41,21 +55,29 @@ public sealed class WasapiAudioInput : IAudioInput
         try
         {
             var device = _enumerator.GetDevice(deviceId);
+            var client = device.AudioClient;
+            var format = client.MixFormat;   // Windows' own format for this device: no conversion inside Windows
 
-            // Shared mode, with 200 ms of room in Windows' buffer (the AudioPump collects it at once).
-            var capture = new WasapiCapture(device, true, 200)
-            {
-                ShareMode = AudioClientShareMode.Shared
-            };
-            capture.DataAvailable += OnDataAvailable;
-            capture.RecordingStopped += OnRecordingStopped;
+            // Event-driven: Windows signals us whenever a chunk is ready (in shared mode the
+            // period must be 0, meaning Windows' own, 10 ms).
+            client.Initialize(AudioClientShareMode.Shared, AudioClientStreamFlags.EventCallback,
+                              BufferMilliseconds * 10_000L, 0, format, Guid.Empty);
+            var ready = new EventWaitHandle(false, EventResetMode.AutoReset);
+            client.SetEventHandle(ready.SafeWaitHandle.DangerousGetHandle());
 
-            var format = capture.WaveFormat;
             FormatDescription = $"{format.SampleRate} Hz, {format.BitsPerSample}-bit, {format.Channels} channel(s)";
-
-            _capture = capture;
+            _client = client;
+            _ready = ready;
+            _gaps = new GapDetector(format.SampleRate);
             _running = true;
-            capture.StartRecording();
+            client.Start();
+            _thread = new Thread(() => Run(client, format, ready))
+            {
+                IsBackground = true,
+                Priority = ThreadPriority.Highest,
+                Name = "RFpix sound input",
+            };
+            _thread.Start();
         }
         catch (Exception ex)
         {
@@ -67,37 +89,78 @@ public sealed class WasapiAudioInput : IAudioInput
     public void Stop()
     {
         _running = false;
-        var capture = _capture;
-        _capture = null;
-        if (capture is null) return;
-
-        capture.DataAvailable -= OnDataAvailable;
-        capture.RecordingStopped -= OnRecordingStopped;
-        try { capture.StopRecording(); } catch { /* already stopped */ }
-        capture.Dispose();
+        _ready?.Set();                                 // wake the loop so it sees it should stop
+        if (_thread is { } thread && thread != Thread.CurrentThread) thread.Join(1000);
+        _thread = null;
+        try { _client?.Stop(); } catch { /* already stopped */ }
+        _client?.Dispose();
+        _client = null;
+        _ready?.Dispose();
+        _ready = null;
         FormatDescription = "";
+    }
+
+    private void Run(AudioClient client, WaveFormat format, EventWaitHandle ready)
+    {
+        try
+        {
+            var capture = client.AudioCaptureClient;
+            int bytesPerSample = format.BitsPerSample / 8;
+            int frameSize = bytesPerSample * format.Channels;
+            // Windows' shared-mode format is nearly always 32-bit floating point.
+            bool isFloat = format.Encoding == WaveFormatEncoding.IeeeFloat
+                        || (format.Encoding == WaveFormatEncoding.Extensible && format.BitsPerSample == 32);
+            var bytes = Array.Empty<byte>();
+
+            while (_running)
+            {
+                ready.WaitOne(BufferMilliseconds);
+                while (_running && capture.GetNextPacketSize() > 0)
+                {
+                    IntPtr data = capture.GetBuffer(out int frames, out var flags, out long position, out _);
+
+                    // Lost sound: put the same length of silence in its place.
+                    bool positionValid = (flags & AudioClientBufferFlags.TimestampError) == 0;
+                    long missing = _gaps!.Missing(position, frames, positionValid);
+                    if (missing > 0) Silence(missing, format.SampleRate);
+
+                    if (bytes.Length < frames * frameSize) bytes = new byte[frames * frameSize];
+                    if ((flags & AudioClientBufferFlags.Silent) != 0) Array.Clear(bytes, 0, frames * frameSize);
+                    else Marshal.Copy(data, bytes, 0, frames * frameSize);
+                    capture.ReleaseBuffer(frames);
+
+                    Convert(bytes, frames, frameSize, bytesPerSample, isFloat);
+                    SamplesAvailable?.Invoke(this, new AudioSamplesEventArgs(_buffer, frames, format.SampleRate));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Usually the radio was switched off or unplugged.
+            if (_running)
+            {
+                _running = false;
+                Failed?.Invoke(this, AudioErrors.Explain(ex));
+            }
+        }
+    }
+
+    private void Silence(long samples, int sampleRate)
+    {
+        int chunk = sampleRate / 100;
+        var zeros = new float[chunk];
+        for (long done = 0; done < samples; done += chunk)
+        {
+            int n = (int)Math.Min(chunk, samples - done);
+            SamplesAvailable?.Invoke(this, new AudioSamplesEventArgs(zeros, n, sampleRate));
+        }
     }
 
     // Windows hands us raw bytes. Convert them to one channel of numbers between
     // -1 and +1, whatever format the device happens to use.
-    private void OnDataAvailable(object? sender, WaveInEventArgs e)
+    private void Convert(byte[] bytes, int frames, int frameSize, int bytesPerSample, bool isFloat)
     {
-        var capture = _capture;
-        if (capture is null) return;
-
-        var format = capture.WaveFormat;
-        int bytesPerSample = format.BitsPerSample / 8;
-        int frameSize = bytesPerSample * format.Channels;
-        if (frameSize == 0) return;
-
-        int frames = e.BytesRecorded / frameSize;
         if (_buffer.Length < frames) _buffer = new float[frames];
-
-        // Windows' shared-mode format is nearly always 32-bit floating point.
-        bool isFloat = format.Encoding == WaveFormatEncoding.IeeeFloat
-                    || (format.Encoding == WaveFormatEncoding.Extensible && format.BitsPerSample == 32);
-
-        byte[] bytes = e.Buffer;
         for (int i = 0; i < frames; i++)
         {
             int o = i * frameSize;   // first channel (left) only: radios send the same audio on both
@@ -110,8 +173,6 @@ public sealed class WasapiAudioInput : IAudioInput
                 _ => 0f
             };
         }
-
-        SamplesAvailable?.Invoke(this, new AudioSamplesEventArgs(_buffer, frames, format.SampleRate));
     }
 
     private static int Read24Bit(byte[] b, int o)
@@ -119,17 +180,6 @@ public sealed class WasapiAudioInput : IAudioInput
         int value = b[o] | (b[o + 1] << 8) | (b[o + 2] << 16);
         if ((value & 0x800000) != 0) value |= unchecked((int)0xFF000000);   // keep the minus sign
         return value;
-    }
-
-    // Called when recording stops. If it stopped because of a problem
-    // (radio unplugged, for example), tell the rest of the app why.
-    private void OnRecordingStopped(object? sender, StoppedEventArgs e)
-    {
-        _running = false;
-        if (e.Exception is not null)
-        {
-            Failed?.Invoke(this, AudioErrors.Explain(e.Exception));
-        }
     }
 
     public void Dispose()

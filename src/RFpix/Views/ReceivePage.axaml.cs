@@ -399,9 +399,15 @@ public partial class ReceivePage : UserControl, IDisposable
             if (_receiver.Callsign is { Length: > 0 } call && !_recordingCallsigns.Contains(call)) _recordingCallsigns.Add(call);
         }
 
-        // Audio lost because the computer fell far behind (should never happen): say so.
-        if (_pump.Dropped > 0 && _input.IsRunning)
-            FormatText.Text = $"{_input.FormatDescription}  ·  {_pump.Dropped} chunks of audio lost: the computer is too busy";
+        // Sound Windows lost on the way in (each gap is filled with silence so the timing holds),
+        // and audio lost because the computer fell far behind (should never happen): say so.
+        if (_input.IsRunning)
+        {
+            string text = _input.FormatDescription;
+            if (_input.Gaps > 0) text += $"  ·  {_input.Gaps} gap{(_input.Gaps == 1 ? "" : "s")} in the sound from Windows (filled)";
+            if (_pump.Dropped > 0) text += $"  ·  {_pump.Dropped} chunks of audio lost: the computer is too busy";
+            FormatText.Text = text;
+        }
 
         // While a recording plays, show which one and how far along it is.
         if (_player.IsRunning)
