@@ -19,11 +19,13 @@ public class SendTests
     // ---- the test transmissions ----
 
     [Fact]
-    public void There_are_eight_tests_each_with_its_own_picture_and_settings()
+    public void There_are_ten_tests_each_with_its_own_picture_and_settings()
     {
         var all = TestTransmissions.All;
-        Assert.Equal(Enumerable.Range(1, 8), all.Select(t => t.Number));
-        Assert.Equal(8, all.Select(t => t.Settings).Distinct().Count());
+        Assert.Equal(Enumerable.Range(1, 10), all.Select(t => t.Number));
+        Assert.Equal(10, all.Select(t => (t.Settings, t.ReedSolomon)).Distinct().Count());
+        Assert.Equal(new[] { 0, 0, 0, 0, 0, 0, 0, 0, 3, 2 }, all.Select(t => t.ReedSolomon));
+        Assert.Equal("rfpix-test-9.rs3", all[8].SendName);   // sent wrapped, as QSSTV sends RS files
         foreach (var t in all)
         {
             var picture = t.Picture();
@@ -40,8 +42,8 @@ public class SendTests
     public void Every_test_transmission_decodes_to_its_exact_picture(int number)
     {
         var test = TestTransmissions.All.Single(t => t.Number == number);
-        var tx = new HamDrmTransmitter(test.FileName, test.Picture(), test.Settings, "KD9DD");
-        Assert.InRange(tx.Duration.TotalSeconds, 20, 90);   // short enough to send a few in a row
+        var tx = test.Transmitter("KD9DD");
+        Assert.InRange(tx.Duration.TotalSeconds, 20, test.ReedSolomon > 0 ? 120 : 90);   // short enough to send a few in a row
 
         var (received, callsigns, fac) = TransmitterTests.Receive(tx);
 

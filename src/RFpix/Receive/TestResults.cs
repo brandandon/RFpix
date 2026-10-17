@@ -24,26 +24,43 @@ namespace RFpix.Receive;
 /// <param name="SoundGaps">Gaps Windows left in the sound during it (each filled with silence).</param>
 public sealed record TestResult(TestTransmission Test, TransmissionReport Report, int SoundGaps)
 {
-    public bool Perfect => Report.File is { } f && f.Data.AsSpan().SequenceEqual(Test.Picture());
+    /// <summary>The picture arrived, identical to the original.</summary>
+    public bool Arrived => Report.File is { } f && f.Data.AsSpan().SequenceEqual(Test.Picture());
+
+    /// <summary>The pieces this transmission brought by itself.</summary>
+    public int OwnPieces => Report.PiecesSeen.Count;
+
+    /// <summary>The picture arrived from this transmission alone (with Reed-Solomon's repairs, if
+    /// any), not with the help of pieces an earlier sending of the same test brought.</summary>
+    public bool Perfect => Arrived && OwnPieces + Report.File!.RepairedPieces >= Report.PiecesExpected;
 
     /// <summary>Were the test's own settings used? (Null if the settings weren't read.)</summary>
     public bool? SettingsMatch =>
         Report.Settings is not { } fac ? null
         : Report.Mode == Test.Settings.Mode && fac.Bandwidth == Test.Settings.Bandwidth && fac.Qam == Test.Settings.Qam &&
-          fac.Interleave == Test.Settings.Interleave && fac.Protection == Test.Settings.Protection;
+          fac.Interleave == Test.Settings.Interleave && fac.Protection == Test.Settings.Protection &&
+          ReedSolomonReceived == Test.ReedSolomon;
+
+    /// <summary>The Reed-Solomon level it came with (0 for none): from the file, or from the name
+    /// it was sent under (.rs1-.rs4) if it didn't come through.</summary>
+    public int ReedSolomonReceived =>
+        Report.File?.ReedSolomonLevel ?? (Report.Name is { } name ? RsFile.LevelOf(name) : null) ?? 0;
 
     /// <summary>"perfect", "41 of 51 pieces", ...</summary>
     public string Outcome =>
-        Perfect ? "perfect"
+        Perfect && Report.File!.RepairedPieces > 0 ? $"perfect: Reed-Solomon rebuilt {Report.File.RepairedPieces} missing pieces"
+        : Perfect ? "perfect"
+        : Arrived ? $"{OwnPieces} of {Report.PiecesExpected} pieces (the picture was completed with pieces from an earlier send)"
         : Report.File is not null ? "arrived, but differs from the original"
-        : Report.PiecesExpected > 0 ? $"{Report.PiecesReceived} of {Report.PiecesExpected} pieces"
+        : Report.PiecesExpected > 0 ? $"{OwnPieces} of {Report.PiecesExpected} pieces"
         : "nothing came through";
 
     /// <summary>The settings it was actually sent with, e.g. "Mode B · 2.5 kHz · 16-QAM · long · high".</summary>
     public string SettingsReceived =>
         Report.Settings is not { } fac ? "not read"
         : $"Mode {Report.Mode?.ToString() ?? "?"}  ·  {(fac.Bandwidth == HamDrmBandwidth.Wide ? "2.5" : "2.2")} kHz  ·  {fac.Qam}-QAM  ·  " +
-          $"{fac.Interleave.ToString().ToLowerInvariant()}  ·  {fac.Protection.ToString().ToLowerInvariant()}";
+          $"{fac.Interleave.ToString().ToLowerInvariant()}  ·  {fac.Protection.ToString().ToLowerInvariant()}" +
+          (ReedSolomonReceived > 0 ? $"  ·  RS{ReedSolomonReceived}" : "");
 
     /// <summary>What the test's QAM needs, in dB.</summary>
     public double QualityNeeded => HamDrmReceiver.QualityNeeded(Test.Settings.Qam, Test.Settings.Protection);
@@ -66,7 +83,8 @@ public sealed record TestResult(TestTransmission Test, TransmissionReport Report
 
 public static class TestResults
 {
-    private static readonly Regex TestName = new(@"^rfpix-test-(\d+)\.jpg$", RegexOptions.IgnoreCase);
+    // The picture's own name, or (a test with Reed-Solomon that didn't come through) the name it was sent under.
+    private static readonly Regex TestName = new(@"^rfpix-test-(\d+)\.(jpg|rs[1-4])$", RegexOptions.IgnoreCase);
 
     /// <summary>The test a transmission carried, or null if it wasn't one of RFpix's tests.</summary>
     public static TestResult? Recognise(TransmissionReport report, int soundGaps = 0)
@@ -100,7 +118,7 @@ public static class TestResults
             r.Ended.ToString("yyyy-MM-dd", inv), r.Ended.ToString("HH:mm:ss", inv),
             result.Test.Number.ToString(inv), result.Test.SettingsText, result.SettingsReceived,
             r.Callsign ?? "", result.Outcome,
-            (result.Perfect ? r.PiecesExpected : r.PiecesReceived).ToString(inv), r.PiecesExpected.ToString(inv),
+            result.OwnPieces.ToString(inv), r.PiecesExpected.ToString(inv),
             r.QualityDb is double q ? q.ToString("0.0", inv) : "", result.QualityNeeded.ToString("0", inv),
             r.PacketsGood.ToString(inv), r.PacketsBad.ToString(inv), result.SoundGaps.ToString(inv),
         };
@@ -113,4 +131,76 @@ public static class TestResults
     // Spreadsheet text: a field with a comma, quote or line break goes in quotes (quotes doubled).
     private static string Quote(string field) =>
         field.IndexOfAny(new[] { ',', '"', '\n' }) >= 0 ? "\"" + field.Replace("\"", "\"\"") + "\"" : field;
+}
+
+/// <summary>The test log, with one line per test transmission even when the signal dropped out
+/// for a few seconds in the middle of one. The receiver then reports two transmissions, the
+/// second marked as continuing the first; they're joined into one line here. An unfinished
+/// test is held back a little in case its continuation follows.</summary>
+public sealed class TestLog(string? path = null)
+{
+    private TestResult? _held;
+    private readonly object _lock = new();   // results arrive on the audio thread; Flush runs on the screen's
+
+    /// <summary>How long an unfinished test waits for a continuation before it's written.</summary>
+    public static readonly TimeSpan HoldFor = HamDrmReceiver.MaxDropout + TimeSpan.FromSeconds(10);
+
+    /// <summary>Adds a test result. Returns it as the screen should show it (joined with the
+    /// earlier part, if it continues one).</summary>
+    public TestResult Add(TestResult result)
+    {
+        lock (_lock) return AddLocked(result);
+    }
+
+    private TestResult AddLocked(TestResult result)
+    {
+        if (_held is { } held)
+        {
+            _held = null;
+            if (result.Report.ContinuesPrevious && held.Test.Number == result.Test.Number) result = Join(held, result);
+            else TestResults.Append(held, path);
+        }
+        if (result.Report.File is null) _held = result;   // may still continue
+        else TestResults.Append(result, path);
+        return result;
+    }
+
+    /// <summary>Writes an unfinished test once nothing more can continue it.</summary>
+    public void Flush(DateTime now)
+    {
+        lock (_lock)
+            if (_held is { } held && now - held.Report.Ended > HoldFor) WriteHeld();
+    }
+
+    /// <summary>Writes anything held back (RFpix closing).</summary>
+    public void WriteHeld()
+    {
+        lock (_lock)
+        {
+            var held = _held;
+            _held = null;
+            if (held is not null) TestResults.Append(held, path);
+        }
+    }
+
+    private static TestResult Join(TestResult first, TestResult rest)
+    {
+        var a = first.Report;
+        var b = rest.Report;
+        return rest with
+        {
+            SoundGaps = first.SoundGaps + rest.SoundGaps,
+            Report = b with
+            {
+                Callsign = b.Callsign ?? a.Callsign,
+                Mode = b.Mode ?? a.Mode,
+                Settings = b.Settings ?? a.Settings,
+                FrameQualities = a.FrameQualities.Concat(b.FrameQualities).ToArray(),
+                PacketsGood = a.PacketsGood + b.PacketsGood,
+                PacketsBad = a.PacketsBad + b.PacketsBad,
+                PiecesSeen = a.PiecesSeen.Union(b.PiecesSeen).Order().ToArray(),
+                ContinuesPrevious = a.ContinuesPrevious,
+            },
+        };
+    }
 }

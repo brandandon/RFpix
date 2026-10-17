@@ -20,10 +20,13 @@
     <Border Grid.Column="0"
             Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
       <DockPanel Margin="12">
-        <TextBlock DockPanel.Dock="Top"
-                   Text="RFpix"
-                   FontSize="22" FontWeight="SemiBold"
-                   Margin="12,8,12,24" />
+        <!-- The RFpix logo above the page list. -->
+        <Image DockPanel.Dock="Top"
+               Source="/Assets/RFpix-logo.png"
+               Width="190" HorizontalAlignment="Left"
+               Margin="6,4,6,20"
+               RenderOptions.BitmapInterpolationMode="HighQuality"
+               ToolTip.Tip="RFpix: images over the air" />
 
         <!-- Version number pinned to the bottom of the sidebar. -->
         <TextBlock x:Name="VersionText"

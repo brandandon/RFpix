@@ -58,6 +58,12 @@ public sealed class MotReceiver
     private readonly Dictionary<int, Transfer> _transfers = new();
     private readonly Dictionary<int, (List<byte> Data, int Counter)> _assembling = new();   // per packet ID
     private int? _currentId;
+    private readonly HashSet<int> _seen = new();
+    private int? _seenId;
+
+    /// <summary>The pieces (body segment numbers) of the current file that arrived in this
+    /// transmission, whether or not an earlier one had already brought them.</summary>
+    public IReadOnlyCollection<int> PiecesThisTransmission => _seen;
 
     /// <summary>Packets received with a good checksum, and with a bad one.</summary>
     public int PacketsGood { get; private set; }
@@ -137,6 +143,13 @@ public sealed class MotReceiver
         if (type != 3 && type != 4) return null;   // only file headers and bodies matter here
         if (!_transfers.TryGetValue(transportId, out var t)) _transfers[transportId] = t = new Transfer();
         _currentId = transportId;
+        if (type == 4)
+        {
+            // Which pieces this transmission brought by itself (for test reports): a repeat
+            // of a file also fills in pieces an earlier transmission missed.
+            if (_seenId != transportId) { _seen.Clear(); _seenId = transportId; }
+            _seen.Add(segment);
+        }
         if (t.Done) return null;   // already received: this is a repeat
 
         if (type == 3)
@@ -228,6 +241,8 @@ public sealed class MotReceiver
         foreach (int done in _transfers.Where(p => p.Value.Done).Select(p => p.Key).ToList()) _transfers.Remove(done);
         _assembling.Clear();
         _currentId = null;
+        _seen.Clear();
+        _seenId = null;
         return unfinished;
     }
 

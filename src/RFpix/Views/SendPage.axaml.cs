@@ -51,7 +51,7 @@ public partial class SendPage : UserControl, IDisposable
     /// <summary>How long a test takes on the air, e.g. "41 s".</summary>
     private static string Duration(TestTransmission t)
     {
-        var tx = new HamDrmTransmitter(t.FileName, t.Picture(), t.Settings, "TEST");
+        var tx = t.Transmitter("TEST");
         return $"{tx.Duration.TotalSeconds:0} s";
     }
 
@@ -161,7 +161,7 @@ public partial class SendPage : UserControl, IDisposable
             ShowStatus("Preparing the transmission…", problem: false);
             var (sound, seconds) = await Task.Run(() =>
             {
-                var tx = new HamDrmTransmitter(test.FileName, test.Picture(), test.Settings, call);
+                var tx = test.Transmitter(call);
                 return (Transmission.Prepare(tx.Audio(), 1, keyed), tx.Duration.TotalSeconds);
             });
 
@@ -221,7 +221,7 @@ public partial class SendPage : UserControl, IDisposable
             double level = Gain;
             await Task.Run(() =>
             {
-                var tx = new HamDrmTransmitter(test.FileName, test.Picture(), test.Settings, call);
+                var tx = test.Transmitter(call);
                 var sound = Transmission.Prepare(tx.Audio(), level, keyed: false);
                 using var wav = new WavWriter(path, Transmission.SampleRate);
                 wav.Write(sound);

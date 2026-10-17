@@ -1,7 +1,7 @@
 # Testing RFpix on the air
 
 Thanks for helping test RFpix, a HamDRM (digital SSTV) program for Windows by KD9DD.
-RFpix has eight built-in **test transmissions**: fixed pictures sent with fixed settings,
+RFpix has ten built-in **test transmissions**: fixed pictures sent with fixed settings,
 and each picture says what its settings are. When you receive one, RFpix checks it against
 its own copy of the original and writes down how it came through.
 
@@ -27,7 +27,8 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
    and click **Start listening**. Tune to the agreed frequency (USB on HF).
 2. That's all. When a test transmission ends, RFpix shows a line such as
    **"Test 2 from KD9DD: perfect · quality 24 dB (needs about 11)"**,
-   or how many of the picture's pieces arrived if it didn't come through.
+   or how many of the picture's pieces arrived if it didn't come through. Each sending is judged
+   on its own: if a test is sent twice, the second isn't helped by pieces from the first.
 3. Every test received is added to **Documents\RFpix\Test results.csv** (button:
    **Open test results**). It opens in Excel. **Please email that file back** to the sender.
 4. If something odd happens, click **Record** before the next test: the recording
@@ -54,6 +55,8 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 | 6 | Mode E · 2.5 kHz · 16-QAM · long · high | mode E: for fast-changing paths |
 | 7 | Mode B · 2.2 kHz · 16-QAM · long · high | the narrow 2.2 kHz width |
 | 8 | Mode B · 2.5 kHz · 16-QAM · short · high | short interleave: less protection against fading |
+| 9 | Mode B · 2.5 kHz · 4-QAM · long · high · RS3 | test 1 with Reed-Solomon, for weak paths: rebuilds up to a third missing |
+| 10 | Mode B · 2.5 kHz · 16-QAM · long · high · RS2 | test 2 with Reed-Solomon: rebuilds up to a quarter missing |
 
 QSSTV and EasyPal users can receive the tests too (they're ordinary HamDRM pictures);
 just tell the sender which ones arrived.

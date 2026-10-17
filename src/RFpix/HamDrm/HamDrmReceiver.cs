@@ -194,6 +194,8 @@ public sealed class HamDrmReceiver
     private void KeepFrame(HamDrmMode mode, double time, Complex[][] cells, Complex[][] channel, bool facRead)
     {
         _transmissionMode = mode;
+        _transmissionFirstFrame ??= time;
+        _transmissionLastFrame = time;
         _frameZeroTime ??= time;
         long number = (long)Math.Round((time - _frameZeroTime.Value) / SampleClock.FramePeriod);
         FrameKept?.Invoke(number, time, facRead);
@@ -301,8 +303,7 @@ public sealed class HamDrmReceiver
         }
         // Each new frame counts for a quarter: the figure follows changes within a few seconds.
         // (And for the whole transmission's report, every frame counts the same.)
-        _transmissionSignal += signal;
-        _transmissionError += error;
+        if (error > 0) _transmissionFrames.Add(10 * Math.Log10(signal / error));
         _qualitySignal = 0.75 * _qualitySignal + 0.25 * signal;
         _qualityError = 0.75 * _qualityError + 0.25 * error;
     }
@@ -341,6 +342,7 @@ public sealed class HamDrmReceiver
         // Called again and again while there's no signal: only the first time counts.
         if (_heldFile is null && TransmissionPacketsGood + TransmissionPacketsBad == 0) return;
         var progress = _mot.Progress;   // the file this transmission carried, if its name is known
+        var seen = _mot.PiecesThisTransmission.Order().ToArray();
 
         // A Reed-Solomon file with pieces missing is rebuilt now, once every repeat has had its chance.
         var file = _heldFile ?? _mot.FinishWithRepairs();
@@ -356,22 +358,49 @@ public sealed class HamDrmReceiver
             : "No file came through.";
 
         int expected = unfinished?.SegmentsExpected ?? progress?.SegmentsExpected ?? 0;
+        int? transportId = file?.TransportId ?? unfinished?.TransportId ?? progress?.TransportId;
+        bool continues = Continues(_previousTransmission, _transmissionFirstFrame, transportId);
+        _previousTransmission = (_transmissionLastFrame, transportId);
         TransmissionReported?.Invoke(new TransmissionReport(
             DateTime.Now, file?.Name ?? unfinished?.Name ?? progress?.Name, file,
-            file is not null ? expected : unfinished?.SegmentsReceived ?? progress?.SegmentsReceived ?? 0, expected,
-            Callsign, _transmissionMode, Fac,
-            _transmissionError > 0 ? 10 * Math.Log10(_transmissionSignal / _transmissionError) : null,
-            TransmissionPacketsGood, TransmissionPacketsBad));
+            file is not null ? Math.Max(0, expected - file.RepairedPieces) : unfinished?.SegmentsReceived ?? progress?.SegmentsReceived ?? 0,
+            expected, Callsign, _transmissionMode, Fac, _transmissionFrames.ToArray(),
+            TransmissionPacketsGood, TransmissionPacketsBad)
+        {
+            PiecesSeen = seen,
+            ContinuesPrevious = continues,
+        });
 
         _goodAtStart = PacketsGood;
         _badAtStart = PacketsBad;
-        _transmissionSignal = _transmissionError = 0;
+        _transmissionFrames.Clear();
         _transmissionMode = null;
+        _transmissionFirstFrame = _transmissionLastFrame = null;
     }
 
-    // For the transmission's report: its mode, and its quality over every frame measured.
+    // Was this "transmission" really the rest of the previous one, after the signal dropped out
+    // for a few seconds? The sender kept sending in between, so this one's frames fall exactly on
+    // the previous one's 400 ms beat. A new transmission starts at a time of its own: the chance of
+    // it landing within 5 ms of the old beat by accident is about 1 in 40.
+    private static bool Continues((double? LastFrame, int? TransportId)? previous, double? firstFrame, int? transportId)
+    {
+        if (previous is not { LastFrame: double last } prev || firstFrame is not double first) return false;
+        if (transportId is null || prev.TransportId != transportId) return false;
+        double gap = first - last;
+        if (gap <= 0 || gap > MaxDropout.TotalSeconds) return false;
+        double offBeat = gap - Math.Round(gap / SampleClock.FramePeriod) * SampleClock.FramePeriod;
+        return Math.Abs(offBeat) <= 0.005;
+    }
+
+    /// <summary>The longest dropout after which a transmission still counts as continuing.</summary>
+    public static readonly TimeSpan MaxDropout = TimeSpan.FromSeconds(20);
+
+    private double? _transmissionFirstFrame, _transmissionLastFrame;
+    private (double? LastFrame, int? TransportId)? _previousTransmission;
+
+    // For the transmission's report: its mode, and the quality of every frame measured.
     private HamDrmMode? _transmissionMode;
-    private double _transmissionSignal, _transmissionError;
+    private readonly List<double> _transmissionFrames = new();
 
     /// <summary>Raised (on the audio thread) when a transmission ends: what it carried and how it went.</summary>
     public event Action<TransmissionReport>? TransmissionReported;
@@ -675,10 +704,33 @@ public sealed class HamDrmReceiver
 /// <summary>How one transmission went, for test reports and logs.</summary>
 /// <param name="Name">The file's name, if its header arrived.</param>
 /// <param name="File">The file, if it came through complete.</param>
-/// <param name="PiecesReceived">Pieces of the file that arrived (all of them if it came through).</param>
 /// <param name="PiecesExpected">Pieces the file has (0 if unknown).</param>
 /// <param name="Settings">The settings announced (FAC), if read.</param>
-/// <param name="QualityDb">The signal quality over the whole transmission, if measured.</param>
+/// <param name="PiecesReceived">Pieces of the file now held (an earlier transmission of the same file
+/// may have brought some): all of them if it came through.</param>
+/// <param name="FrameQualities">The signal quality of each frame measured, in dB.</param>
 public sealed record TransmissionReport(
     DateTime Ended, string? Name, ReceivedFile? File, int PiecesReceived, int PiecesExpected,
-    string? Callsign, HamDrmMode? Mode, FacInfo? Settings, double? QualityDb, int PacketsGood, int PacketsBad);
+    string? Callsign, HamDrmMode? Mode, FacInfo? Settings, IReadOnlyList<double> FrameQualities,
+    int PacketsGood, int PacketsBad)
+{
+    /// <summary>The pieces this transmission brought by itself (piece numbers).</summary>
+    public IReadOnlyList<int> PiecesSeen { get; init; } = Array.Empty<int>();
+
+    /// <summary>True if this is the rest of the previous transmission, after the signal dropped
+    /// out for a few seconds (the sender never stopped).</summary>
+    public bool ContinuesPrevious { get; init; }
+
+    /// <summary>The transmission's typical signal quality: the middle of its frames' figures
+    /// (half were better, half worse), so a few frames lost in a dropout don't drag it down.</summary>
+    public double? QualityDb
+    {
+        get
+        {
+            if (FrameQualities.Count == 0) return null;
+            var sorted = FrameQualities.Order().ToArray();
+            int mid = sorted.Length / 2;
+            return sorted.Length % 2 == 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+        }
+    }
+}

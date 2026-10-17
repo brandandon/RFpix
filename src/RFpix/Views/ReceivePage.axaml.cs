@@ -39,6 +39,7 @@ public partial class ReceivePage : UserControl, IDisposable
 {
     private readonly IAudioInput _input = AudioSystem.CreateInput();
     private int _gapsAtLastReport;   // sound gaps counted up to the last transmission's end
+    private readonly TestLog _testLog = new();   // test results, written to Test results.csv
     private readonly WavFileAudioInput _player = new();
     private readonly DispatcherTimer _meterTimer;
     private readonly SpectrumAnalyzer _analyzer = new(maxFrequency: 3000);
@@ -96,7 +97,7 @@ public partial class ReceivePage : UserControl, IDisposable
             _gapsAtLastReport = _input.Gaps;
             if (TestResults.Recognise(report, Math.Max(0, gaps)) is not { } result) return;
             string? problem = null;
-            try { TestResults.Append(result); }
+            try { result = _testLog.Add(result); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 problem = $"Couldn't add it to the test log ({ex.Message}). Is the file open in Excel?";
@@ -398,6 +399,10 @@ public partial class ReceivePage : UserControl, IDisposable
 
     private void UpdateMeter()
     {
+        // An unfinished test waits a little in case the signal only dropped out; then it's logged.
+        try { _testLog.Flush(DateTime.Now); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { ShowError($"Couldn't add a test to the test log ({ex.Message}). Is the file open in Excel?"); }
+
         // Convert to decibels: 0 dB is the loudest possible, -60 dB is very quiet.
         double db = 20 * Math.Log10(Math.Max(_latestRms, 1e-6));
 
@@ -579,6 +584,7 @@ public partial class ReceivePage : UserControl, IDisposable
     public void Dispose()
     {
         _meterTimer.Stop();
+        try { _testLog.WriteHeld(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         if (_recorder.IsRecording) _recorder.Stop(_recordingCallsigns);   // closing RFpix: keep what was recorded
         _player.Dispose();
         _input.Dispose();
