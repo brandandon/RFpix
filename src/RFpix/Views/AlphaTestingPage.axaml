@@ -69,7 +69,7 @@
                    Text="RFpix keys the radio as set on the Radio page (CAT, RTS, DTR or VOX), switching to data mode first if that's ticked there. The transmitter is always released at the end, when you click Stop, or by a time limit if anything goes wrong." />
       </StackPanel>
 
-      <TextBlock Classes="Hint" Text="Sending your own pictures comes next, with the image optimizer." />
+      <TextBlock Classes="Hint" Text="Your own pictures are sent from the Send tab of the TX/RX page." />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

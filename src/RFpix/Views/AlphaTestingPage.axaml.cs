@@ -46,7 +46,7 @@ public partial class AlphaTestingPage : UserControl, IDisposable
         _gain = Gain;
         _loading = false;
         // The sound output and keying are set on other pages: show them whenever this tab appears.
-        AttachedToVisualTree += (_, _) => ShowRoute();
+        AttachedToVisualTree += (_, _) => ShowShared();
         AppSettings.SoundDevicesChanged += ShowRoute;
         TestList.SelectedIndex = 0;
     }
@@ -71,29 +71,19 @@ public partial class AlphaTestingPage : UserControl, IDisposable
 
     // ---- remembered choices ----
 
-    /// <summary>The radio's sound output chosen on the Settings page, if it's plugged in.</summary>
-    private AudioDeviceInfo? ChosenOutput()
-    {
-        var id = AppSettings.Current.OutputDeviceId;
-        if (id is null) return null;
-        try { return _output.GetDevices().FirstOrDefault(d => d.Id == id); }
-        catch (AudioException) { return null; }
-    }
-
     /// <summary>The line beside Send: where the sound goes and how the radio is keyed.</summary>
-    private void ShowRoute()
+    private void ShowRoute() => RouteText.Text = SendSupport.Route(_output);
+
+    /// <summary>The callsign and level are shared with the Send tab: show them as they are now.</summary>
+    private void ShowShared()
     {
-        var radio = AppSettings.Current.Radio;
-        string keying = radio.Ptt switch
-        {
-            PttMethod.Vox => "VOX",
-            PttMethod.Rts => "RTS",
-            PttMethod.Dtr => "DTR",
-            _ => RadioChoices.Find(radio.Choice).Connection == "none" ? "nothing (no radio chosen)" : "CAT",
-        };
-        string output = ChosenOutput()?.Name
-            ?? (AppSettings.Current.OutputDeviceId is null ? "no sound output chosen yet" : "a sound output that isn't connected");
-        RouteText.Text = $"Sending to {output}, keyed by {keying}  ·  change in Settings and Radio";
+        _loading = true;
+        CallsignBox.Text = AppSettings.Current.Callsign ?? "";
+        LevelSlider.Value = Math.Clamp(Math.Round(AppSettings.Current.TransmitLevelDb), LevelSlider.Minimum, 0);
+        LevelText.Text = LevelLabel;
+        _gain = Gain;
+        _loading = false;
+        ShowRoute();
     }
 
     private void OnLevelChanged(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
@@ -106,10 +96,10 @@ public partial class AlphaTestingPage : UserControl, IDisposable
         AppSettings.Current.Save();
     }
 
-    private string LevelLabel => LevelSlider.Value == 0 ? "0 dB" : $"{LevelSlider.Value:0} dB".Replace('-', '\u2212');
+    private string LevelLabel => SendSupport.LevelLabel(LevelSlider.Value);
 
     /// <summary>The level as a multiplier: 0 dB = 1, -20 dB = 0.1.</summary>
-    private double Gain => Math.Pow(10, LevelSlider.Value / 20);
+    private double Gain => SendSupport.Gain(LevelSlider.Value);
 
     private void OnCallsignLostFocus(object? sender, RoutedEventArgs e) => SaveCallsign();
 
@@ -137,23 +127,7 @@ public partial class AlphaTestingPage : UserControl, IDisposable
         }
         if (Selected is not { } test) return;
         string call = SaveCallsign();
-        if (call.Length == 0) { ShowStatus("Type your callsign first: it's sent with the transmission.", problem: true); return; }
-        if (ChosenOutput() is not { } device)
-        {
-            ShowStatus(AppSettings.Current.OutputDeviceId is null
-                ? "Pick the radio's sound output on the Settings page first."
-                : "The sound output chosen on the Settings page isn't connected. Switch on or plug in the radio, or pick another there.", problem: true);
-            return;
-        }
-
-        var radioSettings = AppSettings.Current.Radio;
-        bool hasControl = RadioChoices.Find(radioSettings.Choice).Connection != "none";
-        bool keyed = radioSettings.Ptt != PttMethod.Vox;
-        if (keyed && !hasControl)
-        {
-            ShowStatus("Keying is set to CAT, RTS or DTR but no radio is chosen. Pick your radio on the Radio page, or choose VOX there.", problem: true);
-            return;
-        }
+        if (SendSupport.Problem(_output, call) is { } problem) { ShowStatus(problem, problem: true); return; }
 
         _sending = new CancellationTokenSource();
         var cancel = _sending.Token;
@@ -163,28 +137,9 @@ public partial class AlphaTestingPage : UserControl, IDisposable
         Progress.IsVisible = true;
         try
         {
-            ShowStatus("Preparing the transmission…", problem: false);
-            var (sound, seconds) = await Task.Run(() =>
-            {
-                var tx = test.Transmitter(call);
-                return (Transmission.Prepare(tx.Audio(), 1, keyed), tx.Duration.TotalSeconds);
-            });
-
-            // Connect if keying or data mode needs the radio and the Radio page hasn't connected.
-            var radio = RadioService.Current;
-            if (radio is null && hasControl)
-            {
-                ShowStatus("Connecting to the radio…", problem: false);
-                radio = await RadioService.ConnectAsync(radioSettings);
-            }
-
-            ShowStatus($"Transmitting test {test.Number} ({seconds:0} s)…", problem: false);
-            var progress = new Progress<double>(f =>
-            {
-                Progress.Value = f;
-                ShowStatus($"Transmitting test {test.Number}: {f * seconds:0} of {seconds:0} s", problem: false);
-            });
-            await Transmission.SendAsync(sound, _output, device.Id, radio, () => Volatile.Read(ref _gain), progress, cancel);
+            await SendSupport.SendAsync(() => test.Transmitter(call), $"test {test.Number}", _output,
+                () => Volatile.Read(ref _gain), m => ShowStatus(m, problem: false),
+                new Progress<double>(f => Progress.Value = f), cancel);
             ShowStatus($"Sent test {test.Number} as {call}.", problem: false);
         }
         catch (OperationCanceledException)
@@ -223,14 +178,7 @@ public partial class AlphaTestingPage : UserControl, IDisposable
         try
         {
             ShowStatus("Making the sound file…", problem: false);
-            double level = Gain;
-            await Task.Run(() =>
-            {
-                var tx = test.Transmitter(call);
-                var sound = Transmission.Prepare(tx.Audio(), level, keyed: false);
-                using var wav = new WavWriter(path, Transmission.SampleRate);
-                wav.Write(sound);
-            });
+            await SendSupport.SaveAsync(() => test.Transmitter(call), path, Gain);
             ShowStatus($"Saved {Path.GetFileName(path)}.", problem: false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

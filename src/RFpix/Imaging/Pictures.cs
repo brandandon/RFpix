@@ -51,15 +51,15 @@ public static class Pictures
     }
 
     /// <summary>Makes a JPEG of the picture at a quality from 1 to 100.</summary>
-    public static byte[] EncodeJpeg(DecodedPicture picture, int quality)
+    public static byte[] EncodeJpeg(DecodedPicture picture, int quality) => Making("JPEG", () =>
     {
         using var image = FromPicture(picture);
         image.Quality = (uint)Math.Clamp(quality, 1, 100);
         return image.ToByteArray(MagickFormat.Jpeg);
-    }
+    });
 
     /// <summary>Makes an AVIF of the picture at a quality from 1 to 100.</summary>
-    public static byte[] EncodeAvif(DecodedPicture picture, int quality)
+    public static byte[] EncodeAvif(DecodedPicture picture, int quality) => Making("AVIF", () =>
     {
         using var image = FromPicture(picture);
         image.Quality = (uint)Math.Clamp(quality, 1, 100);
@@ -67,6 +67,12 @@ public static class Pictures
         // second for a HamDRM-sized picture, and the files are within a few percent of the slowest.
         image.Settings.SetDefine(MagickFormat.Heic, "speed", "6");
         return image.ToByteArray(MagickFormat.Avif);
+    });
+
+    private static byte[] Making(string format, Func<byte[]> make)
+    {
+        try { return make(); }
+        catch (MagickException ex) { throw new PictureException($"RFpix couldn't make the {format} file: {ex.Message}", ex); }
     }
 
     /// <summary>Makes a picture file in the format at a quality from 1 to 100.</summary>

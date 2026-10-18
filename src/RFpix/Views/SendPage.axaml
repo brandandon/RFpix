@@ -1,14 +1,194 @@
 <!--
   SendPage.axaml - the Send tab of the TX/RX page: sending your own pictures.
-  Being built: picking a picture, fitting it to the transmit time, and sending it.
+
+  Open a picture (or drag one onto the page) and RFpix fits it to the transmit time,
+  making it smaller and compressing it (the image optimizer). Left: the original and
+  the picture as it will be sent, side by side, then the send settings. Right: the
+  target time, Auto or Manual, size, quality, format and the time it will take.
+  Below: callsign, level and Send.
   The built-in test transmissions are on the Alpha Testing page.
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="RFpix.Views.SendPage">
-  <StackPanel Spacing="10" MaxWidth="820" HorizontalAlignment="Left">
-    <TextBlock Text="Sending your own pictures is being built." FontWeight="SemiBold" />
-    <TextBlock Classes="Hint" TextWrapping="Wrap"
-               Text="The built-in test transmissions are on the Alpha Testing page. RFpix goes on listening on the Receive tab while you send from there." />
-  </StackPanel>
+             x:Class="RFpix.Views.SendPage"
+             DragDrop.AllowDrop="True">
+  <ScrollViewer>
+    <StackPanel Spacing="14" Margin="0,0,16,16">
+
+      <!-- The picture -->
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <Button x:Name="OpenButton" Content="Open picture…" Click="OnOpenClick" />
+        <TextBlock x:Name="FileText" VerticalAlignment="Center" FontWeight="SemiBold" />
+        <TextBlock x:Name="DropHint" Classes="Hint" VerticalAlignment="Center" Text="or drag a picture onto the page" />
+      </StackPanel>
+
+      <Grid ColumnDefinitions="*,300" ColumnSpacing="20">
+
+        <!-- Left: the two pictures, then the send settings -->
+        <StackPanel Grid.Column="0" Spacing="8">
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+            <StackPanel Grid.Column="0" Spacing="4">
+              <TextBlock Classes="Hint" FontSize="13" Text="Original" />
+              <Border BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Height="240">
+                <ScrollViewer x:Name="OriginalScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled"
+                              ScrollChanged="OnPreviewScrolled">
+                  <Image x:Name="OriginalImage" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                </ScrollViewer>
+              </Border>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="4">
+              <TextBlock x:Name="SentLabel" Classes="Hint" FontSize="13" Text="As sent" />
+              <Border BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Height="240">
+                <Panel>
+                  <ScrollViewer x:Name="SentScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled"
+                                ScrollChanged="OnPreviewScrolled">
+                    <Image x:Name="SentImage" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                  </ScrollViewer>
+                  <TextBlock x:Name="NoPictureText" Classes="Hint" HorizontalAlignment="Center" VerticalAlignment="Center"
+                             TextAlignment="Center" Text="Open a picture to send" />
+                </Panel>
+              </Border>
+            </StackPanel>
+          </Grid>
+          <CheckBox x:Name="ZoomBox" Content="Zoom to full size (to check small text and detail)"
+                    IsCheckedChanged="OnZoomChanged" IsEnabled="False" />
+
+          <!-- Send settings, and saved profiles of them -->
+          <StackPanel Spacing="8" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <TextBlock Text="Profile" FontWeight="SemiBold" VerticalAlignment="Center" />
+              <ComboBox x:Name="ProfileBox" Width="240" PlaceholderText="Your own settings" SelectionChanged="OnProfileChanged" />
+              <Button x:Name="SaveProfileButton" Content="Save as profile…">
+                <Button.Flyout>
+                  <Flyout Placement="Bottom">
+                    <StackPanel Spacing="8" Width="260">
+                      <TextBlock Text="Save these settings as a profile named:" />
+                      <TextBox x:Name="ProfileNameBox" MaxLength="40" Watermark="e.g. HF evening net" />
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Save" Click="OnSaveProfileClick" />
+                        <TextBlock x:Name="ProfileNameProblem" Foreground="OrangeRed" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="180" />
+                      </StackPanel>
+                    </StackPanel>
+                  </Flyout>
+                </Button.Flyout>
+              </Button>
+              <Button x:Name="DeleteProfileButton" Content="Delete" Click="OnDeleteProfileClick" IsEnabled="False"
+                      ToolTip.Tip="Deletes the chosen profile (not the ones that come with RFpix)." />
+            </StackPanel>
+            <WrapPanel>
+              <StackPanel Spacing="3" Margin="0,0,10,8">
+                <TextBlock FontSize="13" Text="Mode" />
+                <ComboBox x:Name="ModeBox" Width="70" SelectionChanged="OnSendSettingChanged"
+                          ToolTip.Tip="A carries the most data; B and E hold up better on fading paths, more slowly." />
+              </StackPanel>
+              <StackPanel Spacing="3" Margin="0,0,10,8">
+                <TextBlock FontSize="13" Text="Bandwidth" />
+                <ComboBox x:Name="BandwidthBox" Width="96" SelectionChanged="OnSendSettingChanged"
+                          ToolTip.Tip="2.5 kHz is faster; 2.2 kHz fits narrower radio filters." />
+              </StackPanel>
+              <StackPanel Spacing="3" Margin="0,0,10,8">
+                <TextBlock FontSize="13" Text="QAM" />
+                <ComboBox x:Name="QamBox" Width="80" SelectionChanged="OnSendSettingChanged"
+                          ToolTip.Tip="64 is fastest but needs a strong, clean signal; 4 is slowest and toughest." />
+              </StackPanel>
+              <StackPanel Spacing="3" Margin="0,0,10,8">
+                <TextBlock FontSize="13" Text="Interleave" />
+                <ComboBox x:Name="InterleaveBox" Width="90" SelectionChanged="OnSendSettingChanged"
+                          ToolTip.Tip="Long spreads the data over more time, riding out fades better." />
+              </StackPanel>
+              <StackPanel Spacing="3" Margin="0,0,10,8">
+                <TextBlock FontSize="13" Text="Protection" />
+                <ComboBox x:Name="ProtectionBox" Width="90" SelectionChanged="OnSendSettingChanged"
+                          ToolTip.Tip="High adds more error correction, at lower speed." />
+              </StackPanel>
+              <StackPanel Spacing="3" Margin="0,0,10,8">
+                <TextBlock FontSize="13" Text="Reed-Solomon" />
+                <ComboBox x:Name="ReedSolomonBox" Width="100" SelectionChanged="OnSendSettingChanged"
+                          ToolTip.Tip="Repair data across the whole picture, for weak paths: RS1 rebuilds about an eighth missing, RS2 a quarter, RS3 over a third, RS4 half. Costs time." />
+              </StackPanel>
+            </WrapPanel>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Right: fitting it to the transmit time -->
+        <Border Grid.Column="1" VerticalAlignment="Top" BorderThickness="1" CornerRadius="6" Padding="14"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+          <StackPanel Spacing="12">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="Transmit time" FontWeight="SemiBold" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="1" x:Name="TargetBox" Width="100" SelectionChanged="OnSendSettingChanged"
+                        ToolTip.Tip="How long the picture should take on the air. Keep it under your repeater's time-out." />
+            </Grid>
+            <StackPanel Orientation="Horizontal" Spacing="16">
+              <RadioButton x:Name="AutoButton" GroupName="Fit" Content="Auto" IsCheckedChanged="OnAutoChanged"
+                           ToolTip.Tip="RFpix picks the size and quality that fill the transmit time with the best-looking picture." />
+              <RadioButton x:Name="ManualButton" GroupName="Fit" Content="Manual"
+                           ToolTip.Tip="You pick the size and quality; the time updates as you go." />
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="Size" FontWeight="SemiBold" />
+                <TextBlock Grid.Column="1" x:Name="SizeText" />
+              </Grid>
+              <Slider x:Name="SizeSlider" Minimum="160" Maximum="1920" SmallChange="16" LargeChange="160"
+                      ValueChanged="OnManualSliderChanged" />
+              <WrapPanel x:Name="PresetPanel" />
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="Quality" FontWeight="SemiBold" />
+                <TextBlock Grid.Column="1" x:Name="QualityText" />
+              </Grid>
+              <Slider x:Name="QualitySlider" Minimum="1" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True"
+                      ValueChanged="OnManualSliderChanged" />
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Format" FontWeight="SemiBold" />
+              <RadioButton x:Name="Jpeg2000Button" GroupName="Format" Content="JPEG 2000 (everyone)" IsCheckedChanged="OnFormatChanged"
+                           ToolTip.Tip="What EasyPal sends: QSSTV, EasyPal and RFpix all show it." />
+              <RadioButton x:Name="JpegButton" GroupName="Format" Content="JPEG (everyone)" IsCheckedChanged="OnFormatChanged"
+                           ToolTip.Tip="Shown by everything, but blurrier and blockier than JPEG 2000 at the same size." />
+              <RadioButton x:Name="AvifButton" GroupName="Format" Content="AVIF (RFpix only, smaller)" IsCheckedChanged="OnFormatChanged"
+                           ToolTip.Tip="The best-looking for its size, so pictures go out sharper or faster. Only RFpix shows it: QSSTV and EasyPal stations receive a file they can't open." />
+            </StackPanel>
+            <Border x:Name="EstimateBorder" CornerRadius="4" Padding="10" Background="#40808080">
+              <StackPanel Spacing="2">
+                <TextBlock x:Name="EstimateText" FontSize="20" FontWeight="SemiBold" Text="–" />
+                <TextBlock x:Name="EstimateDetail" FontSize="13" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Callsign and level -->
+      <StackPanel Orientation="Horizontal" Spacing="32">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Your callsign" FontWeight="SemiBold" />
+          <TextBox x:Name="CallsignBox" Width="160" MaxLength="9" Watermark="e.g. KD9DD" LostFocus="OnCallsignLostFocus" />
+        </StackPanel>
+        <StackPanel Spacing="6">
+          <TextBlock Text="Transmit level" FontWeight="SemiBold" />
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <Slider x:Name="LevelSlider" Width="300" Minimum="-60" Maximum="0" TickFrequency="1"
+                    IsSnapToTickEnabled="True" ValueChanged="OnLevelChanged"
+                    ToolTip.Tip="0 dB is QSSTV's level; each 6 dB down halves it. Raise it until the radio's ALC barely moves. Works while sending." />
+            <TextBlock x:Name="LevelText" VerticalAlignment="Center" Width="60" />
+          </StackPanel>
+        </StackPanel>
+      </StackPanel>
+
+      <!-- Send -->
+      <StackPanel Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button x:Name="SendButton" Content="Send" Click="OnSendClick" MinWidth="120" IsEnabled="False" />
+          <Button x:Name="SaveButton" Content="Save as sound file…" Click="OnSaveClick" IsEnabled="False"
+                  ToolTip.Tip="Saves the transmission as a WAV file instead of sending it: to play into another program, or to check it." />
+          <TextBlock x:Name="RouteText" Classes="Hint" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="520" />
+        </StackPanel>
+        <ProgressBar x:Name="Progress" Width="440" HorizontalAlignment="Left" Minimum="0" Maximum="1" IsVisible="False" />
+        <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
 </UserControl>

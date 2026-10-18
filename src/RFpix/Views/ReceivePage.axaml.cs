@@ -32,7 +32,6 @@ using RFpix.HamDrm;
 using RFpix.Imaging;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using System.Runtime.InteropServices;
 using RFpix.Receive;
 using RFpix.Settings;
 
@@ -468,20 +467,21 @@ public partial class ReceivePage : UserControl, IDisposable
         string caption = $"{file.Name}{from}  ·  {DateTime.Now:HH:mm}\nSaved as \"{savedAs}\"";
         int number = ++_pictureCount;
 
-        // JPEG 2000 is decoded by RFpix (in the background: a big picture takes a moment);
-        // anything else is shown if Avalonia can draw it (JPEG, PNG, BMP, GIF).
+        // JPEG 2000 and AVIF are decoded by RFpix (in the background: a big picture takes a
+        // moment); anything else is shown if Avalonia can draw it (JPEG, PNG, BMP, GIF).
         Bitmap? bitmap = null;
         string? why = null;
-        if (Jpeg2000.IsJpeg2000(file.Data))
+        var format = PictureFormats.Detect(file.Data);
+        if (format is PictureFormat.Jpeg2000 or PictureFormat.Avif)
         {
             try
             {
-                var picture = await Task.Run(() => Jpeg2000.Decode(file.Data));
-                bitmap = ToBitmap(picture);
+                var picture = await Task.Run(() => Pictures.Decode(file.Data));
+                bitmap = Bitmaps.From(picture);
             }
             catch (Exception ex)
             {
-                why = ex is PictureException ? ex.Message : "This JPEG 2000 picture can't be shown.";
+                why = ex is PictureException ? ex.Message : $"This {format.Value.DisplayName()} picture can't be shown.";
             }
         }
         else
@@ -514,18 +514,6 @@ public partial class ReceivePage : UserControl, IDisposable
         {
             PictureCaption.Text = $"{caption}\n{why}";
         }
-    }
-
-    /// <summary>Copies decoded pixels into a picture Avalonia can show.</summary>
-    private static WriteableBitmap ToBitmap(DecodedPicture picture)
-    {
-        var bitmap = new WriteableBitmap(new Avalonia.PixelSize(picture.Width, picture.Height), new Avalonia.Vector(96, 96),
-                                         PixelFormat.Bgra8888, AlphaFormat.Opaque);
-        using var buffer = bitmap.Lock();
-        int rowBytes = picture.Width * 4;
-        for (int y = 0; y < picture.Height; y++)
-            Marshal.Copy(picture.Bgra, y * rowBytes, buffer.Address + y * buffer.RowBytes, rowBytes);
-        return bitmap;
     }
 
     private async void OnOpenTestResultsClick(object? sender, RoutedEventArgs e)

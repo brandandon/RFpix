@@ -1,0 +1,105 @@
+// SendSupport.cs - what the Send tab and the Alpha Testing page share about sending:
+// which sound output and keying are in use, the checks before keying the radio, and
+// the send itself (connect to the radio if needed, key, play, un-key).
+
+using RFpix.Audio;
+using RFpix.HamDrm;
+using RFpix.Radio;
+using RFpix.Send;
+using RFpix.Settings;
+
+namespace RFpix.Views;
+
+internal static class SendSupport
+{
+    /// <summary>The radio's sound output chosen on the Settings page, if it's plugged in.</summary>
+    public static AudioDeviceInfo? ChosenOutput(IAudioOutput output)
+    {
+        var id = AppSettings.Current.OutputDeviceId;
+        if (id is null) return null;
+        try { return output.GetDevices().FirstOrDefault(d => d.Id == id); }
+        catch (AudioException) { return null; }
+    }
+
+    /// <summary>The line beside Send: where the sound goes and how the radio is keyed.</summary>
+    public static string Route(IAudioOutput output)
+    {
+        var radio = AppSettings.Current.Radio;
+        string keying = radio.Ptt switch
+        {
+            PttMethod.Vox => "VOX",
+            PttMethod.Rts => "RTS",
+            PttMethod.Dtr => "DTR",
+            _ => RadioChoices.Find(radio.Choice).Connection == "none" ? "nothing (no radio chosen)" : "CAT",
+        };
+        string device = ChosenOutput(output)?.Name
+            ?? (AppSettings.Current.OutputDeviceId is null ? "no sound output chosen yet" : "a sound output that isn't connected");
+        return $"Sending to {device}, keyed by {keying}  ·  change in Settings and Radio";
+    }
+
+    /// <summary>Why sending can't start, or null if it can.</summary>
+    public static string? Problem(IAudioOutput output, string callsign)
+    {
+        if (callsign.Length == 0) return "Type your callsign first: it's sent with the transmission.";
+        if (ChosenOutput(output) is null)
+            return AppSettings.Current.OutputDeviceId is null
+                ? "Pick the radio's sound output on the Settings page first."
+                : "The sound output chosen on the Settings page isn't connected. Switch on or plug in the radio, or pick another there.";
+        var radio = AppSettings.Current.Radio;
+        if (radio.Ptt != PttMethod.Vox && RadioChoices.Find(radio.Choice).Connection == "none")
+            return "Keying is set to CAT, RTS or DTR but no radio is chosen. Pick your radio on the Radio page, or choose VOX there.";
+        return null;
+    }
+
+    /// <summary>Makes the sound and sends it (check <see cref="Problem"/> first).</summary>
+    /// <param name="what">For the messages, e.g. "test 2" or "tower-sunset.jp2".</param>
+    /// <param name="level">The level as it plays (the slider, read again and again).</param>
+    /// <param name="status">Shows a message as it goes.</param>
+    public static async Task SendAsync(Func<HamDrmTransmitter> transmitter, string what, IAudioOutput output,
+                                       Func<double> level, Action<string> status, IProgress<double> progress,
+                                       CancellationToken cancel)
+    {
+        var device = ChosenOutput(output) ?? throw new AudioException("The sound output chosen on the Settings page isn't connected.");
+        var radioSettings = AppSettings.Current.Radio;
+        bool hasControl = RadioChoices.Find(radioSettings.Choice).Connection != "none";
+        bool keyed = radioSettings.Ptt != PttMethod.Vox;
+
+        status("Preparing the transmission…");
+        var (sound, seconds) = await Task.Run(() =>
+        {
+            var tx = transmitter();
+            return (Transmission.Prepare(tx.Audio(), 1, keyed), tx.Duration.TotalSeconds);
+        }, cancel);
+
+        // Connect if keying or data mode needs the radio and the Radio page hasn't connected.
+        var radio = RadioService.Current;
+        if (radio is null && hasControl)
+        {
+            status("Connecting to the radio…");
+            radio = await RadioService.ConnectAsync(radioSettings);
+        }
+
+        status($"Transmitting {what} ({seconds:0} s)…");
+        var shown = new Progress<double>(f =>
+        {
+            progress.Report(f);
+            status($"Transmitting {what}: {f * seconds:0} of {seconds:0} s");
+        });
+        await Transmission.SendAsync(sound, output, device.Id, radio, level, shown, cancel);
+    }
+
+    /// <summary>Writes the transmission to a WAV file instead of sending it.</summary>
+    public static Task SaveAsync(Func<HamDrmTransmitter> transmitter, string path, double level) => Task.Run(() =>
+    {
+        var tx = transmitter();
+        var sound = Transmission.Prepare(tx.Audio(), level, keyed: false);
+        using var wav = new WavWriter(path, Transmission.SampleRate);
+        wav.Write(sound);
+    });
+
+    /// <summary>The level slider's text, e.g. "−30 dB".</summary>
+    public static string LevelLabel(double db) => db == 0 ? "0 dB" : $"{db:0} dB".Replace('-', '−');
+
+    /// <summary>The level as a multiplier: 0 dB = 1, -20 dB = 0.1.</summary>
+    public static double Gain(double db) => Math.Pow(10, db / 20);
+}

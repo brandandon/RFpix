@@ -5,7 +5,9 @@
 // If the file is missing or damaged, RFpix just starts with the defaults.
 
 using System.Text.Json;
+using RFpix.Imaging;
 using RFpix.Radio;
+using RFpix.Send;
 
 namespace RFpix.Settings;
 
@@ -31,6 +33,23 @@ public sealed class AppSettings
 
     /// <summary>The operator's callsign, sent with every transmission.</summary>
     public string? Callsign { get; set; }
+
+    // ---- the Send tab ----
+
+    /// <summary>The send settings in use (Send tab), whether or not they're a saved profile.</summary>
+    public SendProfile? SendSettings { get; set; }
+
+    /// <summary>Profiles the operator has saved (the built-in ones aren't stored).</summary>
+    public List<SendProfile> SendProfiles { get; set; } = new();
+
+    /// <summary>The picture format sent: JPEG 2000 unless changed.</summary>
+    public PictureFormat SendFormat { get; set; } = PictureFormat.Jpeg2000;
+
+    /// <summary>True when the optimizer picks the size and quality (Auto), false for Manual.</summary>
+    public bool SendAutoFit { get; set; } = true;
+
+    /// <summary>Folder the "Open picture…" button opened last time.</summary>
+    public string? LastPictureFolder { get; set; }
 
     /// <summary>How RFpix reaches the radio (Radio page).</summary>
     public RadioSettings Radio { get; set; } = new();
