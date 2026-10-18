@@ -1,4 +1,5 @@
-// Jpeg2000.cs - turns a received JPEG 2000 picture into pixels the screen can show.
+// Jpeg2000.cs - turns a received JPEG 2000 picture into pixels the screen can show,
+// and makes JPEG 2000 pictures for sending.
 //
 // EasyPal sends JPEG 2000 by default, because at the small sizes HamDRM uses it looks
 // better than JPEG for the same number of bytes. Avalonia can't read it by itself, so
@@ -10,6 +11,7 @@
 
 using CoreJ2K;
 using CoreJ2K.Configuration;
+using System.Globalization;
 using CoreJ2K.Util;
 using CoreJ2K.j2k.util;
 
@@ -27,6 +29,10 @@ public static class Jpeg2000
     {
         // CoreJ2K writes warnings about damaged files to the console; RFpix tells the
         // operator itself, so they're dropped.
+//
+// Sending: CoreJ2K's encoder is told how many bits per pixel to use, so it makes a file
+// of almost exactly the size asked for. QSSTV and EasyPal read its files (checked with
+// OpenJPEG, the library QSSTV uses).
         FacilityManager.DefaultMsgLogger = new QuietLogger();
     }
 
@@ -125,6 +131,60 @@ public static class Jpeg2000
             }
             return new DecodedPicture(w, h, bgra);
         }
+    }
+
+    // ---- sending ----
+
+    /// <summary>The bits per pixel for a quality from 1 to 100 (the slider on the Send tab):
+    /// from 0.05 at 1 to 3 at 100, each step about 4% more. JPEG 2000 has no quality
+    /// setting of its own, only a size, so this makes one.</summary>
+    public static double BitsPerPixel(double quality) => 0.05 * Math.Pow(60, (Math.Clamp(quality, 1, 100) - 1) / 99);
+
+    /// <summary>Makes a JPEG 2000 file (JP2) of the picture at a quality from 1 to 100.</summary>
+    public static byte[] Encode(DecodedPicture picture, int quality) =>
+        EncodeToSize(picture, (int)(BitsPerPixel(quality) * picture.Width * picture.Height / 8));
+
+    /// <summary>The smallest file asked of the encoder: its headers alone take a few hundred bytes.</summary>
+    private const int MinBytes = 400;
+
+    /// <summary>Makes a JPEG 2000 file (JP2) of the picture, no larger than <paramref name="maxBytes"/>
+    /// (and usually within 1% of it). The smallest it makes is about 400 bytes.</summary>
+    public static byte[] EncodeToSize(DecodedPicture picture, int maxBytes)
+    {
+        int w = picture.Width, h = picture.Height;
+        // Red, green and blue, each centred on zero as the encoder expects (0-255 becomes -128 to 127).
+        var planes = new int[3][];
+        for (int c = 0; c < 3; c++) planes[c] = new int[w * h];
+        for (int i = 0; i < w * h; i++)
+        {
+            planes[0][i] = picture.Bgra[i * 4 + 2] - 128;
+            planes[1][i] = picture.Bgra[i * 4 + 1] - 128;
+            planes[2][i] = picture.Bgra[i * 4] - 128;
+        }
+
+        // The size asked for covers the picture data; the JP2 wrapper around it adds about
+        // 90 bytes. If the result is still over, ask again for proportionally less. A file
+        // can't be smaller than its headers (a few hundred bytes), so that's the least asked for.
+        int aim = Math.Max(MinBytes, maxBytes - 100);
+        byte[] data = Array.Empty<byte>();
+        for (int attempt = 0; attempt < 6; attempt++)
+        {
+            var settings = new ParameterList(J2kImage.GetDefaultEncoderParameterList());
+            settings["rate"] = (aim * 8.0 / (w * h)).ToString("R", CultureInfo.InvariantCulture);
+            settings["verbose"] = "off";
+            try
+            {
+                data = J2kImage.ToBytes(new InterleavedImageSource(w, h, 3, 8, new bool[3], planes), settings);
+            }
+            catch (Exception) when (attempt < 5)
+            {
+                aim = aim * 3 / 2;   // too few bytes even for the headers: allow more
+                continue;
+            }
+            if (data.Length <= maxBytes || aim <= MinBytes) break;
+            aim = Math.Max(MinBytes, (int)(aim * (double)maxBytes / data.Length) - 16);
+        }
+        return data;
     }
 
     private static byte[] To8Bits(int[] samples, int bits)

@@ -84,6 +84,9 @@
     <!-- CoreJ2K reads JPEG 2000 pictures, which EasyPal sends by default. Written in C#,
          so it works on Windows, Linux and Mac alike (BSD licence). -->
     <PackageReference Include="CoreJ2K" Version="2.3.3" />
+    <!-- Magick.NET (ImageMagick for .NET, Apache licence) opens pictures of nearly any kind
+         for sending, and makes and reads JPEG and AVIF (the RFpix-only, smaller format). -->
+    <PackageReference Include="Magick.NET-Q8-x64" Version="14.17.2" />
   </ItemGroup>
 
 </Project>

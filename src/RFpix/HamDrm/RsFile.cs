@@ -8,7 +8,8 @@
 //      and so on. A lost piece of the transfer then costs each block only a few
 //      bytes, which its repair data can rebuild.
 //   The file is sent with extension .rs1 to .rs4 instead of its own.
-// Unwrapping does the reverse. Ported from QSSTV's reedsolomoncoder.cpp.
+// Unwrapping does the reverse. The header holds only 3 letters, so RFpix's AVIF
+// pictures (".avif") are wrapped as "avf" and get their 4 letters back when unwrapped. Ported from QSSTV's reedsolomoncoder.cpp.
 
 using System.Text;
 using RFpix.HamDrm.Coding;
@@ -44,7 +45,7 @@ public static class RsFile
         data[0] = (byte)(k - file.Length % k);       // QSSTV's "surplus" value
         data[1] = (byte)(blocks % 256);
         data[2] = (byte)(blocks / 256);
-        var ext = Encoding.Latin1.GetBytes(extension.TrimStart('.'));
+        var ext = Encoding.Latin1.GetBytes(Shortened(extension.TrimStart('.')));
         for (int i = 0; i < 3 && i < ext.Length; i++) data[3 + i] = ext[i];
         file.CopyTo(data, 7);
 
@@ -104,7 +105,33 @@ public static class RsFile
         // When a file's length lands in the last 7 bytes of a block, QSSTV's header says the
         // file is one block longer than it is; like QSSTV, just take what's there.
         size = Math.Min(size, data.Length - 7);
-        string extension = Encoding.Latin1.GetString(data, 3, 3).TrimEnd('\0');
-        return (data[7..(7 + size)], extension);
+        string extension = Lengthened(Encoding.Latin1.GetString(data, 3, 3).TrimEnd('\0'));
+        var file = data[7..(7 + size)];
+        return (extension == "avif" ? WithoutPadding(file) : file, extension);
     }
+
+    /// <summary>An AVIF file without zeros after its end. (The quirk above can leave up to a
+    /// block of padding on the end; JPEG and JPEG 2000 readers ignore it, but an AVIF
+    /// reader could take the zeros for a broken extra section.) An AVIF is a row of
+    /// "boxes", each starting with its length, so its true end is where the last box ends.</summary>
+    private static byte[] WithoutPadding(byte[] file)
+    {
+        long end = 0;
+        while (end + 8 <= file.Length)
+        {
+            long size = ((long)file[end] << 24) | ((long)file[end + 1] << 16) | ((long)file[end + 2] << 8) | file[end + 3];
+            if (size < 8 || end + size > file.Length) break;
+            end += size;
+        }
+        if (end == 0 || end == file.Length) return file;
+        for (long i = end; i < file.Length; i++) if (file[i] != 0) return file;   // not just padding: leave it
+        return file[..(int)end];
+    }
+
+    // The extensions longer than the header's 3 letters, and what's stored in their place.
+    private static string Shortened(string extension) =>
+        extension.Equals("avif", StringComparison.OrdinalIgnoreCase) ? "avf" : extension;
+
+    private static string Lengthened(string extension) =>
+        extension.Equals("avf", StringComparison.OrdinalIgnoreCase) ? "avif" : extension;
 }
