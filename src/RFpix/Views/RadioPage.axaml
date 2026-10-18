@@ -17,10 +17,14 @@
         <TextBlock x:Name="RadioHint" Classes="Hint" TextWrapping="Wrap" />
       </StackPanel>
 
-      <!-- Only for "Other radio": Hamlib's model number -->
+      <!-- Only for "Other radio": which radio, from Hamlib's list (type part of the make or
+           model to find it), or Hamlib's model number typed in -->
       <StackPanel x:Name="ModelPanel" Spacing="6">
-        <TextBlock Text="Hamlib model number" FontWeight="SemiBold" />
-        <TextBox x:Name="ModelBox" Width="140" Watermark="e.g. 1035" />
+        <TextBlock Text="Radio model" FontWeight="SemiBold" />
+        <AutoCompleteBox x:Name="ModelBox" Width="440" FilterMode="Contains" MinimumPrefixLength="1"
+                         MaxDropDownHeight="320" Watermark="Type the make or model, e.g. FT-991 or IC-7300" />
+        <TextBlock Classes="Hint" TextWrapping="Wrap"
+                   Text="Pick your radio from the list as you type. Hamlib's model number (such as 1035) can be typed instead." />
       </StackPanel>
 
       <!-- A radio on a COM port -->

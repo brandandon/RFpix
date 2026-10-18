@@ -169,4 +169,14 @@ public class RadioTests
         Assert.Equal(RadioConnection.DummyModel, HamlibModels.Find(RadioConnection.DummyModel)?.Number);
         Assert.Equal(all.Count, all.Select(m => m.Number).Distinct().Count());   // each radio once
     }
+
+    [Fact]
+    public void The_model_number_is_read_from_a_list_entry_or_a_typed_number()
+    {
+        Assert.Equal(1035, HamlibModels.NumberFrom("Yaesu FT-991 (1035)"));
+        Assert.Equal(3081, HamlibModels.NumberFrom(" 3081 "));
+        Assert.Null(HamlibModels.NumberFrom("FT-991"));   // still typing: no number yet
+        Assert.Null(HamlibModels.NumberFrom(""));
+        Assert.Null(HamlibModels.NumberFrom("0"));
+    }
 }

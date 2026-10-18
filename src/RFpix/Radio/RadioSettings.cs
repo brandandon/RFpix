@@ -59,7 +59,7 @@ public static class RadioChoices
             "Use the first of the radio's two COM ports. CI-V address A2 is the radio's default; " +
             "PTT by RTS is what worked in QSSTV (CAT works too)."),
         new("other", "Other radio (Hamlib model number)", -1, "serial", 9600, null, PttMethod.Cat, false,
-            "Hamlib knows hundreds of radios. Find yours with Hamlib's \"rigctl --list\", or in WSJT-X's radio list."),
+            "Hamlib knows hundreds of radios: type part of yours below (such as \"7300\") and pick it from the list."),
         new("rigctld", "Shared through rigctld (another program owns the radio)", 2, "network", 0, null, PttMethod.Cat, false,
             "When another program already has the radio's port, run Hamlib's rigctld; RFpix connects to it (usually localhost:4532)."),
         new("flrig", "Shared through flrig", 4, "network", 0, null, PttMethod.Cat, false,

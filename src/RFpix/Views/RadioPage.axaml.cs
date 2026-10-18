@@ -30,6 +30,7 @@ public partial class RadioPage : UserControl, IDisposable
     {
         InitializeComponent();
         RadioBox.ItemsSource = RadioChoices.All;
+        ModelBox.ItemsSource = HamlibModels.All();   // every radio Hamlib knows, for "Other radio"
         BaudBox.ItemsSource = RadioChoices.BaudRates;
         _pollTimer.Tick += async (_, _) => await PollAsync();
         RadioService.Changed += OnConnectionChanged;
@@ -44,7 +45,9 @@ public partial class RadioPage : UserControl, IDisposable
     {
         _loading = true;
         RadioBox.SelectedItem = RadioChoices.Find(s.Choice);
-        ModelBox.Text = s.OtherModel > 0 ? s.OtherModel.ToString() : "";
+        var model = s.OtherModel > 0 ? HamlibModels.Find(s.OtherModel) : null;
+        ModelBox.SelectedItem = model;
+        ModelBox.Text = model?.ToString() ?? (s.OtherModel > 0 ? s.OtherModel.ToString() : "");
         BaudBox.SelectedItem = RadioChoices.BaudRates.Contains(s.BaudRate) ? s.BaudRate : 38400;
         CivBox.Text = s.CivAddress ?? "";
         var choice = RadioChoices.Find(s.Choice);
@@ -62,7 +65,7 @@ public partial class RadioPage : UserControl, IDisposable
         return new RadioSettings
         {
             Choice = choice.Id,
-            OtherModel = int.TryParse(ModelBox.Text, out int model) ? model : 0,
+            OtherModel = ModelBox.SelectedItem is HamlibModel picked ? picked.Number : HamlibModels.NumberFrom(ModelBox.Text) ?? 0,
             Port = choice.Connection == "network" ? AddressBox.Text?.Trim() : (PortBox.SelectedItem as SerialPortInfo)?.Name,
             BaudRate = BaudBox.SelectedItem is int baud ? baud : 38400,
             CivAddress = string.IsNullOrWhiteSpace(CivBox.Text) ? null : CivBox.Text.Trim(),

@@ -57,6 +57,17 @@ public static class HamlibModels
             .ToList();
     }
 
+    /// <summary>The model number in what was typed: a plain number ("1035") or a list entry
+    /// ("Yaesu FT-991 (1035)"). Null if there isn't one.</summary>
+    public static int? NumberFrom(string? text)
+    {
+        text = text?.Trim();
+        if (string.IsNullOrEmpty(text)) return null;
+        if (int.TryParse(text, out int plain)) return plain > 0 ? plain : null;
+        var m = System.Text.RegularExpressions.Regex.Match(text, @"\((\d+)\)$");
+        return m.Success && int.TryParse(m.Groups[1].Value, out int listed) ? listed : null;
+    }
+
     /// <summary>The radio with this number, or null.</summary>
     public static HamlibModel? Find(int number) => All().FirstOrDefault(m => m.Number == number);
 }
