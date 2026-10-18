@@ -61,6 +61,23 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 | 9 | Mode B · 2.5 kHz · 4-QAM · long · high · RS3 | test 1 with Reed-Solomon, for weak paths: rebuilds up to a third missing |
 | 10 | Mode B · 2.5 kHz · 16-QAM · long · high · RS2 | test 2 with Reed-Solomon: rebuilds up to a quarter missing |
 
+## Sending your own pictures (new in v0.3.3)
+
+1. **TX/RX** page, **Send** tab: click **Open picture…** or drag a picture onto the page.
+   Phone photos (including iPhone HEIC) are fine.
+2. RFpix fits it to the **transmit time** (2:00 unless changed): it makes the picture smaller
+   and compresses it. **Auto** picks the size and quality; **Manual** lets you set them. The box
+   on the right shows how long it will take: green fits the target, red runs over.
+3. **Original** and **As sent** are side by side. Tick **Zoom to full size** to check small text,
+   and drag either picture to look around.
+4. **Format:** JPEG 2000 (the default) and JPEG are shown by QSSTV, EasyPal and RFpix.
+   **AVIF** looks sharper for its size, so pictures go out sharper or faster, but **only RFpix
+   shows it**: use it only when everyone receiving has RFpix.
+5. The settings (mode, bandwidth, QAM, interleave, protection, Reed-Solomon) are drop-downs.
+   **Net repeater (70 cm)** is built in; **Save as profile…** keeps your own.
+6. Callsign, level and **Send** work as for the tests. Please report how the pictures arrived,
+   and anything on the Send tab that's confusing or doesn't work.
+
 QSSTV and EasyPal users can receive the tests too (they're ordinary HamDRM pictures);
 just tell the sender which ones arrived.
 

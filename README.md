@@ -19,6 +19,7 @@ running EasyPal or QSSTV.
 
 | Date (2026) | Done |
 | --- | --- |
+| Oct 18 | Sending your own pictures (v0.3.3): image optimizer fits a picture to the transmit time (Auto or Manual), original and as-sent side by side with zoom, JPEG 2000, JPEG or AVIF (RFpix-only, smaller), settings drop-downs and saved profiles; test transmissions on their own Alpha Testing page; transparent logo; key frequency marks on the waterfall |
 | Oct 17 | TX/RX page with Receive and Send tabs; sound devices on the Settings page; wider picture area; logo above the menu (v0.3.0) |
 | Oct 17 | Tests 9 and 10 with Reed-Solomon for weak paths; each test sending judged on its own; test log joins a transmission split by a dropout |
 | Oct 17 | First on-air tests with a second station (W9BED): every test came through on the repeater |
@@ -34,8 +35,6 @@ running EasyPal or QSSTV.
 
 ## Planned features
 
-- Sending your own pictures, with an image optimizer that resizes and compresses to fit a chosen transmit time
-- Send settings as drop-downs (mode, bandwidth, QAM, interleave, protection, Reed-Solomon) and saved profiles
 - Repeater support: time-out warning, key-up lead-in, missing-segment repair (BSR)
 - Image gallery, waterfall text and ID, and optional auto-upload to an FTP server
 - Sound-card calibration
