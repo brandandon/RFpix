@@ -1,0 +1,75 @@
+<!--
+  AlphaTestingPage.axaml - the Alpha Testing page: the built-in test transmissions (fixed
+  pictures with fixed settings), the callsign, the level, and Send / Stop. For testing
+  RFpix on the air while it's young; sending your own pictures is on the TX/RX page.
+  The sound output is chosen on the Settings page, the keying on the Radio page.
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:RFpix.Views"
+             x:Class="RFpix.Views.AlphaTestingPage">
+  <ScrollViewer>
+    <StackPanel Spacing="18" MaxWidth="900" HorizontalAlignment="Left">
+      <TextBlock Classes="PageTitle" Text="Alpha Testing" />
+      <!-- The test transmissions -->
+      <StackPanel Spacing="6">
+        <TextBlock Text="Test transmissions" FontWeight="SemiBold" />
+        <TextBlock Classes="Hint" TextWrapping="Wrap"
+                   Text="Each sends its own picture with fixed settings, and the picture says what they are. Whoever receives it knows exactly what was sent, so they can report which tests came through." />
+        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+          <ListBox x:Name="TestList" Grid.Column="0" SelectionChanged="OnTestChanged" MaxHeight="330">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="v:TestListItem">
+                <StackPanel Spacing="2" Margin="0,2">
+                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Detail}" Classes="Hint" FontSize="12" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <Border Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Top"
+                  BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+            <Image x:Name="Preview" Width="320" Height="240" />
+          </Border>
+        </Grid>
+      </StackPanel>
+
+      <!-- Callsign -->
+      <StackPanel Spacing="6">
+        <TextBlock Text="Your callsign" FontWeight="SemiBold" />
+        <TextBox x:Name="CallsignBox" Width="160" MaxLength="9" Watermark="e.g. KD9DD"
+                 LostFocus="OnCallsignLostFocus" />
+        <TextBlock Classes="Hint" Text="Sent with every transmission; receivers show it (up to 9 characters)." />
+      </StackPanel>
+
+      <!-- Level -->
+      <StackPanel Spacing="6">
+        <TextBlock Text="Transmit level" FontWeight="SemiBold" />
+        <StackPanel Orientation="Horizontal" Spacing="12">
+          <Slider x:Name="LevelSlider" Width="400" Minimum="-60" Maximum="0" TickFrequency="1"
+                  IsSnapToTickEnabled="True" ValueChanged="OnLevelChanged" />
+          <TextBlock x:Name="LevelText" VerticalAlignment="Center" Width="60" />
+        </StackPanel>
+        <TextBlock Classes="Hint" TextWrapping="Wrap"
+                   Text="RFpix sets its own level, so leave the radio's Windows volume where your other programs (WSJT-X, EasyPal) need it, and adjust here. 0 dB is QSSTV's level; each 6 dB down halves it. HamDRM needs far less than FT8: its peaks are about 10 dB above its average, and the radio must pass them unclipped. Start low (around -30 dB) and raise it until the radio's ALC barely moves: the slider works while sending, so you can adjust it on the air. Too much level distorts the signal: the settings still decode but the picture doesn't." />
+      </StackPanel>
+
+      <!-- Send -->
+      <StackPanel Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button x:Name="SendButton" Content="Send" Click="OnSendClick" MinWidth="120" />
+          <Button x:Name="SaveButton" Content="Save as sound file…" Click="OnSaveClick"
+                  ToolTip.Tip="Saves the transmission as a WAV file instead of sending it: to play into another program, or to check it." />
+          <!-- Where the sound goes and how the radio is keyed (set on the Settings and Radio pages) -->
+          <TextBlock x:Name="RouteText" Classes="Hint" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="520" />
+        </StackPanel>
+        <ProgressBar x:Name="Progress" Width="440" HorizontalAlignment="Left" Minimum="0" Maximum="1" IsVisible="False" />
+        <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
+        <TextBlock Classes="Hint" TextWrapping="Wrap"
+                   Text="RFpix keys the radio as set on the Radio page (CAT, RTS, DTR or VOX), switching to data mode first if that's ticked there. The transmitter is always released at the end, when you click Stop, or by a time limit if anything goes wrong." />
+      </StackPanel>
+
+      <TextBlock Classes="Hint" Text="Sending your own pictures comes next, with the image optimizer." />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

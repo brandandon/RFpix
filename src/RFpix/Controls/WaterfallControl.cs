@@ -3,7 +3,10 @@
 // The picture is kept as a grid of coloured pixels: one column per frequency
 // step, one row per line. Each new line is painted at the top and everything
 // else moves down one row, so signals "fall" down the screen over time.
-// A frequency scale (in Hz) is drawn along the bottom.
+// A frequency scale (in Hz) is drawn along the bottom, and marks at HamDRM's three
+// key frequencies: 725, 1475 and 1850 Hz, where every HamDRM signal (any mode) has a
+// steady tone, its "frequency pilots". Those show as three bright lines in the signal;
+// when they sit on the marks, the signal is where RFpix expects it.
 
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -26,6 +29,11 @@ public sealed class WaterfallControl : Control
     private int[] _pixels = Array.Empty<int>();
     private int _columns;
     private double _noiseFloor = double.NaN;
+
+    /// <summary>HamDRM's frequency pilots, the same in every mode (350 Hz + carrier x spacing).</summary>
+    public static readonly double[] KeyFrequencies = { 725, 1475, 1850 };
+
+    private static readonly IPen KeyPen = new Pen(new SolidColorBrush(Color.FromArgb(150, 255, 211, 77)), 1);
 
     /// <summary>The frequency at the right-hand edge, in Hz (set from the incoming lines).</summary>
     public double DisplayMaxFrequency { get; private set; } = 3000;
@@ -83,6 +91,13 @@ public sealed class WaterfallControl : Control
         if (_bitmap is not null)
         {
             context.DrawImage(_bitmap, new Rect(0, 0, _columns, HistoryLines), picture);
+        }
+
+        // The key frequency marks, top to bottom of the picture.
+        foreach (double hz in KeyFrequencies)
+        {
+            double x = Math.Round(hz / DisplayMaxFrequency * Bounds.Width) + 0.5;   // on a whole pixel: crisp
+            context.DrawLine(KeyPen, new Point(x, picture.Top), new Point(x, picture.Bottom));
         }
 
         // Frequency scale: a tick and a label every 500 Hz.

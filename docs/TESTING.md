@@ -40,9 +40,9 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 
 1. **Radio** page: pick your radio, its COM port and how it's keyed (CAT, RTS, DTR or VOX),
    then **Connect** and **Test PTT**. (Use a dummy load or low power for the PTT test.)
-2. **TX/RX** page, **Send** tab: type your callsign, pick a test, and click **Send**. (The sound
-   output is the one picked on the Settings page.) RFpix goes on listening on the Receive tab
-   while you send.
+2. **Alpha Testing** page: type your callsign, pick a test, and click **Send**. (The sound
+   output is the one picked on the Settings page.) RFpix goes on listening on the TX/RX page's
+   Receive tab while you send.
 3. **Level:** leave the radio's Windows volume where your other programs need it and set the
    level with RFpix's slider. Start around **−30 dB** and raise it until the radio's ALC
    barely moves. The slider works while sending. Too much level is the most common cause

@@ -54,6 +54,7 @@ public partial class MainWindow : Window
                 "Gallery"  => new GalleryPage(),
                 "Radio"    => new RadioPage(),
                 "Settings" => new SettingsPage(),
+                "Alpha"    => new AlphaTestingPage(),   // the built-in test transmissions
                 _ => new TextBlock { Text = $"Unknown page: {pageName}" }
             };
             _pages[pageName] = page;
