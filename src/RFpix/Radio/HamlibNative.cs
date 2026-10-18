@@ -43,6 +43,16 @@ internal static class HamlibNative
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr rig_init(uint model);
 
+    // The list of every radio Hamlib knows (HamlibModels.cs).
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int rig_load_all_backends();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate int RigListCallback(IntPtr caps, IntPtr data);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int rig_list_foreach(RigListCallback callback, IntPtr data);
+
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     public static extern CLong rig_token_lookup(IntPtr rig, [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
 

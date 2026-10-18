@@ -155,4 +155,18 @@ public class RadioTests
         Assert.Equal((1035, PttMethod.Cat, false), (ft991a.HamlibModel, ft991a.Ptt, ft991a.DataMode));
         Assert.Equal("none", RadioChoices.Find("something old").Id);   // unknown → no radio control
     }
+
+    [Fact]
+    public void Hamlib_lists_every_radio_it_knows_with_make_model_and_number()
+    {
+        var all = HamlibModels.All();
+        Assert.True(all.Count > 200, $"only {all.Count} radios listed");
+        Assert.Equal("Yaesu", HamlibModels.Find(1035)?.Make);
+        Assert.StartsWith("FT-991", HamlibModels.Find(1035)?.Model);         // Hamlib's name covers the FT-991A
+        Assert.EndsWith("(1035)", HamlibModels.Find(1035)?.ToString());      // what the list shows
+        Assert.Equal("Icom", HamlibModels.Find(3081)?.Make);
+        Assert.Contains("9700", HamlibModels.Find(3081)?.Model);
+        Assert.Equal(RadioConnection.DummyModel, HamlibModels.Find(RadioConnection.DummyModel)?.Number);
+        Assert.Equal(all.Count, all.Select(m => m.Number).Distinct().Count());   // each radio once
+    }
 }
