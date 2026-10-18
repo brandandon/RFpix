@@ -26,23 +26,33 @@
 
         <!-- Left: the two pictures, then the send settings -->
         <StackPanel Grid.Column="0" Spacing="8">
-          <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+          <!-- The two boxes are square: their height follows their width (set in the code). Each
+               holds the picture fitted to the box and, for zooming, a scrolling full-size copy. -->
+          <Grid x:Name="PreviewGrid" ColumnDefinitions="*,*" ColumnSpacing="12" SizeChanged="OnPreviewGridSizeChanged">
             <StackPanel Grid.Column="0" Spacing="4">
               <TextBlock Classes="Hint" FontSize="13" Text="Original" />
-              <Border BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Height="240">
-                <ScrollViewer x:Name="OriginalScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled"
-                              ScrollChanged="OnPreviewScrolled">
+              <Border x:Name="OriginalBox" BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Height="240">
+                <Panel>
                   <Image x:Name="OriginalImage" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />
-                </ScrollViewer>
+                  <ScrollViewer x:Name="OriginalScroll" IsVisible="False" Cursor="SizeAll"
+                                HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                ScrollChanged="OnPreviewScrolled" PointerPressed="OnPreviewPressed"
+                                PointerMoved="OnPreviewDragged" PointerReleased="OnPreviewReleased">
+                    <Image x:Name="OriginalZoomImage" Stretch="Fill" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                  </ScrollViewer>
+                </Panel>
               </Border>
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="4">
               <TextBlock x:Name="SentLabel" Classes="Hint" FontSize="13" Text="As sent" />
-              <Border BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Height="240">
+              <Border x:Name="SentBox" BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Height="240">
                 <Panel>
-                  <ScrollViewer x:Name="SentScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled"
-                                ScrollChanged="OnPreviewScrolled">
-                    <Image x:Name="SentImage" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                  <Image x:Name="SentImage" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                  <ScrollViewer x:Name="SentScroll" IsVisible="False" Cursor="SizeAll"
+                                HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                ScrollChanged="OnPreviewScrolled" PointerPressed="OnPreviewPressed"
+                                PointerMoved="OnPreviewDragged" PointerReleased="OnPreviewReleased">
+                    <Image x:Name="SentZoomImage" Stretch="None" RenderOptions.BitmapInterpolationMode="None" />
                   </ScrollViewer>
                   <TextBlock x:Name="NoPictureText" Classes="Hint" HorizontalAlignment="Center" VerticalAlignment="Center"
                              TextAlignment="Center" Text="Open a picture to send" />
@@ -50,8 +60,12 @@
               </Border>
             </StackPanel>
           </Grid>
-          <CheckBox x:Name="ZoomBox" Content="Zoom to full size (to check small text and detail)"
-                    IsCheckedChanged="OnZoomChanged" IsEnabled="False" />
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <CheckBox x:Name="ZoomBox" Content="Zoom to full size (to check small text and detail)"
+                      IsCheckedChanged="OnZoomChanged" IsEnabled="False" />
+            <TextBlock x:Name="ZoomHint" Classes="Hint" FontSize="13" VerticalAlignment="Center" IsVisible="False"
+                       Text="Drag either picture to look around; both move together." />
+          </StackPanel>
 
           <!-- Send settings, and saved profiles of them -->
           <StackPanel Spacing="8" Margin="0,8,0,0">

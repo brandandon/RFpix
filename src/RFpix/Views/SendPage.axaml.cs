@@ -340,7 +340,7 @@ public partial class SendPage : UserControl, IDisposable
         FileText.Text = $"{Path.GetFileName(path)}  ·  {picture.Width} × {picture.Height}  ·  {Kilobytes(bytes)}";
         DropHint.Text = "or drag another picture onto the page";
         var old = OriginalImage.Source as IDisposable;
-        OriginalImage.Source = Bitmaps.From(picture);
+        OriginalImage.Source = OriginalZoomImage.Source = Bitmaps.From(picture);
         old?.Dispose();
 
         _updating = true;
@@ -415,7 +415,7 @@ public partial class SendPage : UserControl, IDisposable
     {
         _fitted = fitted;
         var old = SentImage.Source as IDisposable;
-        SentImage.Source = Bitmaps.From(preview);
+        SentImage.Source = SentZoomImage.Source = Bitmaps.From(preview);
         old?.Dispose();
         NoPictureText.IsVisible = false;
         SentLabel.Text = $"As sent: {fitted.Picture.Width} × {fitted.Picture.Height}  ·  {Kilobytes(fitted.File.Length)}  ·  {fitted.Format.DisplayName()}";
@@ -452,23 +452,36 @@ public partial class SendPage : UserControl, IDisposable
         SaveButton.IsEnabled = _sending is null;
     }
 
-    // ---- zoom ----
+    // ---- square boxes and zoom ----
+
+    /// <summary>Keeps the two picture boxes square: as tall as they are wide.</summary>
+    private void OnPreviewGridSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        double side = Math.Max(100, Math.Floor((e.NewSize.Width - PreviewGrid.ColumnSpacing) / 2));
+        if (Math.Abs(OriginalBox.Height - side) < 0.5) return;
+        OriginalBox.Height = SentBox.Height = side;
+    }
 
     private void OnZoomChanged(object? sender, RoutedEventArgs e) => ApplyZoom();
 
-    /// <summary>Zoomed, both pictures are shown at the sent picture's own pixel size (the
-    /// original scaled to match), and they scroll together; otherwise each fits its box.</summary>
+    /// <summary>Not zoomed, each picture fits its box. Zoomed, the boxes show scrolling copies
+    /// instead: the sent picture at its own pixel size, the original scaled to the same size
+    /// so the two line up, and they move together.</summary>
     private void ApplyZoom()
     {
         bool zoom = ZoomBox.IsChecked == true && _fitted is not null;
-        var visibility = zoom ? Avalonia.Controls.Primitives.ScrollBarVisibility.Auto : Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled;
-        foreach (var (scroll, image) in new[] { (OriginalScroll, OriginalImage), (SentScroll, SentImage) })
+        OriginalImage.IsVisible = SentImage.IsVisible = !zoom;
+        OriginalScroll.IsVisible = SentScroll.IsVisible = ZoomHint.IsVisible = zoom;
+        if (!zoom) return;
+        OriginalZoomImage.Width = _fitted!.Picture.Width;
+        OriginalZoomImage.Height = _fitted.Picture.Height;
+        // Start in the middle of the picture.
+        Dispatcher.UIThread.Post(() =>
         {
-            scroll.HorizontalScrollBarVisibility = scroll.VerticalScrollBarVisibility = visibility;
-            image.Stretch = zoom ? Stretch.Fill : Stretch.Uniform;
-            image.Width = zoom ? _fitted!.Picture.Width : double.NaN;
-            image.Height = zoom ? _fitted!.Picture.Height : double.NaN;
-        }
+            var middle = new Vector(Math.Max(0, (SentScroll.Extent.Width - SentScroll.Viewport.Width) / 2),
+                                    Math.Max(0, (SentScroll.Extent.Height - SentScroll.Viewport.Height) / 2));
+            SentScroll.Offset = OriginalScroll.Offset = middle;
+        }, DispatcherPriority.Loaded);
     }
 
     private bool _syncingScroll;
@@ -480,6 +493,37 @@ public partial class SendPage : UserControl, IDisposable
         var other = moved == OriginalScroll ? SentScroll : OriginalScroll;
         other.Offset = moved.Offset;
         _syncingScroll = false;
+    }
+
+    // Dragging a zoomed picture moves it under the pointer, like a map.
+    private Point? _dragFrom;
+    private Vector _dragStartOffset;
+
+    private void OnPreviewPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not ScrollViewer scroll || !e.GetCurrentPoint(scroll).Properties.IsLeftButtonPressed) return;
+        _dragFrom = e.GetPosition(scroll);
+        _dragStartOffset = scroll.Offset;
+        e.Pointer.Capture(scroll);
+        e.Handled = true;
+    }
+
+    private void OnPreviewDragged(object? sender, PointerEventArgs e)
+    {
+        if (_dragFrom is not { } from || sender is not ScrollViewer scroll) return;
+        var moved = e.GetPosition(scroll) - from;
+        double x = Math.Clamp(_dragStartOffset.X - moved.X, 0, Math.Max(0, scroll.Extent.Width - scroll.Viewport.Width));
+        double y = Math.Clamp(_dragStartOffset.Y - moved.Y, 0, Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height));
+        scroll.Offset = new Vector(x, y);   // the other box follows (OnPreviewScrolled)
+        e.Handled = true;
+    }
+
+    private void OnPreviewReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_dragFrom is null) return;
+        _dragFrom = null;
+        e.Pointer.Capture(null);
+        e.Handled = true;
     }
 
     // ---- callsign and level (shared with the Alpha Testing page) ----
