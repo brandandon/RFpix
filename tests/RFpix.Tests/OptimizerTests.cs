@@ -267,6 +267,19 @@ public class OptimizerTests
     }
 
     [Fact]
+    public void A_fitted_picture_goes_over_the_air_and_arrives_exactly()
+    {
+        // A short one (30 s at 64-QAM) to keep the test quick.
+        var profile = SendProfile.NetRepeater with { Qam = 64, TargetSeconds = 30 };
+        var fitter = new PictureFitter((p, _, q) => Jpeg2000.Encode(p, q));
+        var fitted = fitter.Auto(TestPhoto(), "tower", PictureFormat.Jpeg2000, profile);
+        var (received, callsigns, _) = TransmitterTests.Receive(fitted.Transmitter("KD9DD"));
+        Assert.Equal("tower.jp2", received?.Name);
+        Assert.Equal(fitted.File, received!.Data);
+        Assert.Contains("KD9DD", callsigns);
+    }
+
+    [Fact]
     public void Profiles_compare_by_their_settings_not_their_names()
     {
         var mine = SendProfile.NetRepeater with { Name = "Mine" };

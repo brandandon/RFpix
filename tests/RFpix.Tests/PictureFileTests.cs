@@ -94,4 +94,16 @@ public class PictureFileTests
         Assert.True(avif.Picture.Width > jp2.Picture.Width, $"AVIF {avif.Picture.Width}, JPEG 2000 {jp2.Picture.Width}");
         Assert.Equal(avif.Picture.Width, Pictures.Decode(avif.File).Width);
     }
+
+    [Fact]
+    public void An_AVIF_with_Reed_Solomon_goes_over_the_air_and_arrives_exactly()
+    {
+        var profile = SendProfile.NetRepeater with { Qam = 64, ReedSolomon = 1, TargetSeconds = 30 };
+        var fitted = new PictureFitter(Pictures.Encode).Auto(OptimizerTests.TestPhoto(), "tower", PictureFormat.Avif, profile);
+        Assert.Equal("tower.rs1", fitted.SendName);
+        var (received, _, _) = TransmitterTests.Receive(fitted.Transmitter("KD9DD"));
+        Assert.Equal("tower.avif", received?.Name);
+        Assert.Equal(fitted.File, received!.Data);
+        Assert.Equal(fitted.Picture.Width, Pictures.Decode(received.Data).Width);
+    }
 }

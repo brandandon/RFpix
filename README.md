@@ -47,6 +47,7 @@ running EasyPal or QSSTV.
 - [Avalonia](https://avaloniaui.net/) for the user interface
 - NAudio (WASAPI) for sound on Windows.
 - [CoreJ2K](https://github.com/cinderblocks/CoreJ2K) (BSD licence) for JPEG 2000 pictures.
+- [Magick.NET](https://github.com/dlemstra/Magick.NET) (ImageMagick, Apache licence) for opening pictures and for JPEG and AVIF.
 - [Hamlib](https://hamlib.github.io/) (LGPL licence) for radio control (CAT and PTT).
 - [Inno Setup](https://jrsoftware.org/isinfo.php) for the Windows installer.
 
