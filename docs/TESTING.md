@@ -23,7 +23,7 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 
 ## Receiving tests (the most useful help)
 
-1. On the **Settings** page, pick your radio's sound input (usually *Microphone (USB Audio CODEC)*)
+1. On the **Settings** page's **Audio** tab, pick your radio's sound input (usually *Microphone (USB Audio CODEC)*)
    and output (usually *Speakers (USB Audio CODEC)*).
 2. On the **TX/RX** page's **Receive** tab, click **Start listening**. Tune to the agreed
    frequency (USB on HF).
@@ -38,10 +38,11 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 
 ## Sending tests
 
-1. **Radio** page: pick your radio, its COM port and how it's keyed (CAT, RTS, DTR or VOX),
-   then **Connect** and **Test PTT**. (Use a dummy load or low power for the PTT test.)
-2. **Alpha Testing** page: type your callsign, pick a test, and click **Send**. (The sound
-   output is the one picked on the Settings page.) RFpix goes on listening on the TX/RX page's
+1. **Settings** page, **Radio** tab: pick your radio, its COM port and how it's keyed (CAT, RTS,
+   DTR or VOX), then **Connect** and **Test PTT**. (Use a dummy load or low power for the PTT test.)
+   On the **Misc** tab, type your callsign: it's sent with every transmission.
+2. **Alpha Testing** page: pick a test and click **Send**. (The sound output is the one picked
+   on the Settings page's Audio tab.) RFpix goes on listening on the TX/RX page's
    Receive tab while you send.
 3. **Level:** leave the radio's Windows volume where your other programs need it and set the
    level with RFpix's slider. Start around **−30 dB** and raise it until the radio's ALC
@@ -65,9 +66,11 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 
 1. **TX/RX** page, **Send** tab: click **Open picture…** or drag a picture onto the page.
    Phone photos (including iPhone HEIC) are fine.
-2. RFpix fits it to the **transmit time** (2:00 unless changed): it makes the picture smaller
-   and compresses it. **Auto** picks the size and quality; **Manual** lets you set them. The box
-   on the right shows how long it will take: green fits the target, red runs over.
+2. RFpix fits it to the **transmit time** (2:00 unless changed) as soon as it opens, making the
+   picture smaller and compressing it; it fits it again when you change the format, settings or
+   time. The **Size** and **Quality** sliders fine-tune the result. The box on the right shows
+   how long it will take: green fits the target (the automatic fit may use 3 seconds extra),
+   yellow is up to 7 seconds over, red is more.
 3. **Original** and **As sent** are side by side. Tick **Zoom to full size** to check small text,
    and drag either picture to look around.
 4. **Format:** JPEG 2000 (the default) and JPEG are shown by QSSTV, EasyPal and RFpix.
@@ -75,7 +78,7 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
    shows it**: use it only when everyone receiving has RFpix.
 5. The settings (mode, bandwidth, QAM, interleave, protection, Reed-Solomon) are drop-downs.
    **Net repeater (70 cm)** is built in; **Save as profile…** keeps your own.
-6. Callsign, level and **Send** work as for the tests. Please report how the pictures arrived,
+6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
 
 QSSTV and EasyPal users can receive the tests too (they're ordinary HamDRM pictures);

@@ -3,12 +3,14 @@
 // What happens here:
 //   1. Open a picture (button, or drag it onto the page). It's opened in the background:
 //      turned the right way up, see-through parts made white (Pictures.Load).
-//   2. The optimizer (PictureFitter) fits it to the transmit time, in the background, each
-//      time something changes: the picture, the send settings, the target time, the
-//      format, or (in Manual) the size or quality. A newer change cancels an older fit,
-//      and the sliders wait a moment after the last move before fitting.
+//   2. The optimizer (PictureFitter) fits it to the transmit time automatically, in the
+//      background: when it opens, and again when the send settings, target time or format
+//      change. The size and quality sliders then fine-tune it: moving one makes the picture
+//      at exactly that size and quality (waiting a moment after the last move). A newer
+//      change cancels an older fit.
 //   3. The fitted file is read back and shown beside the original, so you see exactly
-//      what the receiver will get, with the time it takes in green (fits) or red (over).
+//      what the receiver will get, with the time it takes: green (fits), yellow (up to 7 s
+//      over) or red. The automatic fit may use 3 s more than the target and still be green.
 //   4. The send settings can be saved as named profiles. Everything is remembered.
 //   5. Send, and Save as sound file, work as on the Alpha Testing page (SendSupport).
 
@@ -43,7 +45,9 @@ public partial class SendPage : UserControl, IDisposable
     private const int MaxManualSide = 1920;
 
     private static readonly IBrush FitsBrush = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
+    private static readonly IBrush SlightlyOverBrush = new SolidColorBrush(Color.FromRgb(0xF2, 0xC2, 0x00));
     private static readonly IBrush OverBrush = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
+    private static readonly IBrush DarkText = new SolidColorBrush(Color.FromRgb(0x1B, 0x1B, 0x1B));
     private static readonly IBrush WaitingBrush = new SolidColorBrush(Color.FromArgb(0x40, 0x80, 0x80, 0x80));
 
     private readonly IAudioOutput _output = AudioSystem.CreateOutput();
@@ -80,17 +84,16 @@ public partial class SendPage : UserControl, IDisposable
             PictureFormat.Avif => AvifButton,
             _ => Jpeg2000Button,
         }).IsChecked = true;
-        (settings.SendAutoFit ? AutoButton : ManualButton).IsChecked = true;
         SizeSlider.Value = 640;
         QualitySlider.Value = 50;
         ShowSliderTexts();
         ShowManualControls();
         _updating = false;
 
-        _refitTimer.Tick += (_, _) => { _refitTimer.Stop(); Refit(); };
+        _refitTimer.Tick += (_, _) => { _refitTimer.Stop(); Refit(auto: false); };
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
         AddHandler(DragDrop.DropEvent, OnDrop);
-        // Callsign, level, sound output and keying are shared with other pages: show them
+        // Callsign, level, sound output and keying are set elsewhere too: show them
         // as they are whenever this tab appears.
         AttachedToVisualTree += (_, _) => ShowShared();
         AppSettings.SoundDevicesChanged += ShowRoute;
@@ -151,7 +154,7 @@ public partial class SendPage : UserControl, IDisposable
         ShowSendSettings(profile);
         _updating = false;
         SaveSendSettings();
-        Refit();
+        Refit(auto: true);
     }
 
     private void OnSendSettingChanged(object? sender, SelectionChangedEventArgs e)
@@ -159,7 +162,7 @@ public partial class SendPage : UserControl, IDisposable
         if (_updating) return;
         FillProfiles();   // the chosen profile no longer matches, perhaps (or another now does)
         SaveSendSettings();
-        Refit();
+        Refit(auto: true);
     }
 
     private void SaveSendSettings()
@@ -200,44 +203,33 @@ public partial class SendPage : UserControl, IDisposable
         ShowStatus($"Deleted the profile \"{name}\". The settings it had are still in use.", problem: false);
     }
 
-    // ---- format, Auto or Manual, size and quality ----
+    // ---- format, size and quality ----
 
     private PictureFormat CurrentFormat =>
         JpegButton.IsChecked == true ? PictureFormat.Jpeg : AvifButton.IsChecked == true ? PictureFormat.Avif : PictureFormat.Jpeg2000;
 
-    private bool IsAuto => AutoButton.IsChecked == true;
 
     private void OnFormatChanged(object? sender, RoutedEventArgs e)
     {
         if (_updating || sender is RadioButton { IsChecked: not true }) return;   // only the one switched on
         AppSettings.Current.SendFormat = CurrentFormat;
         AppSettings.Current.Save();
-        Refit();
+        Refit(auto: true);
     }
 
-    private void OnAutoChanged(object? sender, RoutedEventArgs e)
-    {
-        ShowManualControls();
-        if (_updating) return;
-        AppSettings.Current.SendAutoFit = IsAuto;
-        AppSettings.Current.Save();
-        // Switching to Manual starts from what Auto picked, so nothing changes until a slider moves.
-        if (IsAuto) Refit();
-    }
-
-    /// <summary>Size and quality can be moved only in Manual; in Auto they show what Auto picked.</summary>
+    /// <summary>Size and quality can be moved once there's a picture.</summary>
     private void ShowManualControls()
     {
-        bool manual = !IsAuto && _original is not null;
-        SizeSlider.IsEnabled = QualitySlider.IsEnabled = manual;
-        foreach (var preset in PresetPanel.Children) preset.IsEnabled = manual;
+        bool picture = _original is not null;
+        SizeSlider.IsEnabled = QualitySlider.IsEnabled = picture;
+        foreach (var preset in PresetPanel.Children) preset.IsEnabled = picture;
     }
 
     private void OnManualSliderChanged(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
         if (SizeText is null || QualityText is null) return;   // still being built
         ShowSliderTexts();
-        if (_updating || IsAuto) return;
+        if (_updating || _original is null) return;
         _refitTimer.Stop();   // wait until the slider has stopped moving
         _refitTimer.Start();
     }
@@ -352,15 +344,16 @@ public partial class SendPage : UserControl, IDisposable
         ShowManualControls();
         ZoomBox.IsEnabled = true;
         ShowStatus("", problem: false);
-        Refit();
+        Refit(auto: true);
     }
 
     private static string Kilobytes(long bytes) => bytes >= 1_000_000 ? $"{bytes / 1e6:0.0} MB" : $"{bytes / 1e3:0.0} kB";
 
     // ---- fitting ----
 
-    /// <summary>Fits the picture again (in the background), and shows the result.</summary>
-    private async void Refit()
+    /// <summary>Fits the picture again (in the background), and shows the result: automatically,
+    /// or (<paramref name="auto"/> false) at the size and quality the sliders show.</summary>
+    private async void Refit(bool auto)
     {
         _refitTimer.Stop();
         if (_original is not { } original) return;
@@ -371,7 +364,6 @@ public partial class SendPage : UserControl, IDisposable
 
         var profile = CurrentSettings();
         var format = CurrentFormat;
-        bool auto = IsAuto;
         int side = (int)Math.Round(SizeSlider.Value), quality = (int)Math.Round(QualitySlider.Value);
         string name = _baseName;
         SendButton.IsEnabled = _sending is not null;   // Stop stays usable while sending
@@ -421,7 +413,7 @@ public partial class SendPage : UserControl, IDisposable
         SentLabel.Text = $"As sent: {fitted.Picture.Width} × {fitted.Picture.Height}  ·  {Kilobytes(fitted.File.Length)}  ·  {fitted.Format.DisplayName()}";
         ApplyZoom();
 
-        if (IsAuto)
+        if (fitted.Automatic)
         {
             // Show what Auto picked (and start Manual from there).
             _updating = true;
@@ -432,19 +424,28 @@ public partial class SendPage : UserControl, IDisposable
         }
 
         int seconds = (int)Math.Ceiling(fitted.Duration.TotalSeconds);
+        string target = Clock(fitted.Profile.TargetSeconds);
+        string sent = $"{Kilobytes(fitted.SendData.Length)} sent";
         EstimateText.Text = $"{Clock(seconds)} on the air";
-        EstimateText.Foreground = EstimateDetail.Foreground = Brushes.White;
-        string pieces = $"{Kilobytes(fitted.SendData.Length)} sent";
-        if (fitted.FitsTarget)
+        switch (fitted.Fit)
         {
-            EstimateBorder.Background = FitsBrush;
-            EstimateDetail.Text = $"Fits the {Clock(fitted.Profile.TargetSeconds)} target  ·  {pieces}";
-        }
-        else
-        {
-            EstimateBorder.Background = OverBrush;
-            EstimateDetail.Text = $"Over the {Clock(fitted.Profile.TargetSeconds)} target  ·  {pieces}" +
-                                  (IsAuto ? "  ·  even the smallest version is too long for these settings" : "  ·  make it smaller or lower the quality");
+            case TimeFit.Fits:
+                EstimateBorder.Background = FitsBrush;
+                EstimateText.Foreground = EstimateDetail.Foreground = Brushes.White;
+                EstimateDetail.Text = $"{(fitted.Automatic ? "Fitted to" : "Fits")} the {target} target  ·  {sent}";
+                break;
+            case TimeFit.SlightlyOver:
+                EstimateBorder.Background = SlightlyOverBrush;
+                EstimateText.Foreground = EstimateDetail.Foreground = DarkText;
+                EstimateDetail.Text = $"A few seconds over the {target} target  ·  {sent}";
+                break;
+            default:
+                EstimateBorder.Background = OverBrush;
+                EstimateText.Foreground = EstimateDetail.Foreground = Brushes.White;
+                EstimateDetail.Text = $"Over the {target} target  ·  {sent}" +
+                    (fitted.Automatic ? "  ·  even the smallest version is too long for these settings"
+                                      : "  ·  make it smaller or lower the quality");
+                break;
         }
         if (fitted.Format.RFpixOnly())
             EstimateDetail.Text += "\nOnly RFpix shows AVIF: QSSTV and EasyPal stations get a file they can't open.";
@@ -526,12 +527,11 @@ public partial class SendPage : UserControl, IDisposable
         e.Handled = true;
     }
 
-    // ---- callsign and level (shared with the Alpha Testing page) ----
+    // ---- level (shared with the Alpha Testing page) ----
 
     private void ShowShared()
     {
         _updating = true;
-        CallsignBox.Text = AppSettings.Current.Callsign ?? "";
         LevelSlider.Value = Math.Clamp(Math.Round(AppSettings.Current.TransmitLevelDb), LevelSlider.Minimum, 0);
         LevelText.Text = SendSupport.LevelLabel(LevelSlider.Value);
         _gain = SendSupport.Gain(LevelSlider.Value);
@@ -551,20 +551,6 @@ public partial class SendPage : UserControl, IDisposable
         AppSettings.Current.Save();
     }
 
-    private void OnCallsignLostFocus(object? sender, RoutedEventArgs e) => SaveCallsign();
-
-    private string SaveCallsign()
-    {
-        string call = (CallsignBox.Text ?? "").Trim().ToUpperInvariant();
-        CallsignBox.Text = call;
-        if (call != (AppSettings.Current.Callsign ?? ""))
-        {
-            AppSettings.Current.Callsign = call;
-            AppSettings.Current.Save();
-        }
-        return call;
-    }
-
     // ---- sending ----
 
     private async void OnSendClick(object? sender, RoutedEventArgs e)
@@ -576,7 +562,7 @@ public partial class SendPage : UserControl, IDisposable
             return;
         }
         if (_fitted is not { } fitted) return;
-        string call = SaveCallsign();
+        string call = SendSupport.Callsign;
         if (SendSupport.Problem(_output, call) is { } problem) { ShowStatus(problem, problem: true); return; }
 
         _sending = new CancellationTokenSource();
@@ -615,8 +601,8 @@ public partial class SendPage : UserControl, IDisposable
     private async void OnSaveClick(object? sender, RoutedEventArgs e)
     {
         if (_fitted is not { } fitted || TopLevel.GetTopLevel(this) is not { } top) return;
-        string call = SaveCallsign();
-        if (call.Length == 0) { ShowStatus("Type your callsign first: it's sent with the transmission.", problem: true); return; }
+        string call = SendSupport.Callsign;
+        if (call.Length == 0) { ShowStatus("Set your callsign in Settings (Misc tab) first: it's sent with the transmission.", problem: true); return; }
 
         var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {

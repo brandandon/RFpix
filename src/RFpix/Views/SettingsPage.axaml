@@ -1,53 +1,81 @@
 <!--
-  SettingsPage.axaml - the Settings page: the radio's sound devices (receive input and
-  send output) and the colour theme.
+  SettingsPage.axaml - the Settings page, in three tabs:
+    Audio - the radio's sound devices (receive input and send output)
+    Radio - how RFpix reaches and keys the radio (the RadioPage control)
+    Misc  - your callsign, the colour theme, and later sound-card calibration
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="using:RFpix.Views"
              x:Class="RFpix.Views.SettingsPage">
-  <ScrollViewer>
-    <StackPanel Spacing="22" MaxWidth="820" HorizontalAlignment="Left">
-      <TextBlock Classes="PageTitle" Text="Settings" />
+  <Grid RowDefinitions="Auto,*" RowSpacing="6">
+    <TextBlock Grid.Row="0" Classes="PageTitle" Text="Settings" />
+    <TabControl Grid.Row="1" x:Name="Tabs" Padding="0,12,0,0">
 
-      <!-- Sound devices -->
-      <StackPanel Spacing="14">
-        <TextBlock Text="Sound devices" FontSize="18" FontWeight="SemiBold" />
+      <!-- Audio: the sound devices -->
+      <TabItem Header="Audio" FontSize="16">
+        <ScrollViewer FontSize="14">
+          <StackPanel Spacing="14" MaxWidth="820" HorizontalAlignment="Left">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Receive: the radio's sound input" FontWeight="SemiBold" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ComboBox x:Name="InputBox" Width="440" PlaceholderText="Pick the radio's USB audio device"
+                          SelectionChanged="OnInputChanged" />
+                <Button Content="Refresh" Click="OnRefreshClick" />
+              </StackPanel>
+            </StackPanel>
 
-        <StackPanel Spacing="6">
-          <TextBlock Text="Receive: the radio's sound input" FontWeight="SemiBold" />
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <ComboBox x:Name="InputBox" Width="440" PlaceholderText="Pick the radio's USB audio device"
-                      SelectionChanged="OnInputChanged" />
-            <Button Content="Refresh" Click="OnRefreshClick" />
+            <StackPanel Spacing="6">
+              <TextBlock Text="Send: the radio's sound output" FontWeight="SemiBold" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ComboBox x:Name="OutputBox" Width="440" PlaceholderText="Pick the radio's USB audio device"
+                          SelectionChanged="OnOutputChanged" />
+                <Button Content="Refresh" Click="OnRefreshClick" />
+              </StackPanel>
+            </StackPanel>
+
+            <TextBlock x:Name="DeviceProblemText" TextWrapping="Wrap" Foreground="OrangeRed" IsVisible="False" />
+            <TextBlock Classes="Hint" TextWrapping="Wrap"
+                       Text="Radios usually appear as &quot;USB Audio CODEC&quot;. Renaming them in Windows Sound settings (for example &quot;FT-991A&quot;) makes them easy to tell apart. Not your computer's own speakers or microphone." />
           </StackPanel>
-        </StackPanel>
+        </ScrollViewer>
+      </TabItem>
 
-        <StackPanel Spacing="6">
-          <TextBlock Text="Send: the radio's sound output" FontWeight="SemiBold" />
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <ComboBox x:Name="OutputBox" Width="440" PlaceholderText="Pick the radio's USB audio device"
-                      SelectionChanged="OnOutputChanged" />
-            <Button Content="Refresh" Click="OnRefreshClick" />
+      <!-- Radio: what was the Radio page -->
+      <TabItem Header="Radio" FontSize="16">
+        <views:RadioPage x:Name="RadioTab" FontSize="14" />
+      </TabItem>
+
+      <!-- Misc: callsign, theme, and calibration when it comes -->
+      <TabItem Header="Misc" FontSize="16">
+        <ScrollViewer FontSize="14">
+          <StackPanel Spacing="22" MaxWidth="820" HorizontalAlignment="Left">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Your callsign" FontWeight="SemiBold" />
+              <TextBox x:Name="CallsignBox" Width="160" MaxLength="9" Watermark="e.g. KD9DD"
+                       TextChanged="OnCallsignChanged" LostFocus="OnCallsignLostFocus" />
+              <TextBlock Classes="Hint" TextWrapping="Wrap"
+                         Text="Sent with every transmission (your pictures and the tests); receivers show it. Up to 9 characters." />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="Theme" FontWeight="SemiBold" />
+              <!-- Picking an item runs OnThemeChanged in SettingsPage.axaml.cs. -->
+              <ComboBox x:Name="ThemeBox" Width="220" SelectionChanged="OnThemeChanged">
+                <ComboBoxItem Content="Follow Windows" />
+                <ComboBoxItem Content="Light" />
+                <ComboBoxItem Content="Dark" />
+              </ComboBox>
+            </StackPanel>
+
+            <StackPanel Spacing="6" Opacity="0.55">
+              <TextBlock Text="Sound-card calibration" FontWeight="SemiBold" />
+              <TextBlock TextWrapping="Wrap"
+                         Text="Coming later: measures your sound card's exact sample rate, so pictures decode reliably." />
+            </StackPanel>
           </StackPanel>
-        </StackPanel>
-
-        <TextBlock x:Name="DeviceProblemText" TextWrapping="Wrap" Foreground="OrangeRed" IsVisible="False" />
-        <TextBlock Classes="Hint" TextWrapping="Wrap"
-                   Text="Radios usually appear as &quot;USB Audio CODEC&quot;. Renaming them in Windows Sound settings (for example &quot;FT-991A&quot;) makes them easy to tell apart. Not your computer's own speakers or microphone." />
-      </StackPanel>
-
-      <!-- Appearance -->
-      <StackPanel Spacing="6">
-        <TextBlock Text="Appearance" FontSize="18" FontWeight="SemiBold" />
-        <TextBlock Text="Theme" FontWeight="SemiBold" />
-        <!-- Picking an item runs OnThemeChanged in SettingsPage.axaml.cs. -->
-        <ComboBox x:Name="ThemeBox" Width="220"
-                  SelectionChanged="OnThemeChanged">
-          <ComboBoxItem Content="Follow Windows" />
-          <ComboBoxItem Content="Light" />
-          <ComboBoxItem Content="Dark" />
-        </ComboBox>
-      </StackPanel>
-    </StackPanel>
-  </ScrollViewer>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+  </Grid>
 </UserControl>

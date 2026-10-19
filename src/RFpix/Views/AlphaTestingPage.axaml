@@ -1,8 +1,8 @@
 <!--
   AlphaTestingPage.axaml - the Alpha Testing page: the built-in test transmissions (fixed
-  pictures with fixed settings), the callsign, the level, and Send / Stop. For testing
+  pictures with fixed settings), the level, and Send / Stop. For testing
   RFpix on the air while it's young; sending your own pictures is on the TX/RX page.
-  The sound output is chosen on the Settings page, the keying on the Radio page.
+  The callsign, sound output and keying are set in Settings (Misc, Audio and Radio tabs).
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -34,14 +34,6 @@
         </Grid>
       </StackPanel>
 
-      <!-- Callsign -->
-      <StackPanel Spacing="6">
-        <TextBlock Text="Your callsign" FontWeight="SemiBold" />
-        <TextBox x:Name="CallsignBox" Width="160" MaxLength="9" Watermark="e.g. KD9DD"
-                 LostFocus="OnCallsignLostFocus" />
-        <TextBlock Classes="Hint" Text="Sent with every transmission; receivers show it (up to 9 characters)." />
-      </StackPanel>
-
       <!-- Level -->
       <StackPanel Spacing="6">
         <TextBlock Text="Transmit level" FontWeight="SemiBold" />
@@ -60,13 +52,13 @@
           <Button x:Name="SendButton" Content="Send" Click="OnSendClick" MinWidth="120" />
           <Button x:Name="SaveButton" Content="Save as sound file…" Click="OnSaveClick"
                   ToolTip.Tip="Saves the transmission as a WAV file instead of sending it: to play into another program, or to check it." />
-          <!-- Where the sound goes and how the radio is keyed (set on the Settings and Radio pages) -->
+          <!-- Who's sending, where the sound goes and how the radio is keyed (set in Settings) -->
           <TextBlock x:Name="RouteText" Classes="Hint" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="520" />
         </StackPanel>
         <ProgressBar x:Name="Progress" Width="440" HorizontalAlignment="Left" Minimum="0" Maximum="1" IsVisible="False" />
         <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
         <TextBlock Classes="Hint" TextWrapping="Wrap"
-                   Text="RFpix keys the radio as set on the Radio page (CAT, RTS, DTR or VOX), switching to data mode first if that's ticked there. The transmitter is always released at the end, when you click Stop, or by a time limit if anything goes wrong." />
+                   Text="RFpix keys the radio as set in Settings, on the Radio tab (CAT, RTS, DTR or VOX), switching to data mode first if that's ticked there. The transmitter is always released at the end, when you click Stop, or by a time limit if anything goes wrong." />
       </StackPanel>
 
       <TextBlock Classes="Hint" Text="Your own pictures are sent from the Send tab of the TX/RX page." />

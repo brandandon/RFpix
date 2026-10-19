@@ -2,10 +2,11 @@
   SendPage.axaml - the Send tab of the TX/RX page: sending your own pictures.
 
   Open a picture (or drag one onto the page) and RFpix fits it to the transmit time,
-  making it smaller and compressing it (the image optimizer). Left: the original and
-  the picture as it will be sent, side by side, then the send settings. Right: the
-  target time, Auto or Manual, size, quality, format and the time it will take.
-  Below: callsign, level and Send.
+  making it smaller and compressing it (the image optimizer). Left: the original (with
+  the zoom below it) and the picture as it will be sent (with the level and Send below
+  it), then the send settings. Right: the target time, size and quality (to fine-tune
+  what was fitted), format, and the time it will take.
+  The callsign is set in Settings (Misc tab).
   The built-in test transmissions are on the Alpha Testing page.
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
@@ -42,6 +43,11 @@
                   </ScrollViewer>
                 </Panel>
               </Border>
+              <CheckBox x:Name="ZoomBox" Content="Zoom to full size" Margin="0,4,0,0"
+                        ToolTip.Tip="Shows both pictures at the sent picture's own size, to check small text and detail."
+                        IsCheckedChanged="OnZoomChanged" IsEnabled="False" />
+              <TextBlock x:Name="ZoomHint" Classes="Hint" FontSize="13" IsVisible="False"
+                         Text="Drag either picture to look around; both move together." />
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="4">
               <TextBlock x:Name="SentLabel" Classes="Hint" FontSize="13" Text="As sent" />
@@ -58,14 +64,29 @@
                              TextAlignment="Center" Text="Open a picture to send" />
                 </Panel>
               </Border>
+
+              <!-- Level and Send, under the picture that goes out -->
+              <StackPanel Spacing="8" Margin="0,6,0,0">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="Transmit level" FontWeight="SemiBold" />
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <Slider x:Name="LevelSlider" Minimum="-60" Maximum="0" TickFrequency="1"
+                            IsSnapToTickEnabled="True" ValueChanged="OnLevelChanged"
+                            ToolTip.Tip="0 dB is QSSTV's level; each 6 dB down halves it. Raise it until the radio's ALC barely moves. Works while sending." />
+                    <TextBlock Grid.Column="1" x:Name="LevelText" VerticalAlignment="Center" Width="52" />
+                  </Grid>
+                </StackPanel>
+                <WrapPanel>
+                  <Button x:Name="SendButton" Content="Send" Click="OnSendClick" MinWidth="110" IsEnabled="False" Margin="0,0,8,6" />
+                  <Button x:Name="SaveButton" Content="Save as sound file…" Click="OnSaveClick" IsEnabled="False" Margin="0,0,0,6"
+                          ToolTip.Tip="Saves the transmission as a WAV file instead of sending it: to play into another program, or to check it." />
+                </WrapPanel>
+                <TextBlock x:Name="RouteText" Classes="Hint" FontSize="12" TextWrapping="Wrap" />
+                <ProgressBar x:Name="Progress" Minimum="0" Maximum="1" IsVisible="False" />
+                <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
+              </StackPanel>
             </StackPanel>
           </Grid>
-          <StackPanel Orientation="Horizontal" Spacing="12">
-            <CheckBox x:Name="ZoomBox" Content="Zoom to full size (to check small text and detail)"
-                      IsCheckedChanged="OnZoomChanged" IsEnabled="False" />
-            <TextBlock x:Name="ZoomHint" Classes="Hint" FontSize="13" VerticalAlignment="Center" IsVisible="False"
-                       Text="Drag either picture to look around; both move together." />
-          </StackPanel>
 
           <!-- Send settings, and saved profiles of them -->
           <StackPanel Spacing="8" Margin="0,8,0,0">
@@ -133,12 +154,6 @@
               <ComboBox Grid.Column="1" x:Name="TargetBox" Width="100" SelectionChanged="OnSendSettingChanged"
                         ToolTip.Tip="How long the picture should take on the air. Keep it under your repeater's time-out." />
             </Grid>
-            <StackPanel Orientation="Horizontal" Spacing="16">
-              <RadioButton x:Name="AutoButton" GroupName="Fit" Content="Auto" IsCheckedChanged="OnAutoChanged"
-                           ToolTip.Tip="RFpix picks the size and quality that fill the transmit time with the best-looking picture." />
-              <RadioButton x:Name="ManualButton" GroupName="Fit" Content="Manual"
-                           ToolTip.Tip="You pick the size and quality; the time updates as you go." />
-            </StackPanel>
             <StackPanel Spacing="4">
               <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Text="Size" FontWeight="SemiBold" />
@@ -175,34 +190,6 @@
         </Border>
       </Grid>
 
-      <!-- Callsign and level -->
-      <StackPanel Orientation="Horizontal" Spacing="32">
-        <StackPanel Spacing="6">
-          <TextBlock Text="Your callsign" FontWeight="SemiBold" />
-          <TextBox x:Name="CallsignBox" Width="160" MaxLength="9" Watermark="e.g. KD9DD" LostFocus="OnCallsignLostFocus" />
-        </StackPanel>
-        <StackPanel Spacing="6">
-          <TextBlock Text="Transmit level" FontWeight="SemiBold" />
-          <StackPanel Orientation="Horizontal" Spacing="12">
-            <Slider x:Name="LevelSlider" Width="300" Minimum="-60" Maximum="0" TickFrequency="1"
-                    IsSnapToTickEnabled="True" ValueChanged="OnLevelChanged"
-                    ToolTip.Tip="0 dB is QSSTV's level; each 6 dB down halves it. Raise it until the radio's ALC barely moves. Works while sending." />
-            <TextBlock x:Name="LevelText" VerticalAlignment="Center" Width="60" />
-          </StackPanel>
-        </StackPanel>
-      </StackPanel>
-
-      <!-- Send -->
-      <StackPanel Spacing="10">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button x:Name="SendButton" Content="Send" Click="OnSendClick" MinWidth="120" IsEnabled="False" />
-          <Button x:Name="SaveButton" Content="Save as sound file…" Click="OnSaveClick" IsEnabled="False"
-                  ToolTip.Tip="Saves the transmission as a WAV file instead of sending it: to play into another program, or to check it." />
-          <TextBlock x:Name="RouteText" Classes="Hint" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="520" />
-        </StackPanel>
-        <ProgressBar x:Name="Progress" Width="440" HorizontalAlignment="Left" Minimum="0" Maximum="1" IsVisible="False" />
-        <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
-      </StackPanel>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

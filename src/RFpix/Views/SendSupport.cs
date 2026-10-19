@@ -21,7 +21,10 @@ internal static class SendSupport
         catch (AudioException) { return null; }
     }
 
-    /// <summary>The line beside Send: where the sound goes and how the radio is keyed.</summary>
+    /// <summary>The operator's callsign, set in Settings (Misc tab); "" if not set yet.</summary>
+    public static string Callsign => (AppSettings.Current.Callsign ?? "").Trim().ToUpperInvariant();
+
+    /// <summary>The line beside Send: who's sending, where the sound goes and how the radio is keyed.</summary>
     public static string Route(IAudioOutput output)
     {
         var radio = AppSettings.Current.Radio;
@@ -34,20 +37,21 @@ internal static class SendSupport
         };
         string device = ChosenOutput(output)?.Name
             ?? (AppSettings.Current.OutputDeviceId is null ? "no sound output chosen yet" : "a sound output that isn't connected");
-        return $"Sending to {device}, keyed by {keying}  ·  change in Settings and Radio";
+        string call = Callsign.Length > 0 ? $"as {Callsign} " : "(no callsign set) ";
+        return $"Sending {call}to {device}, keyed by {keying}  ·  change in Settings";
     }
 
     /// <summary>Why sending can't start, or null if it can.</summary>
     public static string? Problem(IAudioOutput output, string callsign)
     {
-        if (callsign.Length == 0) return "Type your callsign first: it's sent with the transmission.";
+        if (callsign.Length == 0) return "Set your callsign in Settings (Misc tab) first: it's sent with every transmission.";
         if (ChosenOutput(output) is null)
             return AppSettings.Current.OutputDeviceId is null
-                ? "Pick the radio's sound output on the Settings page first."
-                : "The sound output chosen on the Settings page isn't connected. Switch on or plug in the radio, or pick another there.";
+                ? "Pick the radio's sound output in Settings (Audio tab) first."
+                : "The sound output chosen in Settings (Audio tab) isn't connected. Switch on or plug in the radio, or pick another there.";
         var radio = AppSettings.Current.Radio;
         if (radio.Ptt != PttMethod.Vox && RadioChoices.Find(radio.Choice).Connection == "none")
-            return "Keying is set to CAT, RTS or DTR but no radio is chosen. Pick your radio on the Radio page, or choose VOX there.";
+            return "Keying is set to CAT, RTS or DTR but no radio is chosen. Pick your radio in Settings (Radio tab), or choose VOX there.";
         return null;
     }
 
@@ -59,7 +63,7 @@ internal static class SendSupport
                                        Func<double> level, Action<string> status, IProgress<double> progress,
                                        CancellationToken cancel)
     {
-        var device = ChosenOutput(output) ?? throw new AudioException("The sound output chosen on the Settings page isn't connected.");
+        var device = ChosenOutput(output) ?? throw new AudioException("The sound output chosen in Settings (Audio tab) isn't connected.");
         var radioSettings = AppSettings.Current.Radio;
         bool hasControl = RadioChoices.Find(radioSettings.Choice).Connection != "none";
         bool keyed = radioSettings.Ptt != PttMethod.Vox;

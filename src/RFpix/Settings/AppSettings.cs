@@ -31,7 +31,7 @@ public sealed class AppSettings
     /// <summary>Transmit level in dB below QSSTV's level (Send page): 0 is QSSTV's, -20 is a tenth of it.</summary>
     public double TransmitLevelDb { get; set; } = -20;
 
-    /// <summary>The operator's callsign, sent with every transmission.</summary>
+    /// <summary>The operator's callsign, sent with every transmission (Settings, Misc tab).</summary>
     public string? Callsign { get; set; }
 
     // ---- the Send tab ----
@@ -44,9 +44,6 @@ public sealed class AppSettings
 
     /// <summary>The picture format sent: JPEG 2000 unless changed.</summary>
     public PictureFormat SendFormat { get; set; } = PictureFormat.Jpeg2000;
-
-    /// <summary>True when the optimizer picks the size and quality (Auto), false for Manual.</summary>
-    public bool SendAutoFit { get; set; } = true;
 
     /// <summary>Folder the "Open picture…" button opened last time.</summary>
     public string? LastPictureFolder { get; set; }

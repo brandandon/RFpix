@@ -3,10 +3,10 @@
 // What happens here:
 //   1. The test transmissions are listed, each with how long it takes; picking one
 //      shows its picture.
-//   2. The callsign and level are remembered between runs. The sound output is the one
-//      chosen on the Settings page, the keying the Radio page's; a line beside Send says which.
+//   2. The level is remembered between runs; the callsign is set in Settings (Misc tab). The sound output is the one
+//      chosen in Settings (Audio tab), the keying on its Radio tab; a line beside Send says which.
 //   3. Send: make the HamDRM sound (in the background, about a second), connect to
-//      the radio if the Radio page hasn't already (and keying needs it), then key,
+//      the radio if Settings hasn't already (and keying needs it), then key,
 //      play and un-key (Transmission.SendAsync). Send becomes Stop meanwhile, and the
 //      level slider still works: the sound follows it as it plays.
 //   4. Save as sound file: the same sound, written to a WAV file instead.
@@ -40,7 +40,6 @@ public partial class AlphaTestingPage : UserControl, IDisposable
         _loading = true;
         TestList.ItemsSource = TestTransmissions.All.Select(t => new TestListItem(t,
             $"Test {t.Number}: {t.Purpose}", $"{t.SettingsText}  ·  {Duration(t)}")).ToList();
-        CallsignBox.Text = AppSettings.Current.Callsign ?? "";
         LevelSlider.Value = Math.Clamp(Math.Round(AppSettings.Current.TransmitLevelDb), LevelSlider.Minimum, 0);
         LevelText.Text = LevelLabel;
         _gain = Gain;
@@ -74,11 +73,10 @@ public partial class AlphaTestingPage : UserControl, IDisposable
     /// <summary>The line beside Send: where the sound goes and how the radio is keyed.</summary>
     private void ShowRoute() => RouteText.Text = SendSupport.Route(_output);
 
-    /// <summary>The callsign and level are shared with the Send tab: show them as they are now.</summary>
+    /// <summary>The level is shared with the Send tab, the callsign set in Settings: show them as they are now.</summary>
     private void ShowShared()
     {
         _loading = true;
-        CallsignBox.Text = AppSettings.Current.Callsign ?? "";
         LevelSlider.Value = Math.Clamp(Math.Round(AppSettings.Current.TransmitLevelDb), LevelSlider.Minimum, 0);
         LevelText.Text = LevelLabel;
         _gain = Gain;
@@ -101,20 +99,6 @@ public partial class AlphaTestingPage : UserControl, IDisposable
     /// <summary>The level as a multiplier: 0 dB = 1, -20 dB = 0.1.</summary>
     private double Gain => SendSupport.Gain(LevelSlider.Value);
 
-    private void OnCallsignLostFocus(object? sender, RoutedEventArgs e) => SaveCallsign();
-
-    private string SaveCallsign()
-    {
-        string call = (CallsignBox.Text ?? "").Trim().ToUpperInvariant();
-        CallsignBox.Text = call;
-        if (call != (AppSettings.Current.Callsign ?? ""))
-        {
-            AppSettings.Current.Callsign = call;
-            AppSettings.Current.Save();
-        }
-        return call;
-    }
-
     // ---- sending ----
 
     private async void OnSendClick(object? sender, RoutedEventArgs e)
@@ -126,7 +110,7 @@ public partial class AlphaTestingPage : UserControl, IDisposable
             return;
         }
         if (Selected is not { } test) return;
-        string call = SaveCallsign();
+        string call = SendSupport.Callsign;
         if (SendSupport.Problem(_output, call) is { } problem) { ShowStatus(problem, problem: true); return; }
 
         _sending = new CancellationTokenSource();
@@ -163,8 +147,8 @@ public partial class AlphaTestingPage : UserControl, IDisposable
     private async void OnSaveClick(object? sender, RoutedEventArgs e)
     {
         if (Selected is not { } test || TopLevel.GetTopLevel(this) is not { } top) return;
-        string call = SaveCallsign();
-        if (call.Length == 0) { ShowStatus("Type your callsign first: it's sent with the transmission.", problem: true); return; }
+        string call = SendSupport.Callsign;
+        if (call.Length == 0) { ShowStatus("Set your callsign in Settings (Misc tab) first: it's sent with the transmission.", problem: true); return; }
 
         var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {

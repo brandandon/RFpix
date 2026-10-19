@@ -1,5 +1,5 @@
 <!--
-  RadioPage.axaml - the Radio page: how RFpix reaches the radio (through Hamlib),
+  RadioPage.axaml - the Radio tab of the Settings page: how RFpix reaches the radio (through Hamlib),
   how the transmitter is keyed, and a test. Once connected, the radio's frequency
   and mode are shown, updated every second.
 -->
@@ -8,8 +8,6 @@
              x:Class="RFpix.Views.RadioPage">
   <ScrollViewer>
     <StackPanel Spacing="18" MaxWidth="820" HorizontalAlignment="Left">
-      <TextBlock Classes="PageTitle" Text="Radio" />
-
       <!-- Which radio -->
       <StackPanel Spacing="6">
         <TextBlock Text="Radio" FontWeight="SemiBold" />

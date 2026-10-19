@@ -52,8 +52,7 @@ public partial class MainWindow : Window
             {
                 "TxRx"     => new TxRxPage(),   // the Receive and Send tabs
                 "Gallery"  => new GalleryPage(),
-                "Radio"    => new RadioPage(),
-                "Settings" => new SettingsPage(),
+                "Settings" => new SettingsPage(),   // Audio, Radio and Misc tabs
                 "Alpha"    => new AlphaTestingPage(),   // the built-in test transmissions
                 _ => new TextBlock { Text = $"Unknown page: {pageName}" }
             };

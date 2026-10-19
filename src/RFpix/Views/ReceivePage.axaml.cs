@@ -173,8 +173,8 @@ public partial class ReceivePage : UserControl, IDisposable
         if (ChosenDevice() is not { } device)
         {
             ShowError(AppSettings.Current.InputDeviceId is null
-                ? "Pick the radio's sound input on the Settings page first."
-                : "The sound input chosen on the Settings page isn't connected. Switch on or plug in the radio, or pick another device there.");
+                ? "Pick the radio's sound input in Settings (Audio tab) first."
+                : "The sound input chosen in Settings (Audio tab) isn't connected. Switch on or plug in the radio, or pick another device there.");
             return;
         }
 

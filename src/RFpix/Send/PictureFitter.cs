@@ -12,7 +12,12 @@
 // sizes the picture to use the budget at about that rate, then finds the highest quality
 // that fits. If the picture still comes out mushy (the quality has to drop below a floor),
 // it makes the picture smaller and tries again.
-// Manual takes the size and quality the operator picks, and just reports the time.
+// Auto may run up to 3 seconds past the target (a little more picture, still well inside a
+// repeater's time-out). Manual takes the size and quality the operator picks (the sliders,
+// after Auto has fitted the picture), and just reports the time.
+//
+// The time is shown green when it fits (for Auto, within its 3 extra seconds), yellow when
+// it runs up to 7 seconds over the target, and red beyond that.
 //
 // The fitter works with any encoder (the program uses Pictures.Encode), so the tests can
 // try it with JPEG 2000 alone or with a stand-in.
@@ -35,15 +40,41 @@ public sealed record FittedPicture(
 {
     public TimeSpan Target => TimeSpan.FromSeconds(Profile.TargetSeconds);
 
-    /// <summary>True if it goes out within the profile's target time.</summary>
-    public bool FitsTarget => Duration <= Target;
+    /// <summary>True if Auto chose the size and quality (false: the operator did).</summary>
+    public bool Automatic { get; init; }
+
+    /// <summary>How the time compares with the target: green, yellow or red on the screen.</summary>
+    public TimeFit Fit =>
+        Duration <= Target + (Automatic ? PictureFitter.AutoAllowance : TimeSpan.Zero) ? TimeFit.Fits
+        : Duration <= Target + PictureFitter.SlightlyOver ? TimeFit.SlightlyOver
+        : TimeFit.Over;
+
+    /// <summary>True if it goes out within the target time (for Auto, within its allowance).</summary>
+    public bool FitsTarget => Fit == TimeFit.Fits;
 
     /// <summary>A transmitter for it, from <paramref name="callsign"/>.</summary>
     public HamDrmTransmitter Transmitter(string callsign) => new(SendName, SendData, Profile.Settings, callsign);
 }
 
+/// <summary>How a picture's time compares with the target.</summary>
+public enum TimeFit
+{
+    /// <summary>Within the target (for Auto, within its 3-second allowance): green.</summary>
+    Fits,
+    /// <summary>Up to 7 seconds over the target: yellow.</summary>
+    SlightlyOver,
+    /// <summary>More than 7 seconds over: red.</summary>
+    Over,
+}
+
 public sealed class PictureFitter
 {
+    /// <summary>How far past the target Auto may go.</summary>
+    public static readonly TimeSpan AutoAllowance = TimeSpan.FromSeconds(3);
+
+    /// <summary>Up to this far over the target is "slightly over" (yellow), beyond it red.</summary>
+    public static readonly TimeSpan SlightlyOver = TimeSpan.FromSeconds(7);
+
     /// <summary>The smallest and largest longer side Auto picks, in pixels.</summary>
     public const int MinLongSide = 160, MaxAutoLongSide = 1280;
 
@@ -68,7 +99,7 @@ public sealed class PictureFitter
     {
         PictureFormat.Jpeg2000 => 25,   // about 0.14 bits per pixel
         PictureFormat.Jpeg => 35,
-        _ => 30,
+        _ => 25,
     };
 
     // ---- names and times ----
@@ -98,10 +129,11 @@ public sealed class PictureFitter
     public static TimeSpan DurationFor(string sendName, int sendLength, TransmitSettings settings) =>
         new HamDrmTransmitter(sendName, new byte[sendLength], settings, "X").Duration;
 
-    /// <summary>The largest picture file (in bytes) that goes out within the profile's target time.</summary>
-    public static int MaxFileBytes(string sendName, SendProfile profile)
+    /// <summary>The largest picture file (in bytes) that goes out within the profile's target time,
+    /// plus <paramref name="extra"/>.</summary>
+    public static int MaxFileBytes(string sendName, SendProfile profile, TimeSpan extra = default)
     {
-        var target = TimeSpan.FromSeconds(profile.TargetSeconds);
+        var target = TimeSpan.FromSeconds(profile.TargetSeconds) + extra;
         // Double until it's too long, then find the most bytes that fit, halving the range each time.
         int lo = 0, hi = 1024;
         while (hi < 1 << 24 && DurationFor(sendName, hi, profile.Settings) <= target) { lo = hi; hi *= 2; }
@@ -148,7 +180,7 @@ public sealed class PictureFitter
                               CancellationToken cancel = default)
     {
         string sendName = profile.ReedSolomon > 0 ? $"{baseName}.rs{profile.ReedSolomon}" : $"{baseName}.{format.Extension()}";
-        int budget = MaxFileBytes(sendName, profile);
+        int budget = MaxFileBytes(sendName, profile, AutoAllowance);
         int originalLong = Math.Max(original.Width, original.Height);
 
         // First guess: the size that uses the budget at the format's good rate.
@@ -164,9 +196,9 @@ public sealed class PictureFitter
             var (quality, file) = BestQuality(picture, format, budget, cancel);
             bool smallest = longSide <= Math.Min(MinLongSide, originalLong);
             if (file is not null && (quality >= QualityFloor(format) || smallest))
-                return Package(picture, format, quality, file, baseName, profile);
+                return Package(picture, format, quality, file, baseName, profile) with { Automatic = true };
             if (smallest)   // nothing fits: send the roughest, smallest version, over time
-                return Package(picture, format, 1, _encode(picture, format, 1), baseName, profile);
+                return Package(picture, format, 1, _encode(picture, format, 1), baseName, profile) with { Automatic = true };
             longSide = Math.Max(Math.Min(MinLongSide, originalLong), (int)(longSide * 0.8));
         }
     }

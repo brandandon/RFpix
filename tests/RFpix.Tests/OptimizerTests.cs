@@ -192,12 +192,39 @@ public class OptimizerTests
     }
 
     [Fact]
+    public void Auto_may_use_three_seconds_more_than_the_target()
+    {
+        var profile = SendProfile.NetRepeater;
+        int budget = PictureFitter.MaxFileBytes("tower.jp2", profile);
+        int withAllowance = PictureFitter.MaxFileBytes("tower.jp2", profile, PictureFitter.AutoAllowance);
+        Assert.True(withAllowance > budget);
+        Assert.True(PictureFitter.DurationFor("tower.jp2", withAllowance, profile.Settings) <= TimeSpan.FromSeconds(123));
+    }
+
+    [Fact]
+    public void The_time_shows_green_yellow_or_red()
+    {
+        var picture = new DecodedPicture(1, 1, new byte[4]);
+        FittedPicture Taking(double seconds, bool automatic) =>
+            new(picture, PictureFormat.Jpeg2000, 50, Array.Empty<byte>(), "a.jp2", Array.Empty<byte>(), "a.jp2",
+                SendProfile.NetRepeater, TimeSpan.FromSeconds(seconds)) { Automatic = automatic };
+        Assert.Equal(TimeFit.Fits, Taking(120, automatic: false).Fit);
+        Assert.Equal(TimeFit.SlightlyOver, Taking(122, automatic: false).Fit);   // a slider moved: over is over
+        Assert.Equal(TimeFit.Fits, Taking(122.8, automatic: true).Fit);          // Auto's 3 extra seconds
+        Assert.Equal(TimeFit.SlightlyOver, Taking(123.2, automatic: true).Fit);
+        Assert.Equal(TimeFit.SlightlyOver, Taking(127, automatic: false).Fit);
+        Assert.Equal(TimeFit.Over, Taking(127.2, automatic: false).Fit);
+    }
+
+    [Fact]
     public void Auto_fits_a_photo_into_two_minutes_and_uses_most_of_them()
     {
         var fitter = new PictureFitter((p, _, q) => Jpeg2000.Encode(p, q));
         var fitted = fitter.Auto(TestPhoto(), "tower", PictureFormat.Jpeg2000, SendProfile.NetRepeater);
         Assert.True(fitted.FitsTarget, $"{fitted.Duration}");
+        Assert.True(fitted.Automatic);
         Assert.True(fitted.Duration > TimeSpan.FromSeconds(100), $"{fitted.Duration}");
+        Assert.True(fitted.Duration <= TimeSpan.FromSeconds(123), $"{fitted.Duration}");
         Assert.Equal("tower.jp2", fitted.FileName);
         Assert.Equal(fitted.File, fitted.SendData);
         Assert.InRange(Math.Max(fitted.Picture.Width, fitted.Picture.Height), 400, 900);
@@ -228,7 +255,7 @@ public class OptimizerTests
     {
         var fitter = new PictureFitter(StandIn);
         var profile = SendProfile.NetRepeater;
-        int budget = PictureFitter.MaxFileBytes("tower.jpg", profile);
+        int budget = PictureFitter.MaxFileBytes("tower.jpg", profile, PictureFitter.AutoAllowance);
         var fitted = fitter.Auto(TestPhoto(), "tower", PictureFormat.Jpeg, profile);
         Assert.True(fitted.FitsTarget);
         Assert.True(fitted.Quality >= PictureFitter.QualityFloor(PictureFormat.Jpeg), $"quality {fitted.Quality}");
@@ -253,6 +280,8 @@ public class OptimizerTests
         Assert.Equal((1024, 768), (fitted.Picture.Width, fitted.Picture.Height));
         Assert.Equal(90, fitted.Quality);
         Assert.False(fitted.FitsTarget);   // 1024 x 768 at quality 90 is far more than 2 minutes
+        Assert.Equal(TimeFit.Over, fitted.Fit);
+        Assert.False(fitted.Automatic);
         Assert.Equal(fitted.Duration, fitted.Transmitter("KD9DD").Duration);
     }
 

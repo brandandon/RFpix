@@ -1,8 +1,10 @@
 // SettingsPage.axaml.cs - the code half of the Settings page.
 //
-// The sound devices: the radio's input (what the TX/RX page listens to) and output (what
-// it sends through). Each is remembered by its permanent Windows ID; a change takes effect
-// at once (the TX/RX page is told through AppSettings.SoundDevicesChanged).
+// Audio tab: the radio's input (what the TX/RX page listens to) and output (what it sends
+// through). Each is remembered by its permanent Windows ID; a change takes effect at once
+// (the TX/RX page is told through AppSettings.SoundDevicesChanged).
+// Radio tab: the RadioPage control, which looks after itself.
+// Misc tab: the callsign (used by the Send tab and the Alpha Testing page) and the theme.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -28,6 +30,7 @@ public partial class SettingsPage : UserControl, IDisposable
             "Dark" => 2,
             _ => 0
         };
+        CallsignBox.Text = AppSettings.Current.Callsign ?? "";
         LoadDevices();
     }
 
@@ -83,6 +86,20 @@ public partial class SettingsPage : UserControl, IDisposable
         AppSettings.RaiseSoundDevicesChanged();
     }
 
+    // ---- callsign ----
+
+    // Saved as it's typed, in capitals.
+    private void OnCallsignChanged(object? sender, TextChangedEventArgs e)
+    {
+        string call = (CallsignBox.Text ?? "").Trim().ToUpperInvariant();
+        if (call == (AppSettings.Current.Callsign ?? "")) return;
+        AppSettings.Current.Callsign = call;
+        AppSettings.Current.Save();
+    }
+
+    private void OnCallsignLostFocus(object? sender, RoutedEventArgs e) =>
+        CallsignBox.Text = (CallsignBox.Text ?? "").Trim().ToUpperInvariant();
+
     // ---- theme ----
 
     // Runs when a different theme is picked.
@@ -102,6 +119,7 @@ public partial class SettingsPage : UserControl, IDisposable
 
     public void Dispose()
     {
+        RadioTab.Dispose();
         _input.Dispose();
         _output.Dispose();
     }

@@ -41,7 +41,6 @@
                  SelectionChanged="OnNavSelectionChanged">
           <ListBoxItem Content="TX/RX"    Tag="TxRx" />
           <ListBoxItem Content="Gallery"  Tag="Gallery" />
-          <ListBoxItem Content="Radio"    Tag="Radio" />
           <ListBoxItem Content="Settings" Tag="Settings" />
           <ListBoxItem Content="Alpha Testing" Tag="Alpha" />
         </ListBox>
