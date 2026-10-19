@@ -81,6 +81,15 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
 
+## Waterfall text, CW and ID (new in v0.3.4)
+
+- **Settings > Misc**, **Waterfall text**: type a short message to write on everyone's waterfall
+  before and/or after each of your pictures (for example "CQ SSTV NET" and "73 de KD9DD").
+  Leave a box empty for none.
+- **Send** tab, under the format box: **CW** sends your callsign in Morse code (750 Hz,
+  15 words per minute); **ID** writes your callsign on the waterfall. Both use your callsign
+  from Settings > Misc, and the level slider.
+
 QSSTV and EasyPal users can receive the tests too (they're ordinary HamDRM pictures);
 just tell the sender which ones arrived.
 
