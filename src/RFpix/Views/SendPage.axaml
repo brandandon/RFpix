@@ -3,14 +3,15 @@
 
   Open a picture (or drag one onto the page) and RFpix fits it to the transmit time,
   making it smaller and compressing it (the image optimizer). Left: the original (with
-  the zoom below it) and the picture as it will be sent (with the level and Send below
-  it), then the send settings. Right: the target time, size and quality (to fine-tune
+  the zoom and the send settings below it) and the picture as it will be sent (with the
+  level and Send below it). Right: the target time, size and quality (to fine-tune
   what was fitted), format, and the time it will take.
   The callsign is set in Settings (Misc tab).
   The built-in test transmissions are on the Alpha Testing page.
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:RFpix.Controls"
              x:Class="RFpix.Views.SendPage"
              DragDrop.AllowDrop="True">
   <ScrollViewer>
@@ -25,14 +26,17 @@
 
       <Grid ColumnDefinitions="*,300" ColumnSpacing="20">
 
-        <!-- Left: the two pictures, then the send settings -->
+        <!-- Left: the two pictures, with what goes with each below it -->
         <StackPanel Grid.Column="0" Spacing="8">
-          <!-- The two boxes are square: their height follows their width (set in the code). Each
-               holds the picture fitted to the box and, for zooming, a scrolling full-size copy. -->
-          <Grid x:Name="PreviewGrid" ColumnDefinitions="*,*" ColumnSpacing="12" SizeChanged="OnPreviewGridSizeChanged">
+          <!-- Two columns that share the width: the original with the zoom and the send settings
+               below it, and the picture as sent with the level and Send below it. The picture
+               boxes are square (SquareBox), and everything under them wraps to fit, so the page
+               adjusts as the window is made wider or narrower. Each box holds the picture fitted
+               to it and, for zooming, a scrolling full-size copy. -->
+          <Grid x:Name="PreviewGrid" ColumnDefinitions="*,*" ColumnSpacing="12">
             <StackPanel Grid.Column="0" Spacing="4">
               <TextBlock Classes="Hint" FontSize="13" Text="Original" />
-              <Border x:Name="OriginalBox" BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Height="240">
+              <controls:SquareBox x:Name="OriginalBox" BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
                 <Panel>
                   <Image x:Name="OriginalImage" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />
                   <ScrollViewer x:Name="OriginalScroll" IsVisible="False" Cursor="SizeAll"
@@ -42,16 +46,73 @@
                     <Image x:Name="OriginalZoomImage" Stretch="Fill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                   </ScrollViewer>
                 </Panel>
-              </Border>
+              </controls:SquareBox>
               <CheckBox x:Name="ZoomBox" Content="Zoom to full size" Margin="0,4,0,0"
                         ToolTip.Tip="Shows both pictures at the sent picture's own size, to check small text and detail."
                         IsCheckedChanged="OnZoomChanged" IsEnabled="False" />
-              <TextBlock x:Name="ZoomHint" Classes="Hint" FontSize="13" IsVisible="False"
+              <TextBlock x:Name="ZoomHint" Classes="Hint" FontSize="13" IsVisible="False" TextWrapping="Wrap"
                          Text="Drag either picture to look around; both move together." />
+
+              <!-- Send settings, and saved profiles of them -->
+              <StackPanel Spacing="8" Margin="0,10,0,0">
+                <WrapPanel>
+                  <TextBlock Text="Profile" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,6" />
+                  <ComboBox x:Name="ProfileBox" Width="220" PlaceholderText="Your own settings" SelectionChanged="OnProfileChanged"
+                            Margin="0,0,8,6" />
+                  <Button x:Name="SaveProfileButton" Content="Save as profile…" Margin="0,0,8,6">
+                    <Button.Flyout>
+                      <Flyout Placement="Bottom">
+                        <StackPanel Spacing="8" Width="260">
+                          <TextBlock Text="Save these settings as a profile named:" />
+                          <TextBox x:Name="ProfileNameBox" MaxLength="40" Watermark="e.g. HF evening net" />
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Save" Click="OnSaveProfileClick" />
+                            <TextBlock x:Name="ProfileNameProblem" Foreground="OrangeRed" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="180" />
+                          </StackPanel>
+                        </StackPanel>
+                      </Flyout>
+                    </Button.Flyout>
+                  </Button>
+                  <Button x:Name="DeleteProfileButton" Content="Delete" Click="OnDeleteProfileClick" IsEnabled="False" Margin="0,0,0,6"
+                          ToolTip.Tip="Deletes the chosen profile (not the ones that come with RFpix)." />
+                </WrapPanel>
+                <WrapPanel>
+                  <StackPanel Spacing="3" Margin="0,0,10,8">
+                    <TextBlock FontSize="13" Text="Mode" />
+                    <ComboBox x:Name="ModeBox" Width="70" SelectionChanged="OnSendSettingChanged"
+                              ToolTip.Tip="A carries the most data; B and E hold up better on fading paths, more slowly." />
+                  </StackPanel>
+                  <StackPanel Spacing="3" Margin="0,0,10,8">
+                    <TextBlock FontSize="13" Text="Bandwidth" />
+                    <ComboBox x:Name="BandwidthBox" Width="96" SelectionChanged="OnSendSettingChanged"
+                              ToolTip.Tip="2.5 kHz is faster; 2.2 kHz fits narrower radio filters." />
+                  </StackPanel>
+                  <StackPanel Spacing="3" Margin="0,0,10,8">
+                    <TextBlock FontSize="13" Text="QAM" />
+                    <ComboBox x:Name="QamBox" Width="80" SelectionChanged="OnSendSettingChanged"
+                              ToolTip.Tip="64 is fastest but needs a strong, clean signal; 4 is slowest and toughest." />
+                  </StackPanel>
+                  <StackPanel Spacing="3" Margin="0,0,10,8">
+                    <TextBlock FontSize="13" Text="Interleave" />
+                    <ComboBox x:Name="InterleaveBox" Width="90" SelectionChanged="OnSendSettingChanged"
+                              ToolTip.Tip="Long spreads the data over more time, riding out fades better." />
+                  </StackPanel>
+                  <StackPanel Spacing="3" Margin="0,0,10,8">
+                    <TextBlock FontSize="13" Text="Protection" />
+                    <ComboBox x:Name="ProtectionBox" Width="90" SelectionChanged="OnSendSettingChanged"
+                              ToolTip.Tip="High adds more error correction, at lower speed." />
+                  </StackPanel>
+                  <StackPanel Spacing="3" Margin="0,0,10,8">
+                    <TextBlock FontSize="13" Text="Reed-Solomon" />
+                    <ComboBox x:Name="ReedSolomonBox" Width="100" SelectionChanged="OnSendSettingChanged"
+                              ToolTip.Tip="Repair data across the whole picture, for weak paths: RS1 rebuilds about an eighth missing, RS2 a quarter, RS3 over a third, RS4 half. Costs time." />
+                  </StackPanel>
+                </WrapPanel>
+              </StackPanel>
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="4">
               <TextBlock x:Name="SentLabel" Classes="Hint" FontSize="13" Text="As sent" />
-              <Border x:Name="SentBox" BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Height="240">
+              <controls:SquareBox x:Name="SentBox" BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
                 <Panel>
                   <Image x:Name="SentImage" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />
                   <ScrollViewer x:Name="SentScroll" IsVisible="False" Cursor="SizeAll"
@@ -63,7 +124,7 @@
                   <TextBlock x:Name="NoPictureText" Classes="Hint" HorizontalAlignment="Center" VerticalAlignment="Center"
                              TextAlignment="Center" Text="Open a picture to send" />
                 </Panel>
-              </Border>
+              </controls:SquareBox>
 
               <!-- Level and Send, under the picture that goes out -->
               <StackPanel Spacing="8" Margin="0,6,0,0">
@@ -88,61 +149,6 @@
             </StackPanel>
           </Grid>
 
-          <!-- Send settings, and saved profiles of them -->
-          <StackPanel Spacing="8" Margin="0,8,0,0">
-            <StackPanel Orientation="Horizontal" Spacing="10">
-              <TextBlock Text="Profile" FontWeight="SemiBold" VerticalAlignment="Center" />
-              <ComboBox x:Name="ProfileBox" Width="240" PlaceholderText="Your own settings" SelectionChanged="OnProfileChanged" />
-              <Button x:Name="SaveProfileButton" Content="Save as profile…">
-                <Button.Flyout>
-                  <Flyout Placement="Bottom">
-                    <StackPanel Spacing="8" Width="260">
-                      <TextBlock Text="Save these settings as a profile named:" />
-                      <TextBox x:Name="ProfileNameBox" MaxLength="40" Watermark="e.g. HF evening net" />
-                      <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Content="Save" Click="OnSaveProfileClick" />
-                        <TextBlock x:Name="ProfileNameProblem" Foreground="OrangeRed" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="180" />
-                      </StackPanel>
-                    </StackPanel>
-                  </Flyout>
-                </Button.Flyout>
-              </Button>
-              <Button x:Name="DeleteProfileButton" Content="Delete" Click="OnDeleteProfileClick" IsEnabled="False"
-                      ToolTip.Tip="Deletes the chosen profile (not the ones that come with RFpix)." />
-            </StackPanel>
-            <WrapPanel>
-              <StackPanel Spacing="3" Margin="0,0,10,8">
-                <TextBlock FontSize="13" Text="Mode" />
-                <ComboBox x:Name="ModeBox" Width="70" SelectionChanged="OnSendSettingChanged"
-                          ToolTip.Tip="A carries the most data; B and E hold up better on fading paths, more slowly." />
-              </StackPanel>
-              <StackPanel Spacing="3" Margin="0,0,10,8">
-                <TextBlock FontSize="13" Text="Bandwidth" />
-                <ComboBox x:Name="BandwidthBox" Width="96" SelectionChanged="OnSendSettingChanged"
-                          ToolTip.Tip="2.5 kHz is faster; 2.2 kHz fits narrower radio filters." />
-              </StackPanel>
-              <StackPanel Spacing="3" Margin="0,0,10,8">
-                <TextBlock FontSize="13" Text="QAM" />
-                <ComboBox x:Name="QamBox" Width="80" SelectionChanged="OnSendSettingChanged"
-                          ToolTip.Tip="64 is fastest but needs a strong, clean signal; 4 is slowest and toughest." />
-              </StackPanel>
-              <StackPanel Spacing="3" Margin="0,0,10,8">
-                <TextBlock FontSize="13" Text="Interleave" />
-                <ComboBox x:Name="InterleaveBox" Width="90" SelectionChanged="OnSendSettingChanged"
-                          ToolTip.Tip="Long spreads the data over more time, riding out fades better." />
-              </StackPanel>
-              <StackPanel Spacing="3" Margin="0,0,10,8">
-                <TextBlock FontSize="13" Text="Protection" />
-                <ComboBox x:Name="ProtectionBox" Width="90" SelectionChanged="OnSendSettingChanged"
-                          ToolTip.Tip="High adds more error correction, at lower speed." />
-              </StackPanel>
-              <StackPanel Spacing="3" Margin="0,0,10,8">
-                <TextBlock FontSize="13" Text="Reed-Solomon" />
-                <ComboBox x:Name="ReedSolomonBox" Width="100" SelectionChanged="OnSendSettingChanged"
-                          ToolTip.Tip="Repair data across the whole picture, for weak paths: RS1 rebuilds about an eighth missing, RS2 a quarter, RS3 over a third, RS4 half. Costs time." />
-              </StackPanel>
-            </WrapPanel>
-          </StackPanel>
         </StackPanel>
 
         <!-- Right: fitting it to the transmit time -->

@@ -461,15 +461,7 @@ public partial class SendPage : UserControl, IDisposable
         SaveButton.IsEnabled = _sending is null;
     }
 
-    // ---- square boxes and zoom ----
-
-    /// <summary>Keeps the two picture boxes square: as tall as they are wide.</summary>
-    private void OnPreviewGridSizeChanged(object? sender, SizeChangedEventArgs e)
-    {
-        double side = Math.Max(100, Math.Floor((e.NewSize.Width - PreviewGrid.ColumnSpacing) / 2));
-        if (Math.Abs(OriginalBox.Height - side) < 0.5) return;
-        OriginalBox.Height = SentBox.Height = side;
-    }
+    // ---- zoom ----
 
     private void OnZoomChanged(object? sender, RoutedEventArgs e) => ApplyZoom();
 
