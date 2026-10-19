@@ -85,7 +85,7 @@ public class WaterfallTextTests
         Assert.Equal(new[] { true, true, true }, MorseCode.Pattern("t"));
         // A then N: .-  (3-dit gap)  -.
         Assert.Equal("1011100011101", string.Concat(MorseCode.Pattern("AN").Select(b => b ? '1' : '0')));
-        Assert.Equal(MorseCode.Pattern("E E").Length, 1 + 7 + 1);
+        Assert.Equal(1 + 7 + 1, MorseCode.Pattern("E E").Length);
         // "PARIS" plus the gap before the next word is 50 dits: 4 s at 15 words per minute.
         Assert.Equal(43, MorseCode.Pattern("PARIS").Length);
         Assert.Equal(43 * 0.08, MorseCode.Audio("PARIS").Length / 48000.0, 3);

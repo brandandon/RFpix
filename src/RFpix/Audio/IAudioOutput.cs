@@ -18,6 +18,12 @@ public interface IAudioOutput : IDisposable
     /// <param name="progress">Told the fraction played so far, a few times a second.</param>
     Task PlayAsync(string deviceId, float[] samples, int sampleRate, Func<double>? level, IProgress<double>? progress,
                    CancellationToken cancel);
+
+    /// <summary>For sound-card calibration: plays silence on a device for <paramref name="duration"/>,
+    /// telling <paramref name="reading"/> again and again how many samples the device has played
+    /// (by its own count) at that moment (seconds, on the computer's clock), and at what nominal rate.</summary>
+    Task MeasureClockAsync(string deviceId, TimeSpan duration, Action<double, long, int> reading, CancellationToken cancel) =>
+        throw new AudioException("Measuring the sound card's clock isn't possible on this computer.");
 }
 
 /// <summary>Stand-in used on Linux and Mac until their audio backend is written.</summary>

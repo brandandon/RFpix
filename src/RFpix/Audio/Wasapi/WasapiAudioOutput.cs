@@ -71,6 +71,60 @@ public sealed class WasapiAudioOutput : IAudioOutput
         }
     }
 
+    // Calibration: silence goes in, and the device's own count of samples played is read, with
+    // the time, every 10 ms on a thread of its own (so the readings are taken the moment they're made).
+    public Task MeasureClockAsync(string deviceId, TimeSpan duration, Action<double, long, int> reading, CancellationToken cancel) =>
+        Task.Factory.StartNew(() =>
+        {
+            AudioClient client;
+            WaveFormat format;
+            try
+            {
+                var device = _enumerator.GetDevice(deviceId);
+                client = device.AudioClient;
+                format = client.MixFormat;
+                client.Initialize(AudioClientShareMode.Shared, AudioClientStreamFlags.None, 2_000_000, 0, format, Guid.Empty);   // 200 ms
+            }
+            catch (Exception ex)
+            {
+                throw new AudioException(AudioErrors.Explain(ex), ex);
+            }
+            using (client)
+            {
+                var render = client.AudioRenderClient;
+                var clock = client.AudioClockClient;
+                int size = client.BufferSize;
+                void FillWithSilence()
+                {
+                    int free = size - client.CurrentPadding;
+                    if (free <= 0) return;
+                    render.GetBuffer(free);
+                    render.ReleaseBuffer(free, AudioClientBufferFlags.Silent);
+                }
+                FillWithSilence();
+                client.Start();
+                try
+                {
+                    var end = DateTime.UtcNow + duration;
+                    while (DateTime.UtcNow < end && !cancel.IsCancellationRequested)
+                    {
+                        Thread.Sleep(10);
+                        FillWithSilence();
+                        clock.GetPosition(out ulong position, out _);
+                        double now = DateTime.UtcNow.Ticks / 1e7;
+                        // The position counts in the clock's own units; turn it into samples.
+                        long samples = (long)(position * (double)format.SampleRate / clock.Frequency);
+                        reading(now, samples, format.SampleRate);
+                    }
+                }
+                finally
+                {
+                    client.Stop();
+                }
+            }
+            cancel.ThrowIfCancellationRequested();
+        }, cancel, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+
     public void Dispose() => _enumerator.Dispose();
 
     /// <summary>One channel of samples, read from start to end, at the level wanted as it goes.</summary>

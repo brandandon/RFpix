@@ -141,10 +141,17 @@ public partial class ReceivePage : UserControl, IDisposable
         catch (Exception) { return null; }
     }
 
-    // The device was changed (or Refresh clicked) on the Settings page: switch over if listening.
+    // The device was changed (or Refresh clicked, or the sound card calibrated) on the Settings page:
+    // switch over if listening.
     private void OnSoundDevicesChanged()
     {
-        if (_input.IsRunning && _listeningTo != AppSettings.Current.InputDeviceId) StartListening();
+        double ppm = AppSettings.Correction(AppSettings.Current.InputClock, AppSettings.Current.InputDeviceId);
+        bool correctionChanged = (_clockCorrector?.Ratio ?? 1) != (ppm != 0 ? ClockCorrector.InputRatio(ppm) : 1);
+        if (_input.IsRunning && (_listeningTo != AppSettings.Current.InputDeviceId || correctionChanged))
+        {
+            _input.Stop();
+            StartListening();
+        }
         UpdateStartButton();
     }
 
@@ -182,6 +189,8 @@ public partial class ReceivePage : UserControl, IDisposable
 
         try
         {
+            double ppm = AppSettings.Correction(AppSettings.Current.InputClock, device.Id);
+            _clockCorrector = ppm != 0 ? new ClockCorrector(ClockCorrector.InputRatio(ppm)) : null;
             _input.Start(device.Id);
             _listeningTo = device.Id;
             _deviceName = device.Name;
@@ -343,9 +352,25 @@ public partial class ReceivePage : UserControl, IDisposable
 
     // ---- audio arriving ----
 
+    // Sound-card calibration: the radio's sound is re-timed to the input's true clock (set on
+    // the sound card's thread at each start, used only there).
+    private ClockCorrector? _clockCorrector;
+    private readonly List<float> _corrected = new();
+    private float[] _correctedArray = Array.Empty<float>();
+
     // On the sound card's (or player's) thread: just hand the chunk over and return.
-    private void OnSamples(object? sender, AudioSamplesEventArgs e) =>
-        _pump.Add(e.Samples, e.Count, e.SampleRate, sender);
+    private void OnSamples(object? sender, AudioSamplesEventArgs e)
+    {
+        if (sender == _input && _clockCorrector is { } corrector)
+        {
+            _corrected.Clear();
+            corrector.Process(e.Samples.AsSpan(0, e.Count), _corrected);
+            if (_correctedArray.Length < _corrected.Count) _correctedArray = new float[_corrected.Count * 2];
+            _corrected.CopyTo(_correctedArray);
+            _pump.Add(_correctedArray, _corrected.Count, e.SampleRate, sender);
+        }
+        else _pump.Add(e.Samples, e.Count, e.SampleRate, sender);
+    }
 
     // On the pump's worker thread, chunk by chunk, in order.
     private void ProcessSamples(float[] samples, int count, int sampleRate, object? source)
@@ -416,6 +441,8 @@ public partial class ReceivePage : UserControl, IDisposable
         if (_input.IsRunning)
         {
             string text = $"{_deviceName}  ·  {_input.FormatDescription}";
+            if (_clockCorrector is not null)
+                text += $"  ·  clock corrected {AppSettings.Correction(AppSettings.Current.InputClock, _listeningTo):+0.0;-0.0} ppm";
             if (_input.Gaps > 0) text += $"  ·  {_input.Gaps} gap{(_input.Gaps == 1 ? "" : "s")} in the sound from Windows (filled)";
             if (_pump.Dropped > 0) text += $"  ·  {_pump.Dropped} chunks of audio lost: the computer is too busy";
             FormatText.Text = text;

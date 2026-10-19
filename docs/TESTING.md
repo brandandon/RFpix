@@ -81,6 +81,22 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
 
+## Sound-card calibration (new)
+
+**Settings > Misc**, **Sound-card calibration**: click **Measure (2 minutes)** with the radio on and
+receiving. RFpix listens to the radio's sound input and plays silence to its output (the radio isn't
+keyed), counting both against the computer's clock, and then corrects for any difference when
+receiving and sending. Make sure Windows' clock is set right first (Settings > Time & language >
+Date & time > Sync now). Please send the numbers it shows: they tell us how far off typical sound
+cards are.
+
+## IC-9700 data mode (new)
+
+**Settings > Radio**, with the IC-9700 picked: tick **Switch the IC-9700 to data mode while
+transmitting**. RFpix turns the radio's DATA setting on just before keying (FM → FM-D, USB → USB-D)
+and off afterwards, keeping the mode and filter; the status line shows it while sending, and
+**Test PTT** reports it. The box takes effect at once, connected or not.
+
 ## Waterfall text, CW and ID (new in v0.3.4)
 
 - **Settings > Misc**, **Waterfall text**: type a short message to write on everyone's waterfall

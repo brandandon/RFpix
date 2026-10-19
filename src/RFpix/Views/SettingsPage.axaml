@@ -82,10 +82,24 @@
               </ComboBox>
             </StackPanel>
 
-            <StackPanel Spacing="6" Opacity="0.55">
+            <!-- Sound-card calibration -->
+            <StackPanel Spacing="8">
               <TextBlock Text="Sound-card calibration" FontWeight="SemiBold" />
-              <TextBlock TextWrapping="Wrap"
-                         Text="Coming later: measures your sound card's exact sample rate, so pictures decode reliably." />
+              <TextBlock Classes="Hint" TextWrapping="Wrap"
+                         Text="Every sound card's clock is a little fast or slow. RFpix measures the radio's sound input and output against the computer's clock for 2 minutes, then corrects for them when receiving and sending. The radio stays receiving: RFpix plays silence and doesn't key it. For the best result, first make sure Windows' clock is set right (Settings > Time &amp; language > Date &amp; time > Sync now)." />
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="4">
+                <TextBlock Grid.Row="0" Text="Receive (input):" />
+                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="InputClockText" TextWrapping="Wrap" />
+                <TextBlock Grid.Row="1" Text="Send (output):" />
+                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="OutputClockText" TextWrapping="Wrap" />
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="CalibrateButton" Content="Measure (2 minutes)" Click="OnCalibrateClick" />
+                <Button x:Name="ClearCalibrationButton" Content="Set back to none" Click="OnClearCalibrationClick"
+                        ToolTip.Tip="Forgets the measurements: no correction when receiving or sending." />
+              </StackPanel>
+              <ProgressBar x:Name="CalibrationProgress" Width="360" HorizontalAlignment="Left" Minimum="0" Maximum="1" IsVisible="False" />
+              <TextBlock x:Name="CalibrationStatus" TextWrapping="Wrap" />
             </StackPanel>
           </StackPanel>
         </ScrollViewer>

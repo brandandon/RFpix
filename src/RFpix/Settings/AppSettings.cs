@@ -52,6 +52,17 @@ public sealed class AppSettings
     public string WaterfallTextBefore { get; set; } = "";
     public string WaterfallTextAfter { get; set; } = "";
 
+    // ---- sound-card calibration (Settings, Misc tab) ----
+
+    /// <summary>The measured clock error of the radio's sound input and output, or null if not measured.</summary>
+    public ClockCalibration? InputClock { get; set; }
+    public ClockCalibration? OutputClock { get; set; }
+
+    /// <summary>The correction to use for a device, in ppm: its measurement, if it was measured
+    /// on that very device; otherwise none.</summary>
+    public static double Correction(ClockCalibration? measured, string? deviceId) =>
+        measured is not null && deviceId is not null && measured.DeviceId == deviceId ? measured.Ppm : 0;
+
     // ---- the window ----
 
     /// <summary>The window's size (in screen units, as the layout measures) and position (in
@@ -108,3 +119,6 @@ public sealed class AppSettings
 
 /// <summary>Where the window was: its normal (not maximized) size and position, and whether it was maximized.</summary>
 public sealed record WindowPlacement(double Width, double Height, int Left, int Top, bool Maximized);
+
+/// <summary>A sound device's measured clock error: + means it runs fast, in parts per million.</summary>
+public sealed record ClockCalibration(string DeviceId, string DeviceName, double Ppm, DateTime Measured);

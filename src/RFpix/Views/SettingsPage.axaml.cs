@@ -5,7 +5,9 @@
 // (the TX/RX page is told through AppSettings.SoundDevicesChanged).
 // Radio tab: the RadioPage control, which looks after itself.
 // Misc tab: the callsign (used by the Send tab and the Alpha Testing page), the waterfall text
-// sent before and after each picture, and the theme.
+// sent before and after each picture, the theme, and sound-card calibration: for 2 minutes the
+// radio's sound input is listened to and silence played to its output, both counted against
+// the computer's clock (SoundCardClock.cs); the results are saved, and used from then on.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -37,6 +39,7 @@ public partial class SettingsPage : UserControl, IDisposable
         WaterfallBeforeBox.Text = AppSettings.Current.WaterfallTextBefore;
         WaterfallAfterBox.Text = AppSettings.Current.WaterfallTextAfter;
         LoadDevices();
+        ShowCalibration();
     }
 
     // ---- sound devices ----
@@ -81,6 +84,7 @@ public partial class SettingsPage : UserControl, IDisposable
         AppSettings.Current.InputDeviceId = device.Id;
         AppSettings.Current.Save();
         AppSettings.RaiseSoundDevicesChanged();
+        ShowCalibration();   // a measurement belongs to one device
     }
 
     private void OnOutputChanged(object? sender, SelectionChangedEventArgs e)
@@ -89,6 +93,7 @@ public partial class SettingsPage : UserControl, IDisposable
         AppSettings.Current.OutputDeviceId = device.Id;
         AppSettings.Current.Save();
         AppSettings.RaiseSoundDevicesChanged();
+        ShowCalibration();
     }
 
     // ---- callsign ----
@@ -117,6 +122,157 @@ public partial class SettingsPage : UserControl, IDisposable
         AppSettings.Current.Save();
     }
 
+    // ---- sound-card calibration ----
+
+    /// <summary>The measurement time: long enough to be sure to about 1 ppm.</summary>
+    private static readonly TimeSpan CalibrationTime = TimeSpan.FromMinutes(2);
+
+    /// <summary>The most a sound card is believed to be off; more means the measurement went wrong.</summary>
+    private const double MaxPpm = 1000;
+
+    /// <summary>How sure a measurement must be, in ppm, to be used.</summary>
+    private const double MaxUncertaintyPpm = 5;
+
+    private CancellationTokenSource? _calibrating;
+
+    private void ShowCalibration()
+    {
+        InputClockText.Text = Describe(AppSettings.Current.InputClock, AppSettings.Current.InputDeviceId);
+        OutputClockText.Text = Describe(AppSettings.Current.OutputClock, AppSettings.Current.OutputDeviceId);
+        ClearCalibrationButton.IsEnabled = _calibrating is null &&
+            (AppSettings.Current.InputClock is not null || AppSettings.Current.OutputClock is not null);
+    }
+
+    private static string Describe(ClockCalibration? c, string? deviceInUse)
+    {
+        if (c is null) return "not measured (no correction)";
+        string speed = Math.Abs(c.Ppm) < 0.05 ? "exactly right" : $"{Math.Abs(c.Ppm):0.0} ppm {(c.Ppm > 0 ? "fast" : "slow")}";
+        string text = $"{speed}  ·  {c.DeviceName}, measured {c.Measured.ToLocalTime():MMM d, yyyy}";
+        return c.DeviceId == deviceInUse ? text : text + "  ·  not used: a different device is chosen now";
+    }
+
+    private static double Now() => DateTime.UtcNow.Ticks / 1e7;
+
+    private async void OnCalibrateClick(object? sender, RoutedEventArgs e)
+    {
+        if (_calibrating is not null) { _calibrating.Cancel(); return; }   // the button says Stop
+        string? inputId = AppSettings.Current.InputDeviceId, outputId = AppSettings.Current.OutputDeviceId;
+        if (inputId is null || outputId is null)
+        {
+            ShowCalibrationStatus("Pick the radio's sound input and output on the Audio tab first.", problem: true);
+            return;
+        }
+        string inputName = (InputBox.SelectedItem as AudioDeviceInfo)?.Name ?? "the sound input";
+        string outputName = (OutputBox.SelectedItem as AudioDeviceInfo)?.Name ?? "the sound output";
+
+        _calibrating = new CancellationTokenSource();
+        var cancel = _calibrating.Token;
+        CalibrateButton.Content = "Stop";
+        ClearCalibrationButton.IsEnabled = false;
+        CalibrationProgress.Value = 0;
+        CalibrationProgress.IsVisible = true;
+        ShowCalibrationStatus("Measuring… keep RFpix open; the radio stays receiving.", problem: false);
+
+        ClockMeasurement? input = null, output = null;
+        long inputSamples = 0;
+        using var listener = AudioSystem.CreateInput();
+        using var player = AudioSystem.CreateOutput();
+        void OnInput(object? s, AudioSamplesEventArgs a)
+        {
+            input ??= new ClockMeasurement(a.SampleRate);
+            inputSamples += a.Count;
+            input.Add(Now(), inputSamples);
+        }
+        listener.SamplesAvailable += OnInput;
+
+        // Show how it's going twice a second.
+        var started = DateTime.UtcNow;
+        var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        timer.Tick += (_, _) =>
+        {
+            double done = (DateTime.UtcNow - started) / CalibrationTime;
+            CalibrationProgress.Value = Math.Clamp(done, 0, 1);
+            ShowCalibrationStatus($"Measuring… {Math.Max(0, (CalibrationTime - (DateTime.UtcNow - started)).TotalSeconds):0} s to go  ·  " +
+                                  $"input {Sofar(input)}  ·  output {Sofar(output)}", problem: false);
+        };
+        timer.Start();
+        try
+        {
+            listener.Start(inputId);
+            await player.MeasureClockAsync(outputId, CalibrationTime, (t, samples, rate) =>
+            {
+                output ??= new ClockMeasurement(rate);
+                output.Add(t, samples);
+            }, cancel);
+            listener.Stop();
+
+            var results = new List<string>();
+            var inResult = Result(input, inputId, inputName, "input", results);
+            var outResult = Result(output, outputId, outputName, "output", results);
+            if (inResult is not null) AppSettings.Current.InputClock = inResult;
+            if (outResult is not null) AppSettings.Current.OutputClock = outResult;
+            AppSettings.Current.Save();
+            AppSettings.RaiseSoundDevicesChanged();   // the Receive tab starts using it at once
+            ShowCalibrationStatus(string.Join("  ", results), problem: inResult is null || outResult is null);
+        }
+        catch (OperationCanceledException)
+        {
+            ShowCalibrationStatus("Stopped: nothing was changed.", problem: false);
+        }
+        catch (AudioException ex)
+        {
+            ShowCalibrationStatus(ex.Message, problem: true);
+        }
+        finally
+        {
+            timer.Stop();
+            listener.SamplesAvailable -= OnInput;
+            listener.Stop();
+            _calibrating.Dispose();
+            _calibrating = null;
+            CalibrateButton.Content = "Measure (2 minutes)";
+            CalibrationProgress.IsVisible = false;
+            ShowCalibration();
+        }
+    }
+
+    private static string Sofar(ClockMeasurement? m) =>
+        m?.Ppm is double ppm ? $"{ppm:+0.0;-0.0} ppm" : "starting";
+
+    /// <summary>A finished measurement, if it's believable, and a sentence about it either way.</summary>
+    private static ClockCalibration? Result(ClockMeasurement? m, string deviceId, string name, string which, List<string> said)
+    {
+        if (m?.Ppm is not double ppm || m.UncertaintyPpm is not double sure)
+        {
+            said.Add($"The {which} gave no readings: is {name} still connected?");
+            return null;
+        }
+        if (Math.Abs(ppm) > MaxPpm || sure > MaxUncertaintyPpm)
+        {
+            said.Add($"The {which} measurement was unsteady ({ppm:+0;-0} ppm, give or take {sure:0}), so it wasn't saved. " +
+                     "Close other sound programs and try again.");
+            return null;
+        }
+        said.Add($"{char.ToUpper(which[0])}{which[1..]}: {Math.Abs(ppm):0.0} ppm {(ppm >= 0 ? "fast" : "slow")} (give or take {sure:0.0}).");
+        return new ClockCalibration(deviceId, name, Math.Round(ppm, 1), DateTime.UtcNow);
+    }
+
+    private void OnClearCalibrationClick(object? sender, RoutedEventArgs e)
+    {
+        AppSettings.Current.InputClock = AppSettings.Current.OutputClock = null;
+        AppSettings.Current.Save();
+        AppSettings.RaiseSoundDevicesChanged();
+        ShowCalibration();
+        ShowCalibrationStatus("No correction now.", problem: false);
+    }
+
+    private void ShowCalibrationStatus(string message, bool problem)
+    {
+        CalibrationStatus.Text = message;
+        if (problem) CalibrationStatus.Foreground = Avalonia.Media.Brushes.OrangeRed;
+        else CalibrationStatus.ClearValue(TextBlock.ForegroundProperty);
+    }
+
     // ---- theme ----
 
     // Runs when a different theme is picked.
@@ -136,6 +292,7 @@ public partial class SettingsPage : UserControl, IDisposable
 
     public void Dispose()
     {
+        _calibrating?.Cancel();
         RadioTab.Dispose();
         _input.Dispose();
         _output.Dispose();

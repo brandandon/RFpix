@@ -79,7 +79,11 @@ internal static class SendSupport
         var (sound, seconds) = await Task.Run(() =>
         {
             var signal = makeSound();
-            return (Transmission.Prepare(signal, 1, keyed), (double)signal.Length / Transmission.SampleRate);
+            var prepared = Transmission.Prepare(signal, 1, keyed);
+            // Sound-card calibration: re-time the sound to the output's true clock.
+            double ppm = AppSettings.Correction(AppSettings.Current.OutputClock, device.Id);
+            if (ppm != 0) prepared = ClockCorrector.Resample(prepared, ClockCorrector.OutputRatio(ppm));
+            return (prepared, (double)signal.Length / Transmission.SampleRate);
         }, cancel);
 
         // Connect if keying or data mode needs the radio and Settings hasn't connected.
