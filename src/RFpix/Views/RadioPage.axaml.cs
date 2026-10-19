@@ -9,6 +9,8 @@
 //   4. While connected, the frequency and mode are read once a second.
 //   5. Test PTT keys the transmitter for 2 seconds (switching to data mode first if that's
 //      ticked) and then releases it, reporting each step.
+//   6. The IC-9700's data-mode box is saved and used the moment it's changed, connected or not.
+//      Everything else is saved by Connect, and can't change while connected.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -73,7 +75,7 @@ public partial class RadioPage : UserControl, IDisposable
                 : PttRts.IsChecked == true ? PttMethod.Rts
                 : PttDtr.IsChecked == true ? PttMethod.Dtr
                 : PttMethod.Cat,
-            DataModeForTransmit = DataModeBox.IsChecked == true,
+            DataModeForTransmit = DataModeBox.IsChecked == true && choice.Id == "ic9700",
         };
     }
 
@@ -98,6 +100,20 @@ public partial class RadioPage : UserControl, IDisposable
         UpdateVisibility();
     }
 
+    // The data-mode box counts at once: saved, and used by the open connection from its next transmission.
+    private void OnDataModeChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_loading || StatusText is null) return;
+        bool on = DataModeBox.IsChecked == true;
+        AppSettings.Current.Radio.DataModeForTransmit = on;
+        AppSettings.Current.Save();
+        if (Connection is { } radio)
+        {
+            radio.DataModeForTransmit = on;
+            ShowStatus(on ? "Data mode switching is on, from the next transmission." : "Data mode switching is off.", problem: false);
+        }
+    }
+
     private void UpdateVisibility()
     {
         var choice = (RadioBox.SelectedItem as RadioChoice) ?? RadioChoices.Find("none");
@@ -109,7 +125,7 @@ public partial class RadioPage : UserControl, IDisposable
         // RTS and DTR are lines on a COM port; without radio control only VOX is possible.
         PttRts.IsEnabled = PttDtr.IsEnabled = choice.Connection == "serial";
         PttCat.IsEnabled = choice.Connection != "none";
-        DataModeBox.IsEnabled = choice.Connection != "none";
+        DataModeBox.IsVisible = choice.Id == "ic9700";   // data mode switching is for the IC-9700 only
         ConnectButton.IsEnabled = choice.Connection != "none" || Connection is not null;
         if (choice.Connection == "none") { ShowPtt(PttMethod.Vox); DataModeBox.IsChecked = false; }
     }
@@ -195,7 +211,7 @@ public partial class RadioPage : UserControl, IDisposable
         ConnectButton.IsEnabled = !_busy && (connected || (RadioBox.SelectedItem as RadioChoice)?.Connection != "none");
         TestPttButton.IsEnabled = connected && !_busy;
         // The settings can't change under an open connection.
-        RadioBox.IsEnabled = SerialPanel.IsEnabled = NetworkPanel.IsEnabled = ModelPanel.IsEnabled = !connected;
+        RadioBox.IsEnabled = SerialPanel.IsEnabled = NetworkPanel.IsEnabled = ModelPanel.IsEnabled = PttPanel.IsEnabled = !connected;
     }
 
     // ---- frequency and mode, once a second ----
@@ -232,19 +248,17 @@ public partial class RadioPage : UserControl, IDisposable
         UpdateButtons();
         try
         {
-            string before = RadioConnection.ModeName(await Task.Run(radio.ReadMode));
             ShowStatus(settings.Ptt == PttMethod.Vox
-                ? "VOX: RFpix sends no key command" + (settings.DataModeForTransmit ? ", only switching data mode for 2 seconds…" : ". To check VOX trips, send a test from the Alpha Testing page.")
+                ? "VOX: RFpix sends no key command" + (radio.DataModeForTransmit ? ", only switching data mode for 2 seconds…" : ". To check VOX trips, send a test from the Alpha Testing page.")
                 : "Transmitting for 2 seconds…", problem: false);
 
             // Key with a 5-second limit: even if something below went wrong, the radio is released.
             await Task.Run(() => radio.Key(TimeSpan.FromSeconds(5)));
-            string during = RadioConnection.ModeName(await Task.Run(radio.ReadMode));
             await Task.Delay(TimeSpan.FromSeconds(2));
             await Task.Run(radio.Unkey);
-            string after = RadioConnection.ModeName(await Task.Run(radio.ReadMode));
 
-            string modes = settings.DataModeForTransmit ? $" Mode: {before} → {during} while transmitting → {after} afterwards." : "";
+            string modes = radio.DataModeForTransmit && radio.LastDataModeReport.Length > 0
+                ? $" Data mode: {radio.LastDataModeReport}." : "";
             ShowStatus(settings.Ptt == PttMethod.Vox
                 ? $"Done.{modes}"
                 : $"Done: keyed for 2 seconds and released.{modes} Did the radio show TX?", problem: false);

@@ -90,13 +90,24 @@ internal static class SendSupport
             radio = await RadioService.ConnectAsync(radioSettings);
         }
 
-        status($"Transmitting {what} ({seconds:0} s)…");
-        var shown = new Progress<double>(f =>
+        // The IC-9700's data-mode switch, if it's on, is shown with the progress ("IC-9700 in FM-D").
+        string mode = "";
+        void OnDataMode(string note) => mode = $"  ·  {note}";
+        if (radio is not null) radio.DataModeSwitched += OnDataMode;
+        try
         {
-            progress.Report(f);
-            status($"Transmitting {what}: {f * seconds:0} of {seconds:0} s");
-        });
-        await Transmission.SendAsync(sound, output, device.Id, radio, level, shown, cancel);
+            status($"Transmitting {what} ({seconds:0} s)…");
+            var shown = new Progress<double>(f =>
+            {
+                progress.Report(f);
+                status($"Transmitting {what}: {f * seconds:0} of {seconds:0} s{mode}");
+            });
+            await Transmission.SendAsync(sound, output, device.Id, radio, level, shown, cancel);
+        }
+        finally
+        {
+            if (radio is not null) radio.DataModeSwitched -= OnDataMode;
+        }
     }
 
     /// <summary>Writes a HamDRM transmission to a WAV file instead of sending it.</summary>

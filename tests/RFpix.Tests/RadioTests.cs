@@ -27,20 +27,16 @@ public class RadioTests
     }
 
     [Fact]
-    public void Keying_switches_to_data_mode_and_back()
+    public void Data_mode_is_only_for_the_IC_9700()
     {
+        // Hamlib's pretend radio isn't an IC-9700: the box is ignored and the mode left alone.
         using var radio = RadioConnection.Open(Dummy(dataMode: true));
+        Assert.False(radio.DataModeForTransmit);
         radio.SetMode(Usb);
-
         radio.Key(TimeSpan.FromSeconds(10));
-        Assert.True(radio.IsKeyed);
-        Assert.True(radio.ReadPtt());
-        Assert.Equal(UsbData, radio.ReadMode());   // USB-D while transmitting
-
+        Assert.Equal(Usb, radio.ReadMode());
         radio.Unkey();
-        Assert.False(radio.IsKeyed);
-        Assert.False(radio.ReadPtt());
-        Assert.Equal(Usb, radio.ReadMode());       // back to USB for listening and talking
+        Assert.Equal("", radio.LastDataModeReport);
     }
 
     [Fact]
@@ -70,23 +66,21 @@ public class RadioTests
 
         Assert.False(radio.IsKeyed);
         Assert.False(radio.ReadPtt());
-        Assert.Equal(Fm, radio.ReadMode());   // FM-D switched back to FM
+        Assert.Equal(Fm, radio.ReadMode());
         Assert.True(told);
     }
 
     [Fact]
-    public void With_VOX_RFpix_sends_no_key_command_but_still_switches_data_mode()
+    public void With_VOX_RFpix_sends_no_key_command()
     {
         // Hamlib is told there's no PTT at all, so a key command would fail: none is sent.
-        using var radio = RadioConnection.Open(Dummy(ptt: PttMethod.Vox, dataMode: true));
+        using var radio = RadioConnection.Open(Dummy(ptt: PttMethod.Vox));
         radio.SetMode(Usb);
 
         radio.Key(TimeSpan.FromSeconds(10));
         Assert.True(radio.IsKeyed);
-        Assert.Equal(UsbData, radio.ReadMode());   // ready for RFpix's audio to trip VOX
-
         radio.Unkey();
-        Assert.Equal(Usb, radio.ReadMode());
+        Assert.False(radio.IsKeyed);
     }
 
     [Fact]
@@ -102,15 +96,121 @@ public class RadioTests
         Assert.Throws<RadioException>(() => radio.ReadFrequency());   // closed
     }
 
-    [Theory]
-    [InlineData(Usb, UsbData)]
-    [InlineData(1ul << 3, 1ul << 10)]   // LSB → LSB-D
-    [InlineData(Fm, FmData)]
-    [InlineData(UsbData, UsbData)]      // already data: unchanged
-    [InlineData(1ul << 0, 1ul << 0)]    // AM: no data version, unchanged
-    public void Data_versions_of_modes(ulong mode, ulong expected)
+    // ---- the IC-9700's data mode, by Icom's own commands (CI-V) ----
+
+    private static string Hex(byte[] bytes) => Convert.ToHexString(bytes);
+
+    [Fact]
+    public void CIV_messages_are_framed_as_Icom_specifies()
     {
-        Assert.Equal(expected, RadioConnection.DataModeFor(mode));
+        Assert.Equal("FEFEA2E004FD", Hex(IcomCiv.ReadMode(0xA2)));
+        Assert.Equal("FEFEA2E01A06FD", Hex(IcomCiv.ReadDataMode(0xA2)));
+        Assert.Equal("FEFEA2E01A060102FD", Hex(IcomCiv.SetDataMode(0xA2, on: true, filter: 2)));   // data on, keep filter 2
+        Assert.Equal("FEFEA2E01A060000FD", Hex(IcomCiv.SetDataMode(0xA2, on: false, filter: 2)));  // data off
+        Assert.Equal("FEFEA2E01A060101FD", Hex(IcomCiv.SetDataMode(0xA2, on: true, filter: 0)));   // a filter is needed: 1
+    }
+
+    [Fact]
+    public void CIV_answers_are_told_from_echoes_and_other_messages()
+    {
+        byte[] B(string hex) => Convert.FromHexString(hex);
+        Assert.Equal(new byte[] { 0x04, 0x05, 0x01 }, IcomCiv.Answer(B("FEFEE0A2040501FD"), 0xA2));   // FM, filter 1
+        Assert.Equal(new byte[] { 0xFB }, IcomCiv.Answer(B("FEFEE0A2FBFD"), 0xA2));                    // OK
+        Assert.Null(IcomCiv.Answer(B("FEFEA2E004FD"), 0xA2));            // the radio's echo of our own message
+        Assert.Null(IcomCiv.Answer(B("FEFE00A2000000FD"), 0xA2));        // a broadcast to everyone (transceive)
+        Assert.Null(IcomCiv.Answer(B("FEFEE0A4FBFD"), 0xA2));            // from another radio
+        Assert.Equal(new byte[] { 0xFB }, IcomCiv.Answer(B("FEFEFEE0A2FBFD"), 0xA2));                  // an extra FE in front
+        Assert.Null(IcomCiv.Answer(B("FEFEE0A2"), 0xA2));                // cut short
+    }
+
+    /// <summary>A pretend IC-9700 on the CI-V line: it keeps a mode, filter and DATA setting,
+    /// answers questions, and can be told to echo, ignore or refuse commands.</summary>
+    private sealed class FakeIc9700
+    {
+        public byte Mode = 0x05, Filter = 1;   // FM, filter 1
+        public bool Data;
+        public bool RefuseData;                // answers "not OK" to data on
+        public bool IgnoreData;                // says OK but doesn't switch
+        public readonly List<string> Sent = new();
+
+        public byte[] Exchange(byte[] frame, string what)
+        {
+            Sent.Add(Convert.ToHexString(frame));
+            var body = frame[4..^1];
+            byte[] answer = body switch
+            {
+                [0x04] => new byte[] { 0x04, Mode, Filter },
+                [0x1A, 0x06] => new byte[] { 0x1A, 0x06, (byte)(Data ? 1 : 0), (byte)(Data ? Filter : 0) },
+                [0x1A, 0x06, var on, var filter] when RefuseData && on == 1 => new[] { IcomCiv.NotOk },
+                [0x1A, 0x06, var on, var filter] => Set(on == 1, filter),
+                _ => new[] { IcomCiv.NotOk },
+            };
+            // Wrap it as the radio would send it, and read it back as RFpix does.
+            var reply = new byte[] { 0xFE, 0xFE, IcomCiv.Computer, 0xA2 }.Concat(answer).Append(IcomCiv.End).ToArray();
+            return IcomCiv.Answer(reply, 0xA2)!;
+        }
+
+        private byte[] Set(bool on, byte filter)
+        {
+            if (!IgnoreData) { Data = on; if (on) Filter = filter; }
+            return new[] { IcomCiv.Ok };
+        }
+    }
+
+    [Fact]
+    public void The_IC_9700_goes_to_FM_D_with_its_own_filter_and_back_to_FM()
+    {
+        var radio = new FakeIc9700 { Mode = 0x05, Filter = 2 };
+        var data = new IcomDataMode(0xA2, radio.Exchange, TimeSpan.Zero);
+        var (mode, report) = data.On();
+        Assert.Equal("FM", mode);
+        Assert.Equal("FM → FM-D", report);
+        Assert.True(radio.Data);
+        Assert.Equal(2, radio.Filter);   // the filter it was on
+        Assert.Contains("FEFEA2E01A060102FD", radio.Sent);
+        data.Off(mode!);
+        Assert.False(radio.Data);
+    }
+
+    [Fact]
+    public void USB_goes_to_USB_D_and_a_radio_already_in_data_mode_is_left_alone()
+    {
+        var radio = new FakeIc9700 { Mode = 0x01, Filter = 1 };
+        Assert.Equal("USB", new IcomDataMode(0xA2, radio.Exchange, TimeSpan.Zero).On().Mode);
+
+        var already = new FakeIc9700 { Mode = 0x01, Data = true };
+        var (mode, report) = new IcomDataMode(0xA2, already.Exchange, TimeSpan.Zero).On();
+        Assert.Null(mode);   // nothing to switch back afterwards
+        Assert.Equal("already in data mode", report);
+
+        var cw = new FakeIc9700 { Mode = 0x03 };   // CW has no data mode
+        Assert.Null(new IcomDataMode(0xA2, cw.Exchange, TimeSpan.Zero).On().Mode);
+        Assert.False(cw.Data);
+    }
+
+    [Fact]
+    public void A_radio_that_refuses_or_doesnt_switch_is_reported_before_keying()
+    {
+        var refusing = new FakeIc9700 { RefuseData = true };
+        var e1 = Assert.Throws<RadioException>(() => new IcomDataMode(0xA2, refusing.Exchange, TimeSpan.Zero).On());
+        Assert.Contains("refused", e1.Message);
+
+        var ignoring = new FakeIc9700 { IgnoreData = true };
+        var e2 = Assert.Throws<RadioException>(() => new IcomDataMode(0xA2, ignoring.Exchange, TimeSpan.Zero).On());
+        Assert.Contains("stayed in FM", e2.Message);
+    }
+
+    [Fact]
+    public void CIV_addresses_and_modes_read_plainly()
+    {
+        Assert.Equal(0xA2, IcomCiv.Address(null));
+        Assert.Equal(0xA2, IcomCiv.Address("a2"));
+        Assert.Equal(0x94, IcomCiv.Address("0x94"));
+        Assert.Throws<RadioException>(() => IcomCiv.Address("ZZ"));
+        Assert.Equal("FM", IcomCiv.ModeName(0x05));
+        Assert.Equal("USB", IcomCiv.ModeName(0x01));
+        Assert.True(IcomCiv.HasDataMode(0x05));
+        Assert.False(IcomCiv.HasDataMode(0x03));   // CW
     }
 
     [Fact]

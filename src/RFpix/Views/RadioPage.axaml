@@ -53,7 +53,7 @@
       <!-- Keying -->
       <StackPanel Spacing="8">
         <TextBlock Text="Transmit keying (PTT)" FontWeight="SemiBold" />
-        <StackPanel Orientation="Horizontal" Spacing="20">
+        <StackPanel x:Name="PttPanel" Orientation="Horizontal" Spacing="20">
           <RadioButton x:Name="PttCat" GroupName="Ptt" Content="CAT command" />
           <RadioButton x:Name="PttRts" GroupName="Ptt" Content="RTS line" />
           <RadioButton x:Name="PttDtr" GroupName="Ptt" Content="DTR line" />
@@ -61,8 +61,10 @@
         </StackPanel>
         <TextBlock Classes="Hint" TextWrapping="Wrap"
                    Text="VOX: the radio keys itself when RFpix's sound starts, so RFpix sends no key command. Turn VOX on in the radio and set its level so RFpix's audio trips it." />
-        <CheckBox x:Name="DataModeBox"
-                  Content="Switch the radio to data mode while transmitting (USB → USB-D), and back afterwards" />
+        <!-- IC-9700 only. Takes effect at once, even while connected. -->
+        <CheckBox x:Name="DataModeBox" IsCheckedChanged="OnDataModeChanged"
+                  Content="Switch the IC-9700 to data mode while transmitting (FM → FM-D, USB → USB-D), and back afterwards"
+                  ToolTip.Tip="RFpix turns the radio's DATA setting on just before keying and off after, keeping the mode and filter. With it on, the IC-9700 takes RFpix's sound from USB without changing its microphone setting." />
       </StackPanel>
 
       <!-- Connect and test -->

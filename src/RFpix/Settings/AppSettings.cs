@@ -52,6 +52,12 @@ public sealed class AppSettings
     public string WaterfallTextBefore { get; set; } = "";
     public string WaterfallTextAfter { get; set; } = "";
 
+    // ---- the window ----
+
+    /// <summary>The window's size (in screen units, as the layout measures) and position (in
+    /// pixels) when RFpix was last closed, and whether it was maximized. Null: never saved.</summary>
+    public WindowPlacement? Window { get; set; }
+
     /// <summary>How RFpix reaches the radio (Radio page).</summary>
     public RadioSettings Radio { get; set; } = new();
 
@@ -99,3 +105,6 @@ public sealed class AppSettings
         }
     }
 }
+
+/// <summary>Where the window was: its normal (not maximized) size and position, and whether it was maximized.</summary>
+public sealed record WindowPlacement(double Width, double Height, int Left, int Top, bool Maximized);

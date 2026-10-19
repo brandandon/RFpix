@@ -86,6 +86,12 @@ internal static class HamlibNative
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     public static extern int rig_get_ptt(IntPtr rig, uint vfo, out int ptt);
 
+    // Sends bytes straight to the radio over Hamlib's open connection and reads one answer
+    // (for Icom radios, one CI-V message ending in FD). Returns how many bytes were read, or
+    // a negative error. Used for the IC-9700's data mode (IcomCiv.cs).
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int rig_send_raw(IntPtr rig, byte[] send, int sendLength, byte[] reply, int replyLength, byte[] terminator);
+
     // ---- finding the library file ----
 
     static HamlibNative()

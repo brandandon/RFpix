@@ -6,7 +6,11 @@
 //
 // Safety: keying is always given a time limit. If nothing un-keys the radio in time
 // (a fault, a crash in the sending code), a watcher thread un-keys it. Closing the connection
-// un-keys it too, and restores the mode if data mode was switched on for transmitting.
+// un-keys it too, and switches data mode back off if it was switched on for transmitting.
+//
+// Data mode (IC-9700 only): before keying, RFpix turns the radio's DATA setting on with
+// Icom's own command (IcomCiv.cs), keeping its mode and filter, checks that it took, and
+// turns it off again after un-keying. If it was already on, RFpix leaves it alone.
 
 namespace RFpix.Radio;
 
@@ -19,7 +23,18 @@ public sealed class RadioConnection : IDisposable
     private readonly RadioSettings _settings;
     private IntPtr _rig;
     private ManualResetEventSlim? _pttLimit;   // set = keying ended in time
-    private ulong? _modeBeforeTransmit;   // set while data mode was switched on for transmitting
+    private string? _modeBeforeTransmit;   // set while data mode was switched on for transmitting, e.g. "FM"
+
+    /// <summary>Switch an IC-9700 to data mode while transmitting. Starts as saved in the settings;
+    /// the Radio tab changes it at once when its box is ticked or cleared.</summary>
+    public bool DataModeForTransmit { get; set; }
+
+    /// <summary>Raised when data mode is switched for transmitting, with what happened in a few
+    /// words (e.g. "IC-9700 in FM-D", "IC-9700 back to FM"), for the status line.</summary>
+    public event Action<string>? DataModeSwitched;
+
+    /// <summary>What data mode did on the last transmission, e.g. "FM → FM-D → FM"; empty if nothing.</summary>
+    public string LastDataModeReport { get; private set; } = "";
 
     /// <summary>True while RFpix is transmitting (keyed, or with VOX, between Key and Unkey).</summary>
     public bool IsKeyed { get; private set; }
@@ -31,6 +46,7 @@ public sealed class RadioConnection : IDisposable
     {
         _settings = settings;
         _rig = rig;
+        DataModeForTransmit = settings.DataModeForTransmit && settings.Choice == "ic9700";
     }
 
     /// <summary>Opens the connection described by the settings. Throws <see cref="RadioException"/>.</summary>
@@ -133,18 +149,8 @@ public sealed class RadioConnection : IDisposable
         {
             if (IsKeyed) return;
 
-            if (_settings.DataModeForTransmit)
-            {
-                Check(HamlibNative.rig_get_mode(Rig, HamlibNative.VfoCurrent, out ulong mode, out _), "Couldn't read the mode");
-                ulong data = DataModeFor(mode);
-                if (data != mode)
-                {
-                    Check(HamlibNative.rig_set_mode(Rig, HamlibNative.VfoCurrent, data, HamlibNative.PassbandNoChange),
-                          "Couldn't switch the radio to data mode");
-                    _modeBeforeTransmit = mode;
-                    Thread.Sleep(SettleTime);   // give the radio a moment before keying
-                }
-            }
+            LastDataModeReport = "";
+            if (DataModeForTransmit) DataModeOn();
 
             if (_settings.Ptt != PttMethod.Vox)
                 Check(HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOn), "Couldn't key the transmitter");
@@ -178,13 +184,7 @@ public sealed class RadioConnection : IDisposable
             IsKeyed = result != 0;
             Check(result, "Couldn't un-key the transmitter. Un-key the radio by hand");
 
-            if (_modeBeforeTransmit is ulong before)
-            {
-                _modeBeforeTransmit = null;
-                Thread.Sleep(SettleTime);
-                Check(HamlibNative.rig_set_mode(Rig, HamlibNative.VfoCurrent, before, HamlibNative.PassbandNoChange),
-                      "Couldn't switch the radio back from data mode");
-            }
+            if (_modeBeforeTransmit is not null) DataModeOff();
         }
     }
 
@@ -218,14 +218,48 @@ public sealed class RadioConnection : IDisposable
     /// <summary>How long to wait after a mode change before the next command.</summary>
     public static TimeSpan SettleTime { get; set; } = TimeSpan.FromMilliseconds(250);
 
-    /// <summary>The data version of a mode: USB → USB-D, LSB → LSB-D, FM → FM-D; others unchanged.</summary>
-    public static ulong DataModeFor(ulong mode) => mode switch
+    // ---- IC-9700 data mode, by Icom's own commands ----
+
+    private IcomDataMode DataMode => new(IcomCiv.Address(_settings.CivAddress), Exchange, SettleTime);
+
+    private void DataModeOn()
     {
-        HamlibNative.ModeUsb => HamlibNative.ModePktUsb,
-        HamlibNative.ModeLsb => HamlibNative.ModePktLsb,
-        HamlibNative.ModeFm => HamlibNative.ModePktFm,
-        _ => mode,
-    };
+        var (mode, report) = DataMode.On();
+        LastDataModeReport = report;
+        if (mode is null) return;
+        _modeBeforeTransmit = mode;
+        DataModeSwitched?.Invoke($"IC-9700 in {mode}-D");
+    }
+
+    private void DataModeOff()
+    {
+        string mode = _modeBeforeTransmit!;
+        _modeBeforeTransmit = null;
+        DataMode.Off(mode);
+        LastDataModeReport += $" → {mode}";
+        DataModeSwitched?.Invoke($"IC-9700 back to {mode}");
+    }
+
+    /// <summary>Sends one CI-V message through Hamlib and returns the radio's answer to the
+    /// computer (skipping the radio's echo of the message, and messages meant for others).</summary>
+    private byte[] Exchange(byte[] frame, string what)
+    {
+        lock (_lock)
+        {
+            byte radio = frame[2];
+            var reply = new byte[200];
+            byte[] end = { IcomCiv.End };
+            var send = frame;
+            for (int attempt = 0; attempt < 4; attempt++)
+            {
+                int n = HamlibNative.rig_send_raw(Rig, send, send.Length, reply, reply.Length, end);
+                if (n < 0) throw new RadioException($"Couldn't {what}: {Explain(n)}");
+                if (IcomCiv.Answer(reply.AsSpan(0, Math.Min(n, reply.Length)), radio) is { } answer) return answer;
+                send = Array.Empty<byte>();   // that was the echo or someone else's: read the next message
+            }
+            throw new RadioException($"Couldn't {what}: the radio didn't answer. Check its CI-V address and baud rate.");
+        }
+    }
 
     /// <summary>14230000 → "14.230.000 MHz", the way radios show it.</summary>
     public static string FormatFrequency(double hz)
