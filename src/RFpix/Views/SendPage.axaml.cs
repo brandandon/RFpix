@@ -376,19 +376,27 @@ public partial class SendPage : UserControl, IDisposable
 
         try
         {
-            var (fitted, preview) = await Task.Run(() =>
+            // A newer change (a slider moved again, say) cancels this fit part-way. That's
+            // caught inside the background work and comes back as "nothing", so the
+            // cancelling never leaves it as an error (the Visual Studio debugger stops on
+            // one that does, even though it's expected).
+            var result = await Task.Run(() =>
             {
-                var f = auto ? _fitter.Auto(original, name, format, profile, cancel.Token)
-                             : _fitter.Manual(original, name, format, profile, side, quality);
-                cancel.Token.ThrowIfCancellationRequested();
-                return (f, Pictures.Decode(f.File));   // what the receiver will see
-            }, cancel.Token);
-            if (number != _fitNumber) return;   // something changed meanwhile: a newer fit is coming
-            ShowFitted(fitted, preview);
-        }
-        catch (OperationCanceledException)
-        {
-            // A newer fit replaced this one.
+                try
+                {
+                    var f = auto ? _fitter.Auto(original, name, format, profile, cancel.Token)
+                                 : _fitter.Manual(original, name, format, profile, side, quality);
+                    if (cancel.IsCancellationRequested) return null;
+                    return ((FittedPicture, DecodedPicture)?)(f, Pictures.Decode(f.File));   // what the receiver will see
+                }
+                catch (OperationCanceledException)
+                {
+                    return null;
+                }
+            });
+            // Cancelled, or something changed meanwhile: a newer fit is coming.
+            if (result is not { } done || number != _fitNumber) return;
+            ShowFitted(done.Item1, done.Item2);
         }
         catch (Exception ex)
         {
