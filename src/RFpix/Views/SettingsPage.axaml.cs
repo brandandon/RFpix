@@ -4,11 +4,13 @@
 // through). Each is remembered by its permanent Windows ID; a change takes effect at once
 // (the TX/RX page is told through AppSettings.SoundDevicesChanged).
 // Radio tab: the RadioPage control, which looks after itself.
-// Misc tab: the callsign (used by the Send tab and the Alpha Testing page) and the theme.
+// Misc tab: the callsign (used by the Send tab and the Alpha Testing page), the waterfall text
+// sent before and after each picture, and the theme.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using RFpix.Audio;
+using RFpix.Send;
 using RFpix.Settings;
 
 namespace RFpix.Views;
@@ -31,6 +33,9 @@ public partial class SettingsPage : UserControl, IDisposable
             _ => 0
         };
         CallsignBox.Text = AppSettings.Current.Callsign ?? "";
+        WaterfallBeforeBox.MaxLength = WaterfallAfterBox.MaxLength = WaterfallText.MaxLength;
+        WaterfallBeforeBox.Text = AppSettings.Current.WaterfallTextBefore;
+        WaterfallAfterBox.Text = AppSettings.Current.WaterfallTextAfter;
         LoadDevices();
     }
 
@@ -99,6 +104,18 @@ public partial class SettingsPage : UserControl, IDisposable
 
     private void OnCallsignLostFocus(object? sender, RoutedEventArgs e) =>
         CallsignBox.Text = (CallsignBox.Text ?? "").Trim().ToUpperInvariant();
+
+    // ---- waterfall text ----
+
+    private void OnWaterfallTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (WaterfallBeforeBox is null || WaterfallAfterBox is null) return;   // still being built
+        string before = WaterfallBeforeBox.Text ?? "", after = WaterfallAfterBox.Text ?? "";
+        if (before == AppSettings.Current.WaterfallTextBefore && after == AppSettings.Current.WaterfallTextAfter) return;
+        AppSettings.Current.WaterfallTextBefore = before;
+        AppSettings.Current.WaterfallTextAfter = after;
+        AppSettings.Current.Save();
+    }
 
     // ---- theme ----
 

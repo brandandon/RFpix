@@ -12,7 +12,9 @@
 //      what the receiver will get, with the time it takes: green (fits), yellow (up to 7 s
 //      over) or red. The automatic fit may use 3 s more than the target and still be green.
 //   4. The send settings can be saved as named profiles. Everything is remembered.
-//   5. Send, and Save as sound file, work as on the Alpha Testing page (SendSupport).
+//   5. Send, and Save as sound file, work as on the Alpha Testing page (SendSupport), with the
+//      waterfall text from Settings (Misc tab) before and after the picture.
+//   6. CW sends the callsign in Morse code; ID writes it on the waterfall.
 
 using Avalonia;
 using Avalonia.Controls;
@@ -455,6 +457,9 @@ public partial class SendPage : UserControl, IDisposable
                                       : "  ·  make it smaller or lower the quality");
                 break;
         }
+        var extra = WaterfallText.Extra(AppSettings.Current.WaterfallTextBefore, AppSettings.Current.WaterfallTextAfter);
+        if (extra > TimeSpan.Zero)
+            EstimateDetail.Text += $"\nPlus {extra.TotalSeconds:0} s of waterfall text (set in Settings, Misc tab).";
         if (fitted.Format.RFpixOnly())
             EstimateDetail.Text += "\nOnly RFpix shows AVIF: QSSTV and EasyPal stations get a file they can't open.";
         SendButton.IsEnabled = true;
@@ -553,7 +558,7 @@ public partial class SendPage : UserControl, IDisposable
 
     // ---- sending ----
 
-    private async void OnSendClick(object? sender, RoutedEventArgs e)
+    private void OnSendClick(object? sender, RoutedEventArgs e)
     {
         if (_sending is not null)   // the button says Stop
         {
@@ -563,20 +568,44 @@ public partial class SendPage : UserControl, IDisposable
         }
         if (_fitted is not { } fitted) return;
         string call = SendSupport.Callsign;
-        if (SendSupport.Problem(_output, call) is { } problem) { ShowStatus(problem, problem: true); return; }
+        Transmit(() => SendSupport.WithWaterfallText(fitted.Transmitter(call).Audio()), fitted.FileName,
+                 $"Sent {fitted.FileName} as {call}.");
+    }
+
+    // CW: the callsign in Morse code, 750 Hz at 15 words per minute.
+    private void OnCwClick(object? sender, RoutedEventArgs e)
+    {
+        string call = SendSupport.Callsign;
+        Transmit(() => MorseCode.Audio(call), "your callsign in CW", $"Sent {call} in CW.");
+    }
+
+    // ID: the callsign written on the waterfall.
+    private void OnIdClick(object? sender, RoutedEventArgs e)
+    {
+        string call = SendSupport.Callsign;
+        Transmit(() => WaterfallText.Audio(call), "your callsign on the waterfall", $"Sent {call} on the waterfall.");
+    }
+
+    /// <summary>Sends a sound (a picture, CW or ID). Send becomes Stop meanwhile, and the
+    /// buttons that would start another sending are off.</summary>
+    private async void Transmit(Func<float[]> makeSound, string what, string done)
+    {
+        if (_sending is not null) return;
+        if (SendSupport.Problem(_output, SendSupport.Callsign) is { } problem) { ShowStatus(problem, problem: true); return; }
 
         _sending = new CancellationTokenSource();
         var cancel = _sending.Token;
         SendButton.Content = "Stop";
-        SaveButton.IsEnabled = OpenButton.IsEnabled = false;
+        SendButton.IsEnabled = true;
+        SaveButton.IsEnabled = OpenButton.IsEnabled = CwButton.IsEnabled = IdButton.IsEnabled = false;
         Progress.Value = 0;
         Progress.IsVisible = true;
         try
         {
-            await SendSupport.SendAsync(() => fitted.Transmitter(call), fitted.FileName, _output,
+            await SendSupport.SendSoundAsync(makeSound, what, _output,
                 () => Volatile.Read(ref _gain), m => ShowStatus(m, problem: false),
                 new Progress<double>(f => Progress.Value = f), cancel);
-            ShowStatus($"Sent {fitted.FileName} as {call}.", problem: false);
+            ShowStatus(done, problem: false);
         }
         catch (OperationCanceledException)
         {
@@ -593,7 +622,7 @@ public partial class SendPage : UserControl, IDisposable
             SendButton.Content = "Send";
             SendButton.IsEnabled = _fitted is not null && _fitting is null;
             SaveButton.IsEnabled = SendButton.IsEnabled;
-            OpenButton.IsEnabled = true;
+            OpenButton.IsEnabled = CwButton.IsEnabled = IdButton.IsEnabled = true;
             Progress.IsVisible = false;
         }
     }
@@ -616,7 +645,8 @@ public partial class SendPage : UserControl, IDisposable
         try
         {
             ShowStatus("Making the sound file…", problem: false);
-            await SendSupport.SaveAsync(() => fitted.Transmitter(call), path, SendSupport.Gain(LevelSlider.Value));
+            await SendSupport.SaveSoundAsync(() => SendSupport.WithWaterfallText(fitted.Transmitter(call).Audio()), path,
+                                             SendSupport.Gain(LevelSlider.Value));
             ShowStatus($"Saved {Path.GetFileName(path)}.", problem: false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

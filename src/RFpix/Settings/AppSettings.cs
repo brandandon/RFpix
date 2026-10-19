@@ -48,6 +48,10 @@ public sealed class AppSettings
     /// <summary>Folder the "Open picture…" button opened last time.</summary>
     public string? LastPictureFolder { get; set; }
 
+    /// <summary>Waterfall text sent before and after each picture (Settings, Misc tab); empty for none.</summary>
+    public string WaterfallTextBefore { get; set; } = "";
+    public string WaterfallTextAfter { get; set; } = "";
+
     /// <summary>How RFpix reaches the radio (Radio page).</summary>
     public RadioSettings Radio { get; set; } = new();
 

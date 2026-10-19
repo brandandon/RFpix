@@ -55,13 +55,20 @@ internal static class SendSupport
         return null;
     }
 
-    /// <summary>Makes the sound and sends it (check <see cref="Problem"/> first).</summary>
+    /// <summary>Makes a HamDRM transmission's sound and sends it (check <see cref="Problem"/> first).</summary>
     /// <param name="what">For the messages, e.g. "test 2" or "tower-sunset.jp2".</param>
     /// <param name="level">The level as it plays (the slider, read again and again).</param>
     /// <param name="status">Shows a message as it goes.</param>
-    public static async Task SendAsync(Func<HamDrmTransmitter> transmitter, string what, IAudioOutput output,
-                                       Func<double> level, Action<string> status, IProgress<double> progress,
-                                       CancellationToken cancel)
+    public static Task SendAsync(Func<HamDrmTransmitter> transmitter, string what, IAudioOutput output,
+                                 Func<double> level, Action<string> status, IProgress<double> progress,
+                                 CancellationToken cancel) =>
+        SendSoundAsync(() => transmitter().Audio(), what, output, level, status, progress, cancel);
+
+    /// <summary>Makes any sound (48 kHz, -1 to 1: a picture with its waterfall text, Morse code, ...)
+    /// and sends it: key, play, un-key (check <see cref="Problem"/> first).</summary>
+    public static async Task SendSoundAsync(Func<float[]> makeSound, string what, IAudioOutput output,
+                                            Func<double> level, Action<string> status, IProgress<double> progress,
+                                            CancellationToken cancel)
     {
         var device = ChosenOutput(output) ?? throw new AudioException("The sound output chosen in Settings (Audio tab) isn't connected.");
         var radioSettings = AppSettings.Current.Radio;
@@ -71,11 +78,11 @@ internal static class SendSupport
         status("Preparing the transmission…");
         var (sound, seconds) = await Task.Run(() =>
         {
-            var tx = transmitter();
-            return (Transmission.Prepare(tx.Audio(), 1, keyed), tx.Duration.TotalSeconds);
+            var signal = makeSound();
+            return (Transmission.Prepare(signal, 1, keyed), (double)signal.Length / Transmission.SampleRate);
         }, cancel);
 
-        // Connect if keying or data mode needs the radio and the Radio page hasn't connected.
+        // Connect if keying or data mode needs the radio and Settings hasn't connected.
         var radio = RadioService.Current;
         if (radio is null && hasControl)
         {
@@ -92,14 +99,21 @@ internal static class SendSupport
         await Transmission.SendAsync(sound, output, device.Id, radio, level, shown, cancel);
     }
 
-    /// <summary>Writes the transmission to a WAV file instead of sending it.</summary>
-    public static Task SaveAsync(Func<HamDrmTransmitter> transmitter, string path, double level) => Task.Run(() =>
+    /// <summary>Writes a HamDRM transmission to a WAV file instead of sending it.</summary>
+    public static Task SaveAsync(Func<HamDrmTransmitter> transmitter, string path, double level) =>
+        SaveSoundAsync(() => transmitter().Audio(), path, level);
+
+    /// <summary>Writes any sound to a WAV file instead of sending it.</summary>
+    public static Task SaveSoundAsync(Func<float[]> makeSound, string path, double level) => Task.Run(() =>
     {
-        var tx = transmitter();
-        var sound = Transmission.Prepare(tx.Audio(), level, keyed: false);
+        var sound = Transmission.Prepare(makeSound(), level, keyed: false);
         using var wav = new WavWriter(path, Transmission.SampleRate);
         wav.Write(sound);
     });
+
+    /// <summary>A picture's sound with the waterfall text from Settings (Misc tab) before and after it.</summary>
+    public static float[] WithWaterfallText(float[] picture) =>
+        WaterfallText.Around(picture, AppSettings.Current.WaterfallTextBefore, AppSettings.Current.WaterfallTextAfter);
 
     /// <summary>The level slider's text, e.g. "−30 dB".</summary>
     public static string LevelLabel(double db) => db == 0 ? "0 dB" : $"{db:0} dB".Replace('-', '−');

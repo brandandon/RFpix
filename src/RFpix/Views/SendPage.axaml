@@ -152,7 +152,8 @@
         </StackPanel>
 
         <!-- Right: fitting it to the transmit time -->
-        <Border Grid.Column="1" VerticalAlignment="Top" BorderThickness="1" CornerRadius="6" Padding="14"
+        <StackPanel Grid.Column="1" Spacing="10" VerticalAlignment="Top">
+        <Border BorderThickness="1" CornerRadius="6" Padding="14"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
           <StackPanel Spacing="12">
             <Grid ColumnDefinitions="*,Auto">
@@ -194,6 +195,15 @@
             </Border>
           </StackPanel>
         </Border>
+
+          <!-- Identify: your callsign in Morse code, or as text on the waterfall -->
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button x:Name="CwButton" Content="CW" Click="OnCwClick" MinWidth="56" Padding="10,4"
+                    ToolTip.Tip="Sends your callsign in Morse code: a 750 Hz tone at 15 words per minute." />
+            <Button x:Name="IdButton" Content="ID" Click="OnIdClick" MinWidth="56" Padding="10,4"
+                    ToolTip.Tip="Writes your callsign on everyone's waterfall." />
+          </StackPanel>
+        </StackPanel>
       </Grid>
 
     </StackPanel>

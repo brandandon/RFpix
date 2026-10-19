@@ -167,9 +167,12 @@ public class TransmitterTests
     }
 
     /// <summary>Plays a transmission (with a second of silence each side) through a new receiver.</summary>
-    internal static (ReceivedFile? File, HashSet<string> Callsigns, FacInfo? Fac) Receive(HamDrmTransmitter tx)
+    internal static (ReceivedFile? File, HashSet<string> Callsigns, FacInfo? Fac) Receive(HamDrmTransmitter tx) =>
+        ReceiveSound(tx.Audio());
+
+    /// <summary>Plays any sound (with a second of silence each side) through a new receiver.</summary>
+    internal static (ReceivedFile? File, HashSet<string> Callsigns, FacInfo? Fac) ReceiveSound(float[] signal)
     {
-        var signal = tx.Audio();
         var audio = new float[signal.Length + 2 * 48000];
         Array.Copy(signal, 0, audio, 48000, signal.Length);
 

@@ -59,6 +59,20 @@
             </StackPanel>
 
             <StackPanel Spacing="6">
+              <TextBlock Text="Waterfall text" FontWeight="SemiBold" />
+              <TextBlock Classes="Hint" TextWrapping="Wrap"
+                         Text="Written on everyone's waterfall before and after each of your pictures (not the test transmissions). Leave a box empty to send none. A short text is drawn big; a longer one wraps onto more lines, each about 2 seconds." />
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="8" MaxWidth="560" HorizontalAlignment="Left">
+                <TextBlock Grid.Row="0" Text="Before the picture" VerticalAlignment="Center" />
+                <TextBox Grid.Row="0" Grid.Column="1" x:Name="WaterfallBeforeBox" Width="360" HorizontalAlignment="Left"
+                         Watermark="e.g. CQ SSTV NET" TextChanged="OnWaterfallTextChanged" />
+                <TextBlock Grid.Row="1" Text="After the picture" VerticalAlignment="Center" />
+                <TextBox Grid.Row="1" Grid.Column="1" x:Name="WaterfallAfterBox" Width="360" HorizontalAlignment="Left"
+                         Watermark="e.g. 73 de KD9DD" TextChanged="OnWaterfallTextChanged" />
+              </Grid>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
               <TextBlock Text="Theme" FontWeight="SemiBold" />
               <!-- Picking an item runs OnThemeChanged in SettingsPage.axaml.cs. -->
               <ComboBox x:Name="ThemeBox" Width="220" SelectionChanged="OnThemeChanged">
