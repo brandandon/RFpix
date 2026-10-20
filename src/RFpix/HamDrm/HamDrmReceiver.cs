@@ -571,6 +571,21 @@ public sealed class HamDrmReceiver
         }
     }
 
+    /// <summary>The transmission's settings as heard so far, for the screen's boxes (each null
+    /// until known): mode, the FAC's settings, Reed-Solomon level (0 for none, known once the
+    /// file's name has arrived) and callsign. All null between transmissions.</summary>
+    public HeardSettings? Heard
+    {
+        get
+        {
+            if (Problem is not null || Detection.Mode is not { } mode) return null;
+            int? rs = null;
+            if (FileProgress?.Name is { } name) rs = RsFile.LevelOf(name) ?? 0;
+            else if (LastFile is { } last && FileProgress?.TransportId == last.TransportId) rs = last.ReedSolomonLevel ?? 0;
+            return new HeardSettings(mode, Fac, rs, Callsign);
+        }
+    }
+
     private readonly SampleClock _clock = new();
 
     // A frame start is trusted when at least 3 of the last 5 readings (itself included) agree.
@@ -734,3 +749,6 @@ public sealed record TransmissionReport(
         }
     }
 }
+
+/// <summary>What's known about the transmission being received (see <see cref="HamDrmReceiver.Heard"/>).</summary>
+public sealed record HeardSettings(HamDrmMode Mode, FacInfo? Fac, int? ReedSolomon, string? Callsign);

@@ -1,6 +1,6 @@
 // SendSupport.cs - what the Send tab and the Alpha Testing page share about sending:
-// which sound output and keying are in use, the checks before keying the radio, and
-// the send itself (connect to the radio if needed, key, play, un-key).
+// the sound output in use, the checks before keying the radio, and the send itself
+// (connect to the radio if needed, key, play, un-key).
 
 using RFpix.Audio;
 using RFpix.HamDrm;
@@ -23,23 +23,6 @@ internal static class SendSupport
 
     /// <summary>The operator's callsign, set in Settings (Misc tab); "" if not set yet.</summary>
     public static string Callsign => (AppSettings.Current.Callsign ?? "").Trim().ToUpperInvariant();
-
-    /// <summary>The line beside Send: who's sending, where the sound goes and how the radio is keyed.</summary>
-    public static string Route(IAudioOutput output)
-    {
-        var radio = AppSettings.Current.Radio;
-        string keying = radio.Ptt switch
-        {
-            PttMethod.Vox => "VOX",
-            PttMethod.Rts => "RTS",
-            PttMethod.Dtr => "DTR",
-            _ => RadioChoices.Find(radio.Choice).Connection == "none" ? "nothing (no radio chosen)" : "CAT",
-        };
-        string device = ChosenOutput(output)?.Name
-            ?? (AppSettings.Current.OutputDeviceId is null ? "no sound output chosen yet" : "a sound output that isn't connected");
-        string call = Callsign.Length > 0 ? $"as {Callsign} " : "(no callsign set) ";
-        return $"Sending {call}to {device}, keyed by {keying}  ·  change in Settings";
-    }
 
     /// <summary>Why sending can't start, or null if it can.</summary>
     public static string? Problem(IAudioOutput output, string callsign)
@@ -66,9 +49,10 @@ internal static class SendSupport
 
     /// <summary>Makes any sound (48 kHz, -1 to 1: a picture with its waterfall text, Morse code, ...)
     /// and sends it: key, play, un-key (check <see cref="Problem"/> first).</summary>
+    /// <param name="leadIn">Silence after keying before the sound (null: the usual 0.3 s).</param>
     public static async Task SendSoundAsync(Func<float[]> makeSound, string what, IAudioOutput output,
                                             Func<double> level, Action<string> status, IProgress<double> progress,
-                                            CancellationToken cancel)
+                                            CancellationToken cancel, TimeSpan? leadIn = null)
     {
         var device = ChosenOutput(output) ?? throw new AudioException("The sound output chosen in Settings (Audio tab) isn't connected.");
         var radioSettings = AppSettings.Current.Radio;
@@ -79,7 +63,7 @@ internal static class SendSupport
         var (sound, seconds) = await Task.Run(() =>
         {
             var signal = makeSound();
-            var prepared = Transmission.Prepare(signal, 1, keyed);
+            var prepared = Transmission.Prepare(signal, 1, keyed, leadIn);
             // Sound-card calibration: re-time the sound to the output's true clock.
             double ppm = AppSettings.Correction(AppSettings.Current.OutputClock, device.Id);
             if (ppm != 0) prepared = ClockCorrector.Resample(prepared, ClockCorrector.OutputRatio(ppm));

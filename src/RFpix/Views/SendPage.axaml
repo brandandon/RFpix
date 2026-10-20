@@ -107,6 +107,16 @@
                     <ComboBox x:Name="ReedSolomonBox" Width="100" SelectionChanged="OnSendSettingChanged"
                               ToolTip.Tip="Repair data across the whole picture, for weak paths: RS1 rebuilds about an eighth missing, RS2 a quarter, RS3 over a third, RS4 half. Costs time." />
                   </StackPanel>
+                  <StackPanel Spacing="3" Margin="0,0,10,8">
+                    <TextBlock FontSize="13" Text="Repeater time-out" />
+                    <ComboBox x:Name="TimeoutBox" Width="120" SelectionChanged="OnSendSettingChanged"
+                              ToolTip.Tip="The longest your repeater stays on the air for one transmission (often 3:00). RFpix won't send anything longer. None for simplex or HF." />
+                  </StackPanel>
+                  <StackPanel Spacing="3" Margin="0,0,10,8">
+                    <TextBlock FontSize="13" Text="Lead-in" />
+                    <ComboBox x:Name="LeadInBox" Width="90" SelectionChanged="OnSendSettingChanged"
+                              ToolTip.Tip="Quiet after keying, before the picture starts, while a repeater opens. Raise it if the start of your pictures gets lost." />
+                  </StackPanel>
                 </WrapPanel>
               </StackPanel>
             </StackPanel>
@@ -142,7 +152,6 @@
                   <Button x:Name="SaveButton" Content="Save as sound file…" Click="OnSaveClick" IsEnabled="False" Margin="0,0,0,6"
                           ToolTip.Tip="Saves the transmission as a WAV file instead of sending it: to play into another program, or to check it." />
                 </WrapPanel>
-                <TextBlock x:Name="RouteText" Classes="Hint" FontSize="12" TextWrapping="Wrap" />
                 <ProgressBar x:Name="Progress" Minimum="0" Maximum="1" IsVisible="False" />
                 <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
               </StackPanel>

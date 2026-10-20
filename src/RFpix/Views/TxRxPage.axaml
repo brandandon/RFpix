@@ -2,20 +2,21 @@
   TxRxPage.axaml - the TX/RX page: receiving and sending on one page, a tab for each.
   Both keep working whichever tab is showing: RFpix goes on listening while you're on
   the Send tab, and a transmission carries on while you look at the Receive tab.
+  Both tabs stay in place; the one not chosen is only hidden, so switching is instant.
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="using:RFpix.Views"
              x:Class="RFpix.Views.TxRxPage">
-  <Grid RowDefinitions="Auto,*" RowSpacing="6">
+  <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6">
     <TextBlock Grid.Row="0" Classes="PageTitle" Text="TX/RX" />
-    <TabControl Grid.Row="1" x:Name="Tabs" Padding="0,12,0,0">
-      <TabItem Header="Receive" FontSize="16">
-        <views:ReceivePage x:Name="ReceiveTab" FontSize="14" />
-      </TabItem>
-      <TabItem Header="Send" FontSize="16">
-        <views:SendPage x:Name="SendTab" FontSize="14" />
-      </TabItem>
-    </TabControl>
+    <TabStrip Grid.Row="1" x:Name="Tabs" SelectedIndex="0" SelectionChanged="OnTabChanged">
+      <TabStripItem Content="Receive" FontSize="16" />
+      <TabStripItem Content="Send" FontSize="16" />
+    </TabStrip>
+    <Panel Grid.Row="2" Margin="0,12,0,0">
+      <views:ReceivePage x:Name="ReceiveTab" FontSize="14" />
+      <views:SendPage x:Name="SendTab" FontSize="14" IsVisible="False" />
+    </Panel>
   </Grid>
 </UserControl>

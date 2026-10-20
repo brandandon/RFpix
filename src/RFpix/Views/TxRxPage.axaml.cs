@@ -12,6 +12,14 @@ public partial class TxRxPage : UserControl, IDisposable
         InitializeComponent();
     }
 
+    // Show the chosen tab and hide the other (both keep running).
+    private void OnTabChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (ReceiveTab is null || SendTab is null) return;   // still being built
+        ReceiveTab.IsVisible = Tabs.SelectedIndex == 0;
+        SendTab.IsVisible = Tabs.SelectedIndex == 1;
+    }
+
     public void Dispose()
     {
         SendTab.Dispose();      // stops a transmission in progress (the radio is released)

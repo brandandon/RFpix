@@ -54,6 +54,26 @@ public class SendTests
                      (fac!.Qam, fac.Interleave, fac.Protection, fac.Bandwidth));
     }
 
+    [Fact]
+    public void The_receiver_reports_each_setting_heard_for_the_screens_boxes()
+    {
+        var test = TestTransmissions.All.Single(t => t.Number == 10);   // B, 2.5 kHz, 16-QAM, long, high, RS2
+        var signal = test.Transmitter("KD9DD").Audio();
+        var audio = new float[signal.Length + 48000];
+        Array.Copy(signal, 0, audio, 24000, signal.Length);
+        var receiver = new HamDrmReceiver();
+        HeardSettings? last = null;
+        receiver.Decided += _ => { if (receiver.Heard is { Fac: not null, ReedSolomon: not null } h) last = h; };
+        for (int pos = 0; pos + 480 <= audio.Length; pos += 480) receiver.AddSamples(audio[pos..(pos + 480)], 480, 48000);
+
+        Assert.NotNull(last);
+        Assert.Equal(HamDrmMode.B, last!.Mode);
+        Assert.Equal((HamDrmBandwidth.Wide, 16, HamDrmInterleave.Long, HamDrmProtection.High),
+                     (last.Fac!.Bandwidth, last.Fac.Qam, last.Fac.Interleave, last.Fac.Protection));
+        Assert.Equal(2, last.ReedSolomon);
+        Assert.Equal("KD9DD", last.Callsign);
+    }
+
     // ---- the sound that goes to the radio ----
 
     [Fact]

@@ -47,10 +47,11 @@
       </DockPanel>
     </Border>
 
-    <!-- The current page is placed in here by the code. -->
-    <ContentControl Grid.Column="1"
-                    x:Name="PageHost"
-                    Margin="32,24" />
+    <!-- The pages live in here (put in by the code). Once opened, a page stays in place and is
+         only hidden while another is showing, so coming back to it is instant. -->
+    <Panel Grid.Column="1"
+           x:Name="PageHost"
+           Margin="32,24" />
 
   </Grid>
 </Window>

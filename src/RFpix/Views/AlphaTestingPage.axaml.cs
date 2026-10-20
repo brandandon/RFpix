@@ -45,8 +45,7 @@ public partial class AlphaTestingPage : UserControl, IDisposable
         _gain = Gain;
         _loading = false;
         // The sound output and keying are set on other pages: show them whenever this tab appears.
-        AttachedToVisualTree += (_, _) => ShowShared();
-        AppSettings.SoundDevicesChanged += ShowRoute;
+        AppSettings.TransmitLevelChanged += ShowShared;   // the level moved on the other page
         TestList.SelectedIndex = 0;
     }
 
@@ -70,8 +69,6 @@ public partial class AlphaTestingPage : UserControl, IDisposable
 
     // ---- remembered choices ----
 
-    /// <summary>The line beside Send: where the sound goes and how the radio is keyed.</summary>
-    private void ShowRoute() => RouteText.Text = SendSupport.Route(_output);
 
     /// <summary>The level is shared with the Send tab, the callsign set in Settings: show them as they are now.</summary>
     private void ShowShared()
@@ -81,7 +78,6 @@ public partial class AlphaTestingPage : UserControl, IDisposable
         LevelText.Text = LevelLabel;
         _gain = Gain;
         _loading = false;
-        ShowRoute();
     }
 
     private void OnLevelChanged(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
@@ -92,6 +88,7 @@ public partial class AlphaTestingPage : UserControl, IDisposable
         if (_loading) return;
         AppSettings.Current.TransmitLevelDb = LevelSlider.Value;
         AppSettings.Current.Save();
+        AppSettings.RaiseTransmitLevelChanged();
     }
 
     private string LevelLabel => SendSupport.LevelLabel(LevelSlider.Value);
@@ -180,7 +177,7 @@ public partial class AlphaTestingPage : UserControl, IDisposable
 
     public void Dispose()
     {
-        AppSettings.SoundDevicesChanged -= ShowRoute;
+        AppSettings.TransmitLevelChanged -= ShowShared;
         _sending?.Cancel();   // closing RFpix mid-send: stop (Transmission un-keys)
         _output.Dispose();
     }

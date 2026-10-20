@@ -81,7 +81,20 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
 
-## Sound-card calibration (new)
+## Repeater time-out and lead-in (new in v0.3.5)
+
+On the **Send** tab, beside the other settings: **Repeater time-out** is the longest your repeater
+stays on the air for one transmission (often 3:00; None for simplex or HF). RFpix keeps the whole
+transmission (lead-in, waterfall text and picture) inside it: the transmit time can't be set longer,
+the picture is fitted shorter if need be, and anything that would run over isn't sent.
+**Lead-in** is the quiet after keying before the picture starts, while the repeater opens: raise it
+if the start of your pictures gets lost. Both are saved with a profile; "Net repeater (70 cm)" has
+a 3:00 time-out and 0.3 s lead-in.
+
+The **Receive** tab now shows each received transmission's settings (mode, bandwidth, QAM, interleave,
+protection, Reed-Solomon, callsign) in boxes, like the Send tab's.
+
+## Sound-card calibration (new in v0.3.5)
 
 **Settings > Misc**, **Sound-card calibration**: click **Measure (2 minutes)** with the radio on and
 receiving. RFpix listens to the radio's sound input and plays silence to its output (the radio isn't
@@ -90,7 +103,7 @@ receiving and sending. Make sure Windows' clock is set right first (Settings > T
 Date & time > Sync now). Please send the numbers it shows: they tell us how far off typical sound
 cards are.
 
-## IC-9700 data mode (new)
+## IC-9700 data mode (new in v0.3.5)
 
 **Settings > Radio**, with the IC-9700 picked: tick **Switch the IC-9700 to data mode while
 transmitting**. RFpix turns the radio's DATA setting on just before keying (FM → FM-D, USB → USB-D)

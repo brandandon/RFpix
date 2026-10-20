@@ -11,6 +11,24 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:RFpix.Controls"
              x:Class="RFpix.Views.ReceivePage">
+  <UserControl.Styles>
+    <!-- The boxes showing the received transmission's settings, like the Send tab's drop-downs -->
+    <Style Selector="Border.Setting">
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="Margin" Value="0,2,6,2" />
+      <Setter Property="MinWidth" Value="62" />
+    </Style>
+    <Style Selector="TextBlock.SettingLabel">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Opacity" Value="0.7" />
+    </Style>
+    <Style Selector="TextBlock.SettingValue">
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+  </UserControl.Styles>
   <Grid x:Name="PageGrid" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="14">
 
     <!-- Row 0: start/stop, record, play a recording, format, and level meter on one line -->
@@ -32,8 +50,19 @@
         <TextBlock x:Name="RecordText" FontSize="12" IsVisible="False" />
         <!-- What the HamDRM decoder hears: "No HamDRM signal" or "HamDRM mode B (strength 98%)" -->
         <TextBlock x:Name="SignalText" FontWeight="SemiBold" />
-        <!-- The transmission's settings and callsign, from its FAC -->
-        <TextBlock x:Name="TransmissionText" />
+        <!-- The transmission's settings and callsign (from its FAC and the file's name), one box each.
+             They stay showing, dimmed, after the transmission ends. -->
+        <WrapPanel x:Name="HeardPanel" IsVisible="False">
+          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Mode" /><TextBlock x:Name="HeardMode" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Bandwidth" /><TextBlock x:Name="HeardBandwidth" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="QAM" /><TextBlock x:Name="HeardQam" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Interleave" /><TextBlock x:Name="HeardInterleave" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Protection" /><TextBlock x:Name="HeardProtection" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Reed-Solomon" /><TextBlock x:Name="HeardReedSolomon" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="From" /><TextBlock x:Name="HeardCallsign" Classes="SettingValue" /></StackPanel></Border>
+        </WrapPanel>
+        <!-- How well the settings are being read ("FAC 25/25 ok"), or "Reading the settings…" -->
+        <TextBlock x:Name="TransmissionText" Classes="Hint" FontSize="12" />
         <!-- The file arriving: name, size and how far along -->
         <TextBlock x:Name="FileText" />
         <!-- The last RFpix test transmission received, and the log of them all -->

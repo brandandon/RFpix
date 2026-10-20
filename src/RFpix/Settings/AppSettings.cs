@@ -78,6 +78,12 @@ public sealed class AppSettings
 
     public static void RaiseSoundDevicesChanged() => SoundDevicesChanged?.Invoke();
 
+    /// <summary>Raised (on the screen's thread) when the transmit level is moved on the Send tab or the
+    /// Alpha Testing page, so the other follows.</summary>
+    public static event Action? TransmitLevelChanged;
+
+    public static void RaiseTransmitLevelChanged() => TransmitLevelChanged?.Invoke();
+
     // ---- loading and saving ----
 
     private static readonly string FilePath = Path.Combine(

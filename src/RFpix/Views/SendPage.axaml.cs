@@ -41,10 +41,16 @@ public partial class SendPage : UserControl, IDisposable
     private static readonly HamDrmInterleave[] Interleaves = { HamDrmInterleave.Long, HamDrmInterleave.Short };
     private static readonly HamDrmProtection[] Protections = { HamDrmProtection.High, HamDrmProtection.Low };
     private static readonly int[] TargetTimes = { 30, 45, 60, 90, 120, 150, 180, 240 };
+    private static readonly int[] Timeouts = { 0, 60, 90, 120, 150, 180, 210, 240, 300, 600 };   // 0: no repeater
+    private static readonly double[] LeadIns = { 0.3, 0.5, 0.75, 1.0, 1.25, 1.5 };
     private static readonly int[] PresetSides = { 320, 640, 800, 1024, 1280, 1920 };
 
     /// <summary>The largest longer side Manual offers, in pixels.</summary>
     private const int MaxManualSide = 1920;
+
+    /// <summary>The longest side of the copy of the original shown on screen (zoom never needs more:
+    /// it shows the original at the sent picture's size, at most 1920).</summary>
+    private const int OnScreenSide = 2048;
 
     private static readonly IBrush FitsBrush = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
     private static readonly IBrush SlightlyOverBrush = new SolidColorBrush(Color.FromRgb(0xF2, 0xC2, 0x00));
@@ -76,6 +82,8 @@ public partial class SendPage : UserControl, IDisposable
         ProtectionBox.ItemsSource = new[] { "High", "Low" };
         ReedSolomonBox.ItemsSource = new[] { "None", "RS1", "RS2", "RS3", "RS4" };
         TargetBox.ItemsSource = TargetTimes.Select(Clock).ToList();
+        TimeoutBox.ItemsSource = Timeouts.Select(t => t == 0 ? "None" : Clock(t)).ToList();
+        LeadInBox.ItemsSource = LeadIns.Select(l => $"{l:0.0#} s").ToList();
 
         var settings = AppSettings.Current;
         ShowSendSettings(settings.SendSettings ?? SendProfile.NetRepeater);
@@ -97,8 +105,7 @@ public partial class SendPage : UserControl, IDisposable
         AddHandler(DragDrop.DropEvent, OnDrop);
         // Callsign, level, sound output and keying are set elsewhere too: show them
         // as they are whenever this tab appears.
-        AttachedToVisualTree += (_, _) => ShowShared();
-        AppSettings.SoundDevicesChanged += ShowRoute;
+        AppSettings.TransmitLevelChanged += ShowShared;   // the level moved on the other page
         ShowShared();
     }
 
@@ -115,7 +122,9 @@ public partial class SendPage : UserControl, IDisposable
         Interleaves[Math.Max(0, InterleaveBox.SelectedIndex)],
         Protections[Math.Max(0, ProtectionBox.SelectedIndex)],
         Math.Max(0, ReedSolomonBox.SelectedIndex),
-        TargetTimes[Math.Max(0, TargetBox.SelectedIndex)]);
+        TargetTimes[Math.Max(0, TargetBox.SelectedIndex)],
+        Timeouts[Math.Max(0, TimeoutBox.SelectedIndex)],
+        LeadIns[Math.Max(0, LeadInBox.SelectedIndex)]);
 
     private void ShowSendSettings(SendProfile p)
     {
@@ -127,7 +136,29 @@ public partial class SendPage : UserControl, IDisposable
         ReedSolomonBox.SelectedIndex = Math.Clamp(p.ReedSolomon, 0, 4);
         int target = Array.IndexOf(TargetTimes, p.TargetSeconds);
         TargetBox.SelectedIndex = target >= 0 ? target : Array.IndexOf(TargetTimes, 120);
+        int timeout = Array.IndexOf(Timeouts, p.TimeoutSeconds);
+        TimeoutBox.SelectedIndex = timeout >= 0 ? timeout : 0;
+        int lead = Array.FindIndex(LeadIns, l => Math.Abs(l - p.LeadInSeconds) < 0.01);
+        LeadInBox.SelectedIndex = lead >= 0 ? lead : 0;
     }
+
+    /// <summary>Keeps the transmit time within the repeater's time-out (the longer choices can't be picked).</summary>
+    private bool KeepTargetInsideTimeout()
+    {
+        int timeout = Timeouts[Math.Max(0, TimeoutBox.SelectedIndex)];
+        int target = TargetTimes[Math.Max(0, TargetBox.SelectedIndex)];
+        if (timeout <= 0 || target <= timeout) return false;
+        int best = Array.FindLastIndex(TargetTimes, t => t <= timeout);
+        bool was = _updating;
+        _updating = true;
+        TargetBox.SelectedIndex = Math.Max(0, best);
+        _updating = was;
+        return true;
+    }
+
+    /// <summary>The waterfall text's time (before and after the picture), from Settings > Misc.</summary>
+    private static TimeSpan TextTime =>
+        WaterfallText.Extra(AppSettings.Current.WaterfallTextBefore, AppSettings.Current.WaterfallTextAfter);
 
     private static IEnumerable<SendProfile> AllProfiles => SendProfile.BuiltIn.Concat(AppSettings.Current.SendProfiles);
 
@@ -162,6 +193,8 @@ public partial class SendPage : UserControl, IDisposable
     private void OnSendSettingChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_updating) return;
+        if (KeepTargetInsideTimeout())
+            ShowStatus("The transmit time can't be longer than the repeater's time-out.", problem: false);
         FillProfiles();   // the chosen profile no longer matches, perhaps (or another now does)
         SaveSendSettings();
         Refit(auto: true);
@@ -312,10 +345,17 @@ public partial class SendPage : UserControl, IDisposable
     private async Task OpenAsync(string path)
     {
         ShowStatus($"Opening {Path.GetFileName(path)}…", problem: false);
-        DecodedPicture picture;
+        DecodedPicture picture, onScreen;
         try
         {
-            picture = await Task.Run(() => Pictures.Load(path));
+            // The full picture is kept for fitting; the Original box shows a copy no bigger than
+            // the screen needs (a 4096-pixel photo is slow to redraw in a small box).
+            (picture, onScreen) = await Task.Run(() =>
+            {
+                var full = Pictures.Load(path);
+                var (w, h) = PictureScaler.FitLongSide(full.Width, full.Height, OnScreenSide);
+                return (full, PictureScaler.Resize(full, w, h));
+            });
         }
         catch (Exception ex) when (ex is PictureException or IOException or UnauthorizedAccessException)
         {
@@ -334,7 +374,7 @@ public partial class SendPage : UserControl, IDisposable
         FileText.Text = $"{Path.GetFileName(path)}  ·  {picture.Width} × {picture.Height}  ·  {Kilobytes(bytes)}";
         DropHint.Text = "or drag another picture onto the page";
         var old = OriginalImage.Source as IDisposable;
-        OriginalImage.Source = OriginalZoomImage.Source = Bitmaps.From(picture);
+        OriginalImage.Source = OriginalZoomImage.Source = Bitmaps.From(onScreen);
         old?.Dispose();
 
         _updating = true;
@@ -364,7 +404,9 @@ public partial class SendPage : UserControl, IDisposable
         _fitting = cancel;
         int number = ++_fitNumber;
 
-        var profile = CurrentSettings();
+        var chosen = CurrentSettings();
+        // Fit to the chosen time, shortened if the whole transmission must stay inside a repeater's time-out.
+        var profile = chosen with { TargetSeconds = chosen.FittingSeconds(TextTime) };
         var format = CurrentFormat;
         int side = (int)Math.Round(SizeSlider.Value), quality = (int)Math.Round(QualitySlider.Value);
         string name = _baseName;
@@ -457,11 +499,26 @@ public partial class SendPage : UserControl, IDisposable
                                       : "  ·  make it smaller or lower the quality");
                 break;
         }
-        var extra = WaterfallText.Extra(AppSettings.Current.WaterfallTextBefore, AppSettings.Current.WaterfallTextAfter);
+        var extra = TextTime;
         if (extra > TimeSpan.Zero)
             EstimateDetail.Text += $"\nPlus {extra.TotalSeconds:0} s of waterfall text (set in Settings, Misc tab).";
-        if (fitted.Format.RFpixOnly())
-            EstimateDetail.Text += "\nOnly RFpix shows AVIF: QSSTV and EasyPal stations get a file they can't open.";
+
+        // A repeater's time-out: the whole transmission must stay inside it.
+        var p = fitted.Profile;
+        if (p.TimeoutSeconds > 0)
+        {
+            var onAir = OnAir(fitted);
+            int chosen = TargetTimes[Math.Max(0, TargetBox.SelectedIndex)];
+            if (!p.FitsTimeout(onAir))
+            {
+                EstimateBorder.Background = OverBrush;
+                EstimateText.Foreground = EstimateDetail.Foreground = Brushes.White;
+                EstimateDetail.Text += $"\nOver the repeater's {Clock(p.TimeoutSeconds)} time-out ({Clock((int)Math.Ceiling(onAir.TotalSeconds))} in all): " +
+                                       "it would be cut off, so it won't be sent.";
+            }
+            else if (p.TargetSeconds < chosen)
+                EstimateDetail.Text += $"\nFitted to {Clock(p.TargetSeconds)} so the whole transmission stays inside the {Clock(p.TimeoutSeconds)} time-out.";
+        }
         SendButton.IsEnabled = true;
         SaveButton.IsEnabled = _sending is null;
     }
@@ -541,10 +598,7 @@ public partial class SendPage : UserControl, IDisposable
         LevelText.Text = SendSupport.LevelLabel(LevelSlider.Value);
         _gain = SendSupport.Gain(LevelSlider.Value);
         _updating = false;
-        ShowRoute();
     }
-
-    private void ShowRoute() => RouteText.Text = SendSupport.Route(_output);
 
     private void OnLevelChanged(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
@@ -554,6 +608,7 @@ public partial class SendPage : UserControl, IDisposable
         if (_updating) return;
         AppSettings.Current.TransmitLevelDb = LevelSlider.Value;
         AppSettings.Current.Save();
+        AppSettings.RaiseTransmitLevelChanged();
     }
 
     // ---- sending ----
@@ -567,9 +622,17 @@ public partial class SendPage : UserControl, IDisposable
             return;
         }
         if (_fitted is not { } fitted) return;
+        var profile = fitted.Profile;
+        if (!profile.FitsTimeout(OnAir(fitted)))
+        {
+            ShowStatus($"This would be on the air {Clock((int)Math.Ceiling(OnAir(fitted).TotalSeconds))}, longer than the repeater's " +
+                       $"{Clock(profile.TimeoutSeconds)} time-out, so the repeater would cut it off. Make the picture smaller, " +
+                       "pick a shorter transmit time, or shorten the waterfall text.", problem: true);
+            return;
+        }
         string call = SendSupport.Callsign;
         Transmit(() => SendSupport.WithWaterfallText(fitted.Transmitter(call).Audio()), fitted.FileName,
-                 $"Sent {fitted.FileName} as {call}.");
+                 $"Sent {fitted.FileName} as {call}.", TimeSpan.FromSeconds(profile.LeadInSeconds));
     }
 
     // CW: the callsign in Morse code, 750 Hz at 15 words per minute.
@@ -588,7 +651,10 @@ public partial class SendPage : UserControl, IDisposable
 
     /// <summary>Sends a sound (a picture, CW or ID). Send becomes Stop meanwhile, and the
     /// buttons that would start another sending are off.</summary>
-    private async void Transmit(Func<float[]> makeSound, string what, string done)
+    /// <summary>How long a picture keeps the transmitter on: lead-in, waterfall text, picture and tail.</summary>
+    private static TimeSpan OnAir(FittedPicture fitted) => fitted.Duration + fitted.Profile.Overhead(TextTime);
+
+    private async void Transmit(Func<float[]> makeSound, string what, string done, TimeSpan? leadIn = null)
     {
         if (_sending is not null) return;
         if (SendSupport.Problem(_output, SendSupport.Callsign) is { } problem) { ShowStatus(problem, problem: true); return; }
@@ -604,7 +670,7 @@ public partial class SendPage : UserControl, IDisposable
         {
             await SendSupport.SendSoundAsync(makeSound, what, _output,
                 () => Volatile.Read(ref _gain), m => ShowStatus(m, problem: false),
-                new Progress<double>(f => Progress.Value = f), cancel);
+                new Progress<double>(f => Progress.Value = f), cancel, leadIn);
             ShowStatus(done, problem: false);
         }
         catch (OperationCanceledException)
@@ -664,7 +730,7 @@ public partial class SendPage : UserControl, IDisposable
 
     public void Dispose()
     {
-        AppSettings.SoundDevicesChanged -= ShowRoute;
+        AppSettings.TransmitLevelChanged -= ShowShared;
         _refitTimer.Stop();
         _fitting?.Cancel();
         _sending?.Cancel();   // closing RFpix mid-send: stop (Transmission un-keys)

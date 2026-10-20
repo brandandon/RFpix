@@ -19,6 +19,7 @@ running EasyPal or QSSTV.
 
 | Date (2026) | Done |
 | --- | --- |
+| Oct 19 | Sound-card calibration (milestone 1 complete); IC-9700 data mode by CI-V; repeater time-out and adjustable lead-in in send profiles; received settings shown in boxes; faster page switching; window size remembered (v0.3.5) |
 | Oct 18 | Waterfall text before and after each picture; CW and ID buttons; Settings in Audio, Radio and Misc tabs; Send tab laid out to fit any window size (v0.3.4) |
 | Oct 18 | Sending your own pictures (v0.3.3): image optimizer fits a picture to the transmit time (Auto or Manual), original and as-sent side by side with zoom, JPEG 2000, JPEG or AVIF (RFpix-only, smaller), settings drop-downs and saved profiles; test transmissions on their own Alpha Testing page; transparent logo; key frequency marks on the waterfall |
 | Oct 17 | TX/RX page with Receive and Send tabs; sound devices on the Settings page; wider picture area; logo above the menu (v0.3.0) |
@@ -36,9 +37,8 @@ running EasyPal or QSSTV.
 
 ## Planned features
 
-- Repeater support: time-out warning, key-up lead-in, missing-segment repair (BSR)
+- Missing-segment repair (BSR) for repeater use
 - Image gallery, and optional auto-upload to an FTP server
-- Sound-card calibration
 - Linux and Mac versions
 
 ## Built with

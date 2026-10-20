@@ -404,6 +404,34 @@ public partial class ReceivePage : UserControl, IDisposable
         });
     }
 
+    // ---- the received transmission's settings, in boxes ----
+
+    private void ShowHeard()
+    {
+        var heard = _receiver.Heard;
+        if (heard is not null)
+        {
+            var fac = heard.Fac;
+            HeardMode.Text = heard.Mode.ToString();
+            HeardBandwidth.Text = fac is null ? "…" : fac.Bandwidth == HamDrmBandwidth.Wide ? "2.5 kHz" : "2.2 kHz";
+            HeardQam.Text = fac is null ? "…" : fac.Qam.ToString();
+            HeardInterleave.Text = fac?.Interleave.ToString() ?? "…";
+            HeardProtection.Text = fac?.Protection.ToString() ?? "…";
+            HeardReedSolomon.Text = heard.ReedSolomon switch { null => "…", 0 => "None", var rs => $"RS{rs}" };
+            HeardCallsign.Text = heard.Callsign switch { null => "…", "" => "(none)", var c => c };
+            HeardPanel.IsVisible = true;
+            HeardPanel.Opacity = 1;
+            int good = _receiver.FacGood, total = _receiver.FacGood + _receiver.FacFailed;
+            TransmissionText.Text = fac is null ? _receiver.TransmissionText : $"Settings read from {good} of {total} frames";
+        }
+        else
+        {
+            // Between transmissions: the last one's settings stay, dimmed.
+            HeardPanel.Opacity = 0.5;
+            TransmissionText.Text = "";
+        }
+    }
+
     // ---- level meter (runs on the screen's thread, 20 times a second) ----
 
     private void UpdateMeter()
@@ -425,7 +453,7 @@ public partial class ReceivePage : UserControl, IDisposable
             LevelMeter.ClearValue(ForegroundProperty);   // back to the theme's colour
 
         SignalText.Text = _receiver.StatusText;
-        TransmissionText.Text = _receiver.TransmissionText;
+        ShowHeard();
         FileText.Text = _receiver.FileText;
 
         // While recording, show how long and how big, and note any callsign heard for the file's name.

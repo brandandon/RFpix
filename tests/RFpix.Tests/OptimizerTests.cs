@@ -309,6 +309,39 @@ public class OptimizerTests
     }
 
     [Fact]
+    public void The_repeater_time_out_shortens_the_fit_only_when_it_has_to()
+    {
+        var net = SendProfile.NetRepeater;   // 2:00 target, 3:00 time-out, 0.3 s lead-in
+        Assert.Equal(120, net.FittingSeconds(TimeSpan.Zero));                     // plenty of room
+        var full = net with { TargetSeconds = 180 };
+        // 180 - 0.3 lead-in - 4 s of text - 0.5 tail - 3 s Auto allowance = 172.2: fitted to 172 s.
+        Assert.Equal(172, full.FittingSeconds(TimeSpan.FromSeconds(4)));
+        Assert.Equal(180, (full with { TimeoutSeconds = 0 }).FittingSeconds(TimeSpan.FromSeconds(4)));   // no repeater
+        Assert.True(net.FitsTimeout(TimeSpan.FromSeconds(180)));
+        Assert.False(net.FitsTimeout(TimeSpan.FromSeconds(180.1)));
+        Assert.Equal(4.8, full.Overhead(TimeSpan.FromSeconds(4)).TotalSeconds, 3);
+    }
+
+    [Fact]
+    public void Profiles_saved_before_the_repeater_settings_load_with_none()
+    {
+        // A profile saved by v0.3.4, without a time-out or lead-in.
+        string json = "{\"Name\":\"Mine\",\"Mode\":1,\"Bandwidth\":1,\"Qam\":16,\"Interleave\":0,\"Protection\":0,\"ReedSolomon\":0,\"TargetSeconds\":120}";
+        var profile = System.Text.Json.JsonSerializer.Deserialize<SendProfile>(json)!;
+        Assert.Equal(0, profile.TimeoutSeconds);
+        Assert.Equal(0.3, profile.LeadInSeconds, 3);
+        Assert.Equal("Mine", profile.Name);
+    }
+
+    [Fact]
+    public void A_longer_lead_in_adds_that_much_silence_before_the_data()
+    {
+        var signal = new float[] { 1, 1, 1 };
+        Assert.Equal(48000 + 3 + 24000, Transmission.Prepare(signal, 1, keyed: true, TimeSpan.FromSeconds(1)).Length);
+        Assert.Equal(14400 + 3 + 24000, Transmission.Prepare(signal, 1, keyed: true).Length);   // the usual 0.3 s
+    }
+
+    [Fact]
     public void Profiles_compare_by_their_settings_not_their_names()
     {
         var mine = SendProfile.NetRepeater with { Name = "Mine" };

@@ -13,8 +13,8 @@ namespace RFpix;
 
 public partial class MainWindow : Window
 {
-    // Each page is created the first time it is opened, then kept,
-    // so switching back to a page doesn't lose what was on it.
+    // Each page is created the first time it is opened, then kept in place (hidden when another
+    // is showing), so switching back to a page is instant and doesn't lose what was on it.
     private readonly Dictionary<string, Control> _pages = new();
 
     // The window's last normal (not maximized or minimized) size and position, kept up to date
@@ -114,7 +114,9 @@ public partial class MainWindow : Window
     {
         if (NavList.SelectedItem is ListBoxItem item && item.Tag is string pageName)
         {
-            PageHost.Content = GetPage(pageName);
+            // Show this page and hide the others (they keep everything, ready to show again).
+            var shown = GetPage(pageName);
+            foreach (var page in _pages.Values) page.IsVisible = page == shown;
         }
     }
 
@@ -132,6 +134,7 @@ public partial class MainWindow : Window
                 _ => new TextBlock { Text = $"Unknown page: {pageName}" }
             };
             _pages[pageName] = page;
+            PageHost.Children.Add(page);
         }
         return page;
     }

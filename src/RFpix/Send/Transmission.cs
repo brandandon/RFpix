@@ -5,9 +5,10 @@
 //      Send page's slider works during a transmission.)
 //   2. Key the radio (unless it's VOX). The key has a time limit: the sound's length
 //      plus 15 seconds. If anything goes wrong, the radio un-keys itself then.
-//   3. Play a short silence first (keyed radios take a moment to switch to transmit;
-//      the silence stops the start of the signal being cut off), then the signal,
-//      then a short silence so the end isn't cut off either.
+//   3. Play a short silence first (keyed radios take a moment to switch to transmit, and
+//      a repeater to open: the silence stops the start of the signal being cut off; the
+//      send profile can make it longer), then the signal, then a short silence so the end
+//      isn't cut off either.
 //   4. Un-key, always: when the sound ends, when Stop is clicked, or if the sound
 //      device fails.
 
@@ -23,11 +24,12 @@ public static class Transmission
     public static readonly TimeSpan Tail = TimeSpan.FromMilliseconds(500);
     public static readonly TimeSpan ExtraKeyTime = TimeSpan.FromSeconds(15);
 
-    /// <summary>The sound as it goes to the radio: lead-in silence, the signal scaled by
-    /// <paramref name="level"/> (0 to 1, where 1 is QSSTV's level), then the tail.</summary>
-    public static float[] Prepare(float[] signal, double level, bool keyed)
+    /// <summary>The sound as it goes to the radio: lead-in silence (when keyed: by default 0.3 s, or
+    /// <paramref name="leadIn"/>), the signal scaled by <paramref name="level"/> (0 to 1, where 1 is
+    /// QSSTV's level), then the tail.</summary>
+    public static float[] Prepare(float[] signal, double level, bool keyed, TimeSpan? leadIn = null)
     {
-        int lead = keyed ? (int)(LeadIn.TotalSeconds * SampleRate) : 0;
+        int lead = keyed ? (int)((leadIn ?? LeadIn).TotalSeconds * SampleRate) : 0;
         int tail = (int)(Tail.TotalSeconds * SampleRate);
         var sound = new float[lead + signal.Length + tail];
         float gain = (float)Math.Clamp(level, 0, 1);
