@@ -10,7 +10,8 @@
 //   5. Test PTT keys the transmitter for 2 seconds (switching to data mode first if that's
 //      ticked) and then releases it, reporting each step.
 //   6. The IC-9700's data-mode box is saved and used the moment it's changed, connected or not.
-//      Everything else is saved by Connect, and can't change while connected.
+//      Everything else is saved as it's changed (so Send uses what the page shows, even
+//      without connecting first), and can't change while connected.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -27,6 +28,7 @@ public partial class RadioPage : UserControl, IDisposable
     private readonly DispatcherTimer _pollTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private bool _busy;       // a radio command is running in the background
     private bool _loading;    // filling in the controls, so changes aren't "the user picked"
+    private bool _ready;      // the saved settings are shown, so changes can be saved
 
     public RadioPage()
     {
@@ -39,6 +41,15 @@ public partial class RadioPage : UserControl, IDisposable
         RadioService.KeyedTooLong += OnKeyedTooLong;
         LoadPorts();
         ShowSettings(AppSettings.Current.Radio);
+        _ready = true;
+    }
+
+    // Any setting changed on the page: save it, so Send (which connects by itself) uses it.
+    private void OnSettingChanged(object? sender, EventArgs e)
+    {
+        if (!_ready || _loading || Connection is not null) return;
+        AppSettings.Current.Radio = ReadSettings();
+        AppSettings.Current.Save();
     }
 
     // ---- showing and reading the settings ----
@@ -98,6 +109,7 @@ public partial class RadioPage : UserControl, IDisposable
         if (choice.Connection == "network")
             AddressBox.Text = choice.Id == "flrig" ? "localhost:12345" : "localhost:4532";
         UpdateVisibility();
+        OnSettingChanged(sender, e);
     }
 
     // The data-mode box counts at once: saved, and used by the open connection from its next transmission.
@@ -133,8 +145,11 @@ public partial class RadioPage : UserControl, IDisposable
     private void LoadPorts()
     {
         string? selected = (PortBox.SelectedItem as SerialPortInfo)?.Name ?? AppSettings.Current.Radio.Port;
+        bool loading = _loading;
+        _loading = true;   // refreshing the list isn't a new choice (and an unplugged port stays saved)
         PortBox.ItemsSource = SerialPorts.List();
         SelectPort(selected);
+        _loading = loading;
     }
 
     private void SelectPort(string? name) =>
@@ -248,7 +263,7 @@ public partial class RadioPage : UserControl, IDisposable
         UpdateButtons();
         try
         {
-            ShowStatus(settings.Ptt == PttMethod.Vox
+            ShowStatus(settings.Keying() == PttMethod.Vox
                 ? "VOX: RFpix sends no key command" + (radio.DataModeForTransmit ? ", only switching data mode for 2 seconds…" : ". To check VOX trips, send a test from the Alpha Testing page.")
                 : "Transmitting for 2 seconds…", problem: false);
 
@@ -259,7 +274,7 @@ public partial class RadioPage : UserControl, IDisposable
 
             string modes = radio.DataModeForTransmit && radio.LastDataModeReport.Length > 0
                 ? $" Data mode: {radio.LastDataModeReport}." : "";
-            ShowStatus(settings.Ptt == PttMethod.Vox
+            ShowStatus(settings.Keying() == PttMethod.Vox
                 ? $"Done.{modes}"
                 : $"Done: keyed for 2 seconds and released.{modes} Did the radio show TX?", problem: false);
         }

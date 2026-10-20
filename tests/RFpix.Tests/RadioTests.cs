@@ -15,6 +15,15 @@ public class RadioTests
     private const ulong Usb = 1ul << 2, UsbData = 1ul << 11, Fm = 1ul << 5, FmData = 1ul << 12;
 
     [Fact]
+    public void With_no_radio_control_keying_is_always_vox()
+    {
+        // Older settings files can hold "no radio" with CAT keying (the page showed VOX but didn't save it).
+        Assert.Equal(PttMethod.Vox, new RadioSettings { Choice = "none", Ptt = PttMethod.Cat }.Keying());
+        Assert.Equal(PttMethod.Rts, new RadioSettings { Choice = "ic9700", Ptt = PttMethod.Rts }.Keying());
+        Assert.Equal(PttMethod.Vox, new RadioSettings { Choice = "ic9700", Ptt = PttMethod.Vox }.Keying());
+    }
+
+    [Fact]
     public void Reads_and_sets_frequency_and_mode()
     {
         using var radio = RadioConnection.Open(Dummy());

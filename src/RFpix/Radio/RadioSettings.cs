@@ -38,6 +38,10 @@ public sealed class RadioSettings
 
     /// <summary>Switch the radio into data mode while transmitting (USB → USB-D) and back afterwards.</summary>
     public bool DataModeForTransmit { get; set; }
+
+    /// <summary>How the transmitter is really keyed: with no radio control it can only be VOX,
+    /// whatever <see cref="Ptt"/> says (it may hold an older choice).</summary>
+    public PttMethod Keying() => RadioChoices.Find(Choice).Connection == "none" ? PttMethod.Vox : Ptt;
 }
 
 /// <summary>A radio on the Radio page's list.</summary>
