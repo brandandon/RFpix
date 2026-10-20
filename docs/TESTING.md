@@ -81,6 +81,28 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
 
+## Missing pieces (BSR) (new in v0.3.6)
+
+When a picture arrives with pieces missing, a **Missing pieces** box appears on the **Receive** tab,
+under the picture. Pick the picture (the latest is first) and click **Ask for them (BSR)**: RFpix
+sends a short request (about 15 seconds) in the settings the picture came with. The sender's RFpix,
+EasyPal or QSSTV can then send just those pieces, and the picture completes and is saved. Keep
+listening after asking.
+
+When someone asks you for pieces of one of your last 6 pictures, a yellow bar appears at the top of
+**TX/RX** (on either tab) saying who asked and how long the answer takes. Nothing is sent until you
+click **Send the pieces**; **Not now** closes it. A request for someone else's picture shows a short
+grey note. RFpix must be listening (Receive tab started) to hear requests. Please tell us how it
+goes with EasyPal and QSSTV stations: asking them, and answering them.
+
+## Gallery (new in v0.3.6)
+
+The **Gallery** page shows every picture received and sent, newest first, grouped by day. Click one
+for its details (who sent it, when, the settings it came with, the signal); double-click to open it
+full size. **Send this picture** opens it on the Send tab; **Delete** moves it to the Recycle Bin
+(click twice). Sent pictures are now saved, as they went out, in Documents\RFpix\Sent. Pictures
+received before v0.3.6 show too, without the details.
+
 ## Repeater time-out and lead-in (new in v0.3.5)
 
 On the **Send** tab, beside the other settings: **Repeater time-out** is the longest your repeater
