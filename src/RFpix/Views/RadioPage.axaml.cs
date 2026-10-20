@@ -41,11 +41,20 @@ public partial class RadioPage : UserControl, IDisposable
         RadioService.KeyedTooLong += OnKeyedTooLong;
         LoadPorts();
         ShowSettings(AppSettings.Current.Radio);
+
+        // Any change on the page is saved at once (the radio drop-down saves in OnRadioChanged).
+        ModelBox.TextChanged += (_, _) => SaveSettings();
+        PortBox.SelectionChanged += (_, _) => SaveSettings();
+        BaudBox.SelectionChanged += (_, _) => SaveSettings();
+        CivBox.TextChanged += (_, _) => SaveSettings();
+        AddressBox.TextChanged += (_, _) => SaveSettings();
+        foreach (var ptt in new[] { PttCat, PttRts, PttDtr, PttVox })
+            ptt.IsCheckedChanged += (_, _) => SaveSettings();
         _ready = true;
     }
 
     // Any setting changed on the page: save it, so Send (which connects by itself) uses it.
-    private void OnSettingChanged(object? sender, EventArgs e)
+    private void SaveSettings()
     {
         if (!_ready || _loading || Connection is not null) return;
         AppSettings.Current.Radio = ReadSettings();
@@ -109,7 +118,7 @@ public partial class RadioPage : UserControl, IDisposable
         if (choice.Connection == "network")
             AddressBox.Text = choice.Id == "flrig" ? "localhost:12345" : "localhost:4532";
         UpdateVisibility();
-        OnSettingChanged(sender, e);
+        SaveSettings();
     }
 
     // The data-mode box counts at once: saved, and used by the open connection from its next transmission.

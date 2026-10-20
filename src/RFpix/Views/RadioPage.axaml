@@ -19,7 +19,7 @@
            model to find it), or Hamlib's model number typed in -->
       <StackPanel x:Name="ModelPanel" Spacing="6">
         <TextBlock Text="Radio model" FontWeight="SemiBold" />
-        <AutoCompleteBox x:Name="ModelBox" Width="440" TextChanged="OnSettingChanged" FilterMode="Contains" MinimumPrefixLength="1"
+        <AutoCompleteBox x:Name="ModelBox" Width="440" FilterMode="Contains" MinimumPrefixLength="1"
                          MaxDropDownHeight="320" Watermark="Type the make or model, e.g. FT-991 or IC-7300" />
         <TextBlock Classes="Hint" TextWrapping="Wrap"
                    Text="Pick your radio from the list as you type. Hamlib's model number (such as 1035) can be typed instead." />
@@ -29,17 +29,17 @@
       <StackPanel x:Name="SerialPanel" Spacing="6">
         <TextBlock Text="Control port" FontWeight="SemiBold" />
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <ComboBox x:Name="PortBox" Width="560" SelectionChanged="OnSettingChanged" PlaceholderText="Pick the radio's COM port" />
+          <ComboBox x:Name="PortBox" Width="560" PlaceholderText="Pick the radio's COM port" />
           <Button Content="Refresh" Click="OnRefreshPortsClick" />
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="24" Margin="0,6,0,0">
           <StackPanel Spacing="6">
             <TextBlock Text="Baud rate" />
-            <ComboBox x:Name="BaudBox" Width="140" SelectionChanged="OnSettingChanged" />
+            <ComboBox x:Name="BaudBox" Width="140" />
           </StackPanel>
           <StackPanel x:Name="CivPanel" Spacing="6">
             <TextBlock Text="CI-V address (hex)" />
-            <TextBox x:Name="CivBox" Width="100" TextChanged="OnSettingChanged" Watermark="A2" />
+            <TextBox x:Name="CivBox" Width="100" Watermark="A2" />
           </StackPanel>
         </StackPanel>
       </StackPanel>
@@ -47,17 +47,17 @@
       <!-- A program sharing the radio (rigctld, flrig) -->
       <StackPanel x:Name="NetworkPanel" Spacing="6">
         <TextBlock Text="Address" FontWeight="SemiBold" />
-        <TextBox x:Name="AddressBox" Width="260" TextChanged="OnSettingChanged" Watermark="localhost:4532" />
+        <TextBox x:Name="AddressBox" Width="260" Watermark="localhost:4532" />
       </StackPanel>
 
       <!-- Keying -->
       <StackPanel Spacing="8">
         <TextBlock Text="Transmit keying (PTT)" FontWeight="SemiBold" />
         <StackPanel x:Name="PttPanel" Orientation="Horizontal" Spacing="20">
-          <RadioButton x:Name="PttCat" GroupName="Ptt" IsCheckedChanged="OnSettingChanged" Content="CAT command" />
-          <RadioButton x:Name="PttRts" GroupName="Ptt" IsCheckedChanged="OnSettingChanged" Content="RTS line" />
-          <RadioButton x:Name="PttDtr" GroupName="Ptt" IsCheckedChanged="OnSettingChanged" Content="DTR line" />
-          <RadioButton x:Name="PttVox" GroupName="Ptt" IsCheckedChanged="OnSettingChanged" Content="VOX" />
+          <RadioButton x:Name="PttCat" GroupName="Ptt" Content="CAT command" />
+          <RadioButton x:Name="PttRts" GroupName="Ptt" Content="RTS line" />
+          <RadioButton x:Name="PttDtr" GroupName="Ptt" Content="DTR line" />
+          <RadioButton x:Name="PttVox" GroupName="Ptt" Content="VOX" />
         </StackPanel>
         <TextBlock Classes="Hint" TextWrapping="Wrap"
                    Text="VOX: the radio keys itself when RFpix's sound starts, so RFpix sends no key command. Turn VOX on in the radio and set its level so RFpix's audio trips it." />
