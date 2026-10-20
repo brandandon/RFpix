@@ -141,6 +141,7 @@ public partial class ReceivePage : UserControl, IDisposable
 
         AppSettings.SoundDevicesChanged += OnSoundDevicesChanged;
         LayoutUpdated += OnLayoutUpdated;
+        ScrollUpBox.IsChecked = Waterfall.ScrollsUp = AppSettings.Current.WaterfallScrollsUp;
         UpdateStartButton();
     }
 
@@ -239,6 +240,7 @@ public partial class ReceivePage : UserControl, IDisposable
         LevelText.Text = "Not listening";
         FormatText.Text = "";
         SignalText.Text = "";
+        SignalPanel.IsVisible = false;
         TransmissionText.Text = "";
         FileText.Text = "";
         // Start fresh next time, so a signal from one source isn't carried over to another.
@@ -422,6 +424,43 @@ public partial class ReceivePage : UserControl, IDisposable
         });
     }
 
+    // ---- the signal, in boxes ----
+
+    private static readonly IBrush GoodBrush = new SolidColorBrush(Color.Parse("#2E7D32"));
+    private static readonly IBrush BadBrush = new SolidColorBrush(Color.Parse("#C62828"));
+
+    private void ShowSignal()
+    {
+        var s = _receiver.Signal;
+        SignalPanel.IsVisible = s is not null;
+        SignalText.IsVisible = s is null;
+        if (s is null)
+        {
+            SignalText.Text = _receiver.StatusText;   // "No HamDRM signal", or the problem
+            return;
+        }
+        SignalOffset.Text = s.OffsetHz is double hz ? $"{hz:+0.0;-0.0;0.0} Hz" : "finding…";
+        SignalClock.Text = s.ClockPpm is double ppm ? $"{ppm:+0;-0;0} ppm" : "…";
+        SignalStrength.Text = $"{s.Strength:P0}";
+        SignalQuality.Text = s.QualityDb is double q ? $"{q:0} dB" + (s.QualityNeededDb is double n ? $"  (needs {n:0})" : "") : "…";
+        switch (s.QualityGood)
+        {
+            case true:
+                QualityBox.Background = GoodBrush;
+                SignalQuality.Foreground = QualityLabel.Foreground = Brushes.White;
+                break;
+            case false:
+                QualityBox.Background = BadBrush;
+                SignalQuality.Foreground = QualityLabel.Foreground = Brushes.White;
+                break;
+            default:
+                QualityBox.ClearValue(Border.BackgroundProperty);
+                SignalQuality.ClearValue(TextBlock.ForegroundProperty);
+                QualityLabel.ClearValue(TextBlock.ForegroundProperty);
+                break;
+        }
+    }
+
     // ---- the received transmission's settings, in boxes ----
 
     private void ShowHeard()
@@ -470,7 +509,7 @@ public partial class ReceivePage : UserControl, IDisposable
         else
             LevelMeter.ClearValue(ForegroundProperty);   // back to the theme's colour
 
-        SignalText.Text = _receiver.StatusText;
+        ShowSignal();
         ShowHeard();
         FileText.Text = _receiver.FileText;
 
@@ -509,6 +548,15 @@ public partial class ReceivePage : UserControl, IDisposable
 
         double hz = Math.Clamp(x / width, 0, 1) * Waterfall.DisplayMaxFrequency;
         PointerFrequencyText.Text = $"{hz:0} Hz";
+    }
+
+    // The waterfall's direction: new lines at the top falling down (usual), or at the bottom rising.
+    private void OnScrollUpChanged(object? sender, RoutedEventArgs e)
+    {
+        if (Waterfall is null) return;   // still being built
+        Waterfall.ScrollsUp = ScrollUpBox.IsChecked == true;
+        AppSettings.Current.WaterfallScrollsUp = Waterfall.ScrollsUp;
+        AppSettings.Current.Save();
     }
 
     private void OnWaterfallPointerExited(object? sender, PointerEventArgs e)

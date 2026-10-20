@@ -52,6 +52,9 @@ public sealed class AppSettings
     public string WaterfallTextBefore { get; set; } = "";
     public string WaterfallTextAfter { get; set; } = "";
 
+    /// <summary>The Receive tab's waterfall: new lines at the bottom, moving up (instead of top, down).</summary>
+    public bool WaterfallScrollsUp { get; set; }
+
     // ---- sound-card calibration (Settings, Misc tab) ----
 
     /// <summary>The measured clock error of the radio's sound input and output, or null if not measured.</summary>

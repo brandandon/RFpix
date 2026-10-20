@@ -48,8 +48,18 @@
         <TextBlock x:Name="FormatText" Classes="Hint" FontSize="12" />
         <!-- While recording: how long and how big; afterwards: where it was saved -->
         <TextBlock x:Name="RecordText" FontSize="12" IsVisible="False" />
-        <!-- What the HamDRM decoder hears: "No HamDRM signal" or "HamDRM mode B (strength 98%)" -->
+        <!-- With no signal (or a problem): "No HamDRM signal". With one: its offset, clock, strength
+             and quality, one box each (quality green when good enough for the settings, red when not) -->
         <TextBlock x:Name="SignalText" FontWeight="SemiBold" />
+        <WrapPanel x:Name="SignalPanel" IsVisible="False">
+          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Offset" /><TextBlock x:Name="SignalOffset" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Clock" /><TextBlock x:Name="SignalClock" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Strength" /><TextBlock x:Name="SignalStrength" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting" x:Name="QualityBox"
+                  ToolTip.Tip="Green: good enough for the settings being sent. Red: too weak or noisy for them; pieces will be lost.">
+            <StackPanel><TextBlock x:Name="QualityLabel" Classes="SettingLabel" Text="Quality" /><TextBlock x:Name="SignalQuality" Classes="SettingValue" /></StackPanel>
+          </Border>
+        </WrapPanel>
         <!-- The transmission's settings and callsign (from its FAC and the file's name), one box each.
              They stay showing, dimmed, after the transmission ends. -->
         <WrapPanel x:Name="HeardPanel" IsVisible="False">
@@ -113,9 +123,11 @@
     </Grid>
 
     <!-- Row 2: frequency under the mouse, and a hint -->
-    <Grid Grid.Row="2" ColumnDefinitions="Auto,*">
-      <TextBlock x:Name="PointerFrequencyText" Grid.Column="0" MinWidth="140" FontWeight="SemiBold" />
-      <TextBlock Grid.Column="1" Classes="Hint" HorizontalAlignment="Right"
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*">
+      <TextBlock x:Name="PointerFrequencyText" Grid.Column="0" MinWidth="140" FontWeight="SemiBold" VerticalAlignment="Center" />
+      <CheckBox x:Name="ScrollUpBox" Grid.Column="1" Content="Waterfall scrolls up" IsCheckedChanged="OnScrollUpChanged"
+                ToolTip.Tip="New lines at the bottom, moving up, instead of at the top moving down. (Waterfall text from other stations is made for the usual direction, so it shows upside down this way.)" />
+      <TextBlock Grid.Column="2" Classes="Hint" HorizontalAlignment="Right" VerticalAlignment="Center"
                  Text="A HamDRM signal shows as a wide band, roughly 300 to 2800 Hz." />
     </Grid>
 

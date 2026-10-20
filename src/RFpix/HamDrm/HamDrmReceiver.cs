@@ -707,6 +707,18 @@ public sealed class HamDrmReceiver
         }
     }
 
+    /// <summary>The signal as heard now, for the screen's boxes, or null with no signal (or a problem).</summary>
+    public SignalReading? Signal
+    {
+        get
+        {
+            if (Problem is not null || Detection is not { Mode: { } mode } detection) return null;
+            double? needed = Fac is { } fac ? QualityNeeded(fac.Qam, fac.Protection) : null;
+            return new SignalReading(mode, Lock is { IsLocked: true } l ? l.OffsetHz : null, ClockPpm,
+                                     detection.Strength, needed is null ? null : QualityDb, needed);
+        }
+    }
+
     /// <summary>Feed in audio exactly as it comes from the audio layer.</summary>
     public void AddSamples(float[] samples, int count, int sampleRate)
     {
@@ -809,6 +821,19 @@ public sealed record IncompleteFile(UnfinishedFile File, TransmitSettings Settin
     /// <param name="transportId">0-2; the next in turn if not given (only to work out the length, pass one).</param>
     public HamDrmTransmitter Transmitter(string callsign, int? transportId = null) =>
         new(BsrRequest.FileNameOnAir, Request().ToBytes(), Settings, callsign, transportId: transportId ?? BsrTransportIds.Next());
+}
+
+/// <summary>The signal being received (see <see cref="HamDrmReceiver.Signal"/>).</summary>
+/// <param name="OffsetHz">How far off frequency it is; null while it's still being found.</param>
+/// <param name="ClockPpm">How fast or slow the sender's sound card runs; null until measured.</param>
+/// <param name="Strength">0 to 1: how clearly the mode was recognised.</param>
+/// <param name="QualityDb">The signal quality; null until measured (and the settings read).</param>
+/// <param name="QualityNeededDb">The quality these settings need to come through.</param>
+public sealed record SignalReading(HamDrmMode Mode, double? OffsetHz, double? ClockPpm, double Strength,
+                                   double? QualityDb, double? QualityNeededDb)
+{
+    /// <summary>Good enough for the settings in use (null if not known yet).</summary>
+    public bool? QualityGood => QualityDb is double q && QualityNeededDb is double n ? q >= n : null;
 }
 
 /// <summary>A request for missing pieces that was heard, and who sent it.</summary>
