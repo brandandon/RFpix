@@ -434,6 +434,8 @@ public sealed class HamDrmReceiver
             return;
         }
         // (An .rs1-.rs4 file arrives already unwrapped by the MotReceiver.)
+        if (_transmissionMode is { } mode && Fac is { } fac)
+            file = file with { Settings = new TransmitSettings(mode, fac.Bandwidth, fac.Qam, fac.Interleave, fac.Protection) };
         LastFile = file;
         FileReceived?.Invoke(file);
     }
@@ -804,8 +806,9 @@ public sealed record IncompleteFile(UnfinishedFile File, TransmitSettings Settin
 
     /// <summary>The request's sound: bsr.bin sent with the same settings the picture came with
     /// (as QSSTV does), from <paramref name="callsign"/>.</summary>
-    public HamDrmTransmitter Transmitter(string callsign) =>
-        new(BsrRequest.FileNameOnAir, Request().ToBytes(), Settings, callsign, transportId: BsrTransportIds.Next());
+    /// <param name="transportId">0-2; the next in turn if not given (only to work out the length, pass one).</param>
+    public HamDrmTransmitter Transmitter(string callsign, int? transportId = null) =>
+        new(BsrRequest.FileNameOnAir, Request().ToBytes(), Settings, callsign, transportId: transportId ?? BsrTransportIds.Next());
 }
 
 /// <summary>A request for missing pieces that was heard, and who sent it.</summary>

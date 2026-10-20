@@ -30,6 +30,14 @@ public partial class MainWindow : Window
 
         NavList.SelectedIndex = 0;   // start on the first page (TX/RX, on its Receive tab)
         RestorePlacement();
+        GalleryPage.SendRequested += OnGallerySend;
+    }
+
+    // The Gallery's "Send this picture": over to TX/RX, Send tab, with the picture open.
+    private void OnGallerySend(string path)
+    {
+        NavList.SelectedIndex = 0;
+        if (GetPage("TxRx") is TxRxPage txRx) txRx.ShowSendTab(path);
     }
 
     // ---- remembering the window's size and position ----
@@ -101,6 +109,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        GalleryPage.SendRequested -= OnGallerySend;
         foreach (var page in _pages.Values.OfType<IDisposable>())
         {
             page.Dispose();

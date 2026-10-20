@@ -15,8 +15,9 @@ namespace RFpix.Send;
 /// <summary>A picture as it went out: the exact bytes, name and settings, so its pieces can be sent again.</summary>
 /// <param name="Name">The name it went out under (e.g. "tower.rs2").</param>
 /// <param name="ShownName">The picture's own name, for the screen (e.g. "tower.jp2").</param>
+/// <param name="LeadInSeconds">The key-up lead-in it was sent with (a fix uses the same).</param>
 public sealed record SentFile(string Name, string ShownName, byte[] Data, TransmitSettings Settings,
-                              int TransportId, int PieceSize, int Pieces, DateTime Sent);
+                              int TransportId, int PieceSize, int Pieces, DateTime Sent, double LeadInSeconds = 0.3);
 
 /// <summary>What to send in answer to a request: which picture, and which of its pieces.</summary>
 public sealed record FixPlan(SentFile File, IReadOnlyList<int> Pieces, BsrRequest Request)
@@ -40,10 +41,10 @@ public sealed class SentLog
     public IReadOnlyList<SentFile> Files { get { lock (_lock) return _files.AsEnumerable().Reverse().ToList(); } }
 
     /// <summary>Notes a picture being sent (the same picture sent again replaces its older entry).</summary>
-    public SentFile Add(string name, string shownName, byte[] data, TransmitSettings settings)
+    public SentFile Add(string name, string shownName, byte[] data, TransmitSettings settings, double leadInSeconds = 0.3)
     {
         var tx = new HamDrmTransmitter(name, data, settings, "X");
-        var file = new SentFile(name, shownName, data, settings, tx.TransportId, tx.PieceSize, tx.Pieces, DateTime.Now);
+        var file = new SentFile(name, shownName, data, settings, tx.TransportId, tx.PieceSize, tx.Pieces, DateTime.Now, leadInSeconds);
         lock (_lock)
         {
             _files.RemoveAll(f => f.TransportId == file.TransportId);

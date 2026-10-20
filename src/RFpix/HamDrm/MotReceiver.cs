@@ -31,6 +31,9 @@ public sealed record ReceivedFile(string Name, byte[] Data, int TransportId)
 
     /// <summary>How many pieces of the transfer never arrived and were rebuilt by Reed-Solomon.</summary>
     public int RepairedPieces { get; init; }
+
+    /// <summary>The settings it was sent with, if they were read (set by HamDrmReceiver).</summary>
+    public TransmitSettings? Settings { get; init; }
 }
 
 /// <summary>A file that's still missing pieces, kept so a repeat or a fix can complete it.</summary>

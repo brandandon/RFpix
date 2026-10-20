@@ -17,6 +17,9 @@
 //      if it's a picture (JPEG, JPEG 2000, PNG...), shown on the right.
 //   9. "Record" saves what the radio hears to a WAV file (see Receive/AudioRecorder.cs),
 //      starting with the 30 seconds before it was pressed.
+//  10. A picture that ends with pieces missing is listed under "Missing pieces": Ask for
+//      them sends a request (BSR) to its sender. A request someone else sends is passed
+//      to the TX/RX page (BsrHeard), which offers to answer it.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -28,7 +31,9 @@ using Avalonia;
 using Avalonia.VisualTree;
 using RFpix.Audio;
 using RFpix.Dsp;
+using RFpix.Gallery;
 using RFpix.HamDrm;
+using RFpix.Radio;
 using RFpix.Imaging;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -46,6 +51,12 @@ public partial class ReceivePage : UserControl, IDisposable
     private readonly DispatcherTimer _meterTimer;
     private readonly SpectrumAnalyzer _analyzer = new(maxFrequency: 3000);
     private readonly HamDrmReceiver _receiver = new();
+    private readonly IAudioOutput _output = AudioSystem.CreateOutput();   // for BSR requests
+    private CancellationTokenSource? _asking;          // a BSR request going out
+    private readonly HashSet<int> _askedFor = new();   // pictures asked for (transport IDs)
+
+    /// <summary>Raised (on the screen's thread) when a request for missing pieces (BSR) is heard.</summary>
+    public event Action<HeardBsr>? BsrHeard;
     private readonly AudioRecorder _recorder = new();
     // Takes audio off the sound card's thread at once; the work happens on its own thread.
     private readonly AudioPump _pump;
@@ -86,13 +97,16 @@ public partial class ReceivePage : UserControl, IDisposable
         _receiver.FileReceived += file =>
         {
             string? callsign = _receiver.Callsign;
-            Dispatcher.UIThread.Post(() => ShowReceivedFile(file, callsign));
+            double? quality = _receiver.QualityDb;
+            Dispatcher.UIThread.Post(() => { ShowReceivedFile(file, callsign, quality); ShowIncomplete(); });
         };
+        _receiver.BsrReceived += bsr => Dispatcher.UIThread.Post(() => BsrHeard?.Invoke(bsr));
 
         // When a transmission ends: if it was one of RFpix's test transmissions, say how it
         // came through and add it to the test log.
         _receiver.TransmissionReported += report =>
         {
+            Dispatcher.UIThread.Post(ShowIncomplete);
             int gaps = _input.Gaps - _gapsAtLastReport;
             _gapsAtLastReport = _input.Gaps;
             if (TestResults.Recognise(report, Math.Max(0, gaps)) is not { } result) return;
@@ -229,7 +243,11 @@ public partial class ReceivePage : UserControl, IDisposable
         FileText.Text = "";
         // Start fresh next time, so a signal from one source isn't carried over to another.
         // (Through the pump, so it happens after any audio still waiting.)
-        _pump.Post(_receiver.Reset);
+        _pump.Post(() =>
+        {
+            _receiver.Reset();
+            Dispatcher.UIThread.Post(ShowIncomplete);
+        });
     }
 
     private void UpdateStartButton()
@@ -505,13 +523,19 @@ public partial class ReceivePage : UserControl, IDisposable
     // Counts received pictures, so a slow decode can't replace a newer picture on the screen.
     private int _pictureCount;
 
-    private async void ShowReceivedFile(ReceivedFile file, string? callsign)
+    private async void ShowReceivedFile(ReceivedFile file, string? callsign, double? quality)
     {
         string from = string.IsNullOrEmpty(callsign) ? "" : $" from {callsign}";
         string savedAs;
         try
         {
-            savedAs = Path.GetFileName(ReceivedFileSaver.Save(file, ReceivedFolder, callsign, DateTime.Now));
+            var when = DateTime.Now;
+            savedAs = Path.GetFileName(ReceivedFileSaver.Save(file, ReceivedFolder, callsign, when));
+            // What the Gallery shows about it.
+            GalleryIndex.Add(ReceivedFolder, new GalleryEntry(savedAs, when, file.Name, string.IsNullOrEmpty(callsign) ? null : callsign,
+                file.Settings?.Description, file.ReedSolomonLevel ?? (file.Settings is null ? null : 0), quality,
+                file.RepairedPieces, _askedFor.Remove(file.TransportId)));
+            SendSupport.RaiseGalleryChanged();
         }
         catch (Exception ex)
         {
@@ -599,6 +623,90 @@ public partial class ReceivePage : UserControl, IDisposable
         }
     }
 
+    // ---- missing pieces (BSR) ----
+
+    private IReadOnlyList<IncompleteFile> _incomplete = Array.Empty<IncompleteFile>();
+
+    /// <summary>Lists the pictures still missing pieces (the latest first), keeping the choice.</summary>
+    private void ShowIncomplete()
+    {
+        var chosen = MissingBox.SelectedIndex >= 0 && MissingBox.SelectedIndex < _incomplete.Count
+            ? _incomplete[MissingBox.SelectedIndex].File.TransportId : (int?)null;
+        _incomplete = _receiver.Incomplete;
+        MissingBox.ItemsSource = _incomplete.Select(Describe).ToList();
+        int index = chosen is int id ? _incomplete.ToList().FindIndex(i => i.File.TransportId == id) : -1;
+        MissingBox.SelectedIndex = _incomplete.Count == 0 ? -1 : Math.Max(0, index);
+        MissingPanel.IsVisible = _incomplete.Count > 0 || _asking is not null;
+        ShowAskHint();
+    }
+
+    private static string Describe(IncompleteFile i) =>
+        $"{i.File.Name ?? "(name not received)"}" + (string.IsNullOrEmpty(i.Callsign) ? "" : $" from {i.Callsign}") +
+        $"  ·  {i.File.Missing.Count} of {i.File.Pieces} missing  ·  {i.Heard:HH:mm}";
+
+    private void OnMissingChanged(object? sender, SelectionChangedEventArgs e) => ShowAskHint();
+
+    private void ShowAskHint()
+    {
+        if (_asking is not null) return;   // the request's progress is showing
+        if (MissingBox.SelectedIndex < 0 || MissingBox.SelectedIndex >= _incomplete.Count) { AskText.Text = ""; return; }
+        var i = _incomplete[MissingBox.SelectedIndex];
+        var seconds = i.Transmitter("X", transportId: 0).Duration.TotalSeconds;
+        string who = string.IsNullOrEmpty(i.Callsign) ? "The sender's" : $"{i.Callsign}'s";
+        AskText.Text = $"Sends a short request ({seconds:0} s) in the settings the picture came with. {who} RFpix, EasyPal or QSSTV " +
+                       "can then send just those pieces, and the picture completes here. Keep listening for them.";
+    }
+
+    private async void OnAskClick(object? sender, RoutedEventArgs e)
+    {
+        if (_asking is not null) { _asking.Cancel(); return; }   // the button says Stop
+        if (MissingBox.SelectedIndex < 0 || MissingBox.SelectedIndex >= _incomplete.Count) return;
+        var picture = _incomplete[MissingBox.SelectedIndex];
+        string call = SendSupport.Callsign;
+        if (SendSupport.Problem(_output, call) is { } problem) { ShowAskStatus(problem, problem: true); return; }
+        if (SendSupport.IsSending) { ShowAskStatus("RFpix is already transmitting. Wait for it to finish.", problem: true); return; }
+
+        _asking = new CancellationTokenSource();
+        AskButton.Content = "Stop";
+        MissingBox.IsEnabled = false;
+        AskProgress.Value = 0;
+        AskProgress.IsVisible = true;
+        string what = $"a request for {picture.File.Missing.Count} missing pieces";
+        try
+        {
+            await SendSupport.SendSoundAsync(() => picture.Transmitter(call).Audio(), what, _output,
+                SendSupport.SavedGain, m => ShowAskStatus(m, problem: false),
+                new Progress<double>(f => AskProgress.Value = f), _asking.Token, SendSupport.SavedLeadIn);
+            _askedFor.Add(picture.File.TransportId);
+            ShowAskStatus($"Asked for {picture.File.Missing.Count} missing pieces of {picture.File.Name ?? "the picture"}. " +
+                          "If the sender answers, the picture completes here and is saved.", problem: false);
+        }
+        catch (OperationCanceledException)
+        {
+            ShowAskStatus("Stopped. The transmitter is released.", problem: false);
+        }
+        catch (Exception ex) when (ex is AudioException or RadioException)
+        {
+            ShowAskStatus(ex.Message, problem: true);
+        }
+        finally
+        {
+            _asking.Dispose();
+            _asking = null;
+            AskButton.Content = "Ask for them (BSR)";
+            MissingBox.IsEnabled = true;
+            AskProgress.IsVisible = false;
+            MissingPanel.IsVisible = _incomplete.Count > 0 || AskText.Text?.Length > 0;
+        }
+    }
+
+    private void ShowAskStatus(string message, bool problem)
+    {
+        AskText.Text = message;
+        if (problem) AskText.Foreground = Brushes.OrangeRed;
+        else AskText.ClearValue(TextBlock.ForegroundProperty);
+    }
+
     // ---- messages ----
 
     private void ShowError(string message)
@@ -615,6 +723,8 @@ public partial class ReceivePage : UserControl, IDisposable
         AppSettings.SoundDevicesChanged -= OnSoundDevicesChanged;
         try { _testLog.WriteHeld(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         if (_recorder.IsRecording) _recorder.Stop(_recordingCallsigns);   // closing RFpix: keep what was recorded
+        _asking?.Cancel();   // closing RFpix mid-request: stop (Transmission un-keys)
+        _output.Dispose();
         _player.Dispose();
         _input.Dispose();
         _pump.Dispose();

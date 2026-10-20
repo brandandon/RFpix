@@ -342,6 +342,11 @@ public partial class SendPage : UserControl, IDisposable
         if (path is not null) await OpenAsync(path);
     }
 
+    private const string AlreadySending = "RFpix is already transmitting (a request or a fix for missing pieces). Wait for it to finish.";
+
+    /// <summary>Opens a picture, ready to fit and send (the Gallery's "Send this picture").</summary>
+    public Task OpenPictureAsync(string path) => OpenAsync(path);
+
     private async Task OpenAsync(string path)
     {
         ShowStatus($"Opening {Path.GetFileName(path)}…", problem: false);
@@ -631,8 +636,14 @@ public partial class SendPage : UserControl, IDisposable
             return;
         }
         string call = SendSupport.Callsign;
+        if (_sending is not null) return;
+        if (SendSupport.Problem(_output, call) is { } problem) { ShowStatus(problem, problem: true); return; }
+        if (SendSupport.IsSending) { ShowStatus(AlreadySending, problem: true); return; }
+        // Kept so missing pieces can be sent again if a station asks (BSR), and saved for the Gallery.
+        string? notSaved = SendSupport.RecordSent(fitted, call);
         Transmit(() => SendSupport.WithWaterfallText(fitted.Transmitter(call).Audio()), fitted.FileName,
-                 $"Sent {fitted.FileName} as {call}.", TimeSpan.FromSeconds(profile.LeadInSeconds));
+                 $"Sent {fitted.FileName} as {call}." + (notSaved is null ? "" : $" ({notSaved})"),
+                 TimeSpan.FromSeconds(profile.LeadInSeconds));
     }
 
     // CW: the callsign in Morse code, 750 Hz at 15 words per minute.
@@ -658,6 +669,7 @@ public partial class SendPage : UserControl, IDisposable
     {
         if (_sending is not null) return;
         if (SendSupport.Problem(_output, SendSupport.Callsign) is { } problem) { ShowStatus(problem, problem: true); return; }
+        if (SendSupport.IsSending) { ShowStatus(AlreadySending, problem: true); return; }
 
         _sending = new CancellationTokenSource();
         var cancel = _sending.Token;

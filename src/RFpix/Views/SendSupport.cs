@@ -3,6 +3,7 @@
 // (connect to the radio if needed, key, play, un-key).
 
 using RFpix.Audio;
+using RFpix.Gallery;
 using RFpix.HamDrm;
 using RFpix.Radio;
 using RFpix.Send;
@@ -50,6 +51,28 @@ internal static class SendSupport
     public static async Task SendSoundAsync(Func<float[]> makeSound, string what, IAudioOutput output,
                                             Func<double> level, Action<string> status, IProgress<double> progress,
                                             CancellationToken cancel, TimeSpan? leadIn = null)
+    {
+        // One transmission at a time, whichever page starts it (a picture, a BSR request, a fix).
+        if (Interlocked.Exchange(ref _sending, 1) == 1)
+            throw new AudioException("RFpix is already transmitting. Wait for it to finish, or stop it first.");
+        try
+        {
+            await SendSoundCoreAsync(makeSound, what, output, level, status, progress, cancel, leadIn);
+        }
+        finally
+        {
+            Volatile.Write(ref _sending, 0);
+        }
+    }
+
+    private static int _sending;
+
+    /// <summary>True while a transmission is going out.</summary>
+    public static bool IsSending => Volatile.Read(ref _sending) == 1;
+
+    private static async Task SendSoundCoreAsync(Func<float[]> makeSound, string what, IAudioOutput output,
+                                                 Func<double> level, Action<string> status, IProgress<double> progress,
+                                                 CancellationToken cancel, TimeSpan? leadIn)
     {
         var device = ChosenOutput(output) ?? throw new AudioException("The sound output chosen in Settings (Audio tab) isn't connected.");
         var radioSettings = AppSettings.Current.Radio;
@@ -110,6 +133,40 @@ internal static class SendSupport
     /// <summary>A picture's sound with the waterfall text from Settings (Misc tab) before and after it.</summary>
     public static float[] WithWaterfallText(float[] picture) =>
         WaterfallText.Around(picture, AppSettings.Current.WaterfallTextBefore, AppSettings.Current.WaterfallTextAfter);
+
+    /// <summary>The transmit level as set on the Send tab (for sending from other pages).</summary>
+    public static double SavedGain() => Gain(AppSettings.Current.TransmitLevelDb);
+
+    /// <summary>The lead-in of the send settings in use (for a BSR request).</summary>
+    public static TimeSpan SavedLeadIn => TimeSpan.FromSeconds(AppSettings.Current.SendSettings?.LeadInSeconds ?? Transmission.LeadIn.TotalSeconds);
+
+    /// <summary>The Sent folder (Documents\RFpix\Sent).</summary>
+    public static string SentFolder => GalleryIndex.DefaultSentFolder;
+
+    /// <summary>Raised (on the screen's thread) when a picture is added to the Received or Sent folder.</summary>
+    public static event Action? GalleryChanged;
+    public static void RaiseGalleryChanged() => GalleryChanged?.Invoke();
+
+    /// <summary>Notes a picture about to go out: in the sent log (so missing pieces can be sent
+    /// again if asked), and in the Sent folder for the Gallery. Returns a problem, or null.</summary>
+    public static string? RecordSent(FittedPicture fitted, string callsign)
+    {
+        var profile = fitted.Profile;
+        SentLog.Current.Add(fitted.SendName, fitted.FileName, fitted.SendData, profile.Settings, profile.LeadInSeconds);
+        try
+        {
+            var when = DateTime.Now;
+            string path = GalleryIndex.SaveSent(SentFolder, fitted.FileName, fitted.File, when);
+            GalleryIndex.Add(SentFolder, new GalleryEntry(Path.GetFileName(path), when, fitted.FileName, callsign,
+                profile.Settings.Description, profile.ReedSolomon));
+            RaiseGalleryChanged();
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return $"Couldn't save a copy in {SentFolder}: {ex.Message}";
+        }
+    }
 
     /// <summary>The level slider's text, e.g. "−30 dB".</summary>
     public static string LevelLabel(double db) => db == 0 ? "0 dB" : $"{db:0} dB".Replace('-', '−');

@@ -1,12 +1,80 @@
 <!--
-  GalleryPage.axaml - the Gallery page. For now it only shows what is coming.
+  GalleryPage.axaml - the Gallery page: every picture received and sent, newest first,
+  grouped by day. Click one for its details (who, when, the settings it came with, the
+  signal); double-click to open it full size. "Send this picture" opens it on the Send tab.
+  The pictures are the files in the Received and Sent folders; the tiles are made in the code.
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="RFpix.Views.GalleryPage">
-  <StackPanel Spacing="8">
-    <TextBlock Classes="PageTitle" Text="Gallery" />
-    <TextBlock Text="All the images you have received and sent." TextWrapping="Wrap" />
-    <TextBlock Classes="Hint" Text="Coming in milestone 4." />
-  </StackPanel>
+  <UserControl.Styles>
+    <Style Selector="Button.Tile">
+      <Setter Property="Width" Value="156" />
+      <Setter Property="Padding" Value="6" />
+      <Setter Property="Margin" Value="0,0,10,10" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Top" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.Tile.Selected">
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemControlHighlightAccentBrush}" />
+    </Style>
+    <Style Selector="TextBlock.DayHeading">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Opacity" Value="0.75" />
+      <Setter Property="Margin" Value="0,4,0,6" />
+    </Style>
+    <Style Selector="TextBlock.DetailLabel">
+      <Setter Property="Opacity" Value="0.7" />
+      <Setter Property="Margin" Value="0,0,12,4" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6">
+    <TextBlock Grid.Row="0" Classes="PageTitle" Text="Gallery" />
+
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <TabStrip Grid.Column="0" x:Name="Tabs" SelectedIndex="0" SelectionChanged="OnTabChanged">
+        <TabStripItem x:Name="ReceivedTab" Content="Received" FontSize="16" />
+        <TabStripItem x:Name="SentTab" Content="Sent" FontSize="16" />
+      </TabStrip>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <TextBlock Text="Find" VerticalAlignment="Center" />
+        <TextBox x:Name="FindBox" Width="200" Watermark="Callsign or name" />
+        <Button Content="Open folder" Click="OnOpenFolderClick" />
+      </StackPanel>
+    </Grid>
+
+    <Grid Grid.Row="2" ColumnDefinitions="*,340" ColumnSpacing="20" Margin="0,12,0,0">
+      <!-- The pictures, by day -->
+      <ScrollViewer Grid.Column="0" x:Name="TilesScroll">
+        <StackPanel x:Name="DaysPanel" Margin="0,0,12,12" />
+      </ScrollViewer>
+      <TextBlock Grid.Column="0" x:Name="EmptyText" Classes="Hint" TextWrapping="Wrap" IsVisible="False"
+                 HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" MaxWidth="420" />
+
+      <!-- The picture clicked -->
+      <Border Grid.Column="1" x:Name="DetailsPanel" IsVisible="False" VerticalAlignment="Top" CornerRadius="6" Padding="14"
+              BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+        <StackPanel Spacing="10">
+          <Border Height="230" CornerRadius="4" ClipToBounds="True" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                  DoubleTapped="OnDetailDoubleTapped" ToolTip.Tip="Double-click to open it full size">
+            <Image x:Name="DetailImage" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />
+          </Border>
+          <TextBlock x:Name="DetailName" FontWeight="SemiBold" FontSize="16" TextWrapping="Wrap" />
+          <Grid x:Name="DetailGrid" ColumnDefinitions="Auto,*" />
+          <WrapPanel>
+            <Button x:Name="SendThisButton" Content="Send this picture" Classes="accent" Click="OnSendThisClick" Margin="0,0,8,8" />
+            <Button Content="Show in folder" Click="OnShowInFolderClick" Margin="0,0,8,8" />
+            <Button x:Name="DeleteButton" Content="Delete" Click="OnDeleteClick" Margin="0,0,8,8" />
+          </WrapPanel>
+          <TextBlock x:Name="DetailStatus" Classes="Hint" FontSize="12" TextWrapping="Wrap"
+                     Text="Send this picture opens it on the Send tab, ready to fit and send. Double-click the picture to open it full size." />
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
 </UserControl>

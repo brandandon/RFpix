@@ -84,7 +84,7 @@
                                    PointerExited="OnWaterfallPointerExited" />
       </Border>
 
-      <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto" RowSpacing="6">
+      <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto,Auto" RowSpacing="6">
         <Border Grid.Row="0" CornerRadius="6" ClipToBounds="True"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
           <Panel>
@@ -95,7 +95,20 @@
           </Panel>
         </Border>
         <TextBlock Grid.Row="1" x:Name="PictureCaption" TextWrapping="Wrap" />
-        <Button Grid.Row="2" Content="Open received folder" Click="OnOpenFolderClick" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+        <!-- While a picture is incomplete: ask its sender for the missing pieces (BSR) -->
+        <Border Grid.Row="2" x:Name="MissingPanel" IsVisible="False" CornerRadius="6" Padding="12,10"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Missing pieces" FontWeight="SemiBold" />
+            <WrapPanel>
+              <ComboBox x:Name="MissingBox" MinWidth="360" Margin="0,0,10,4" SelectionChanged="OnMissingChanged" />
+              <Button x:Name="AskButton" Content="Ask for them (BSR)" Classes="accent" Click="OnAskClick" MinWidth="150" Margin="0,0,0,4" />
+            </WrapPanel>
+            <ProgressBar x:Name="AskProgress" Minimum="0" Maximum="1" IsVisible="False" />
+            <TextBlock x:Name="AskText" Classes="Hint" FontSize="12" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+        <Button Grid.Row="3" Content="Open received folder" Click="OnOpenFolderClick" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
       </Grid>
     </Grid>
 
