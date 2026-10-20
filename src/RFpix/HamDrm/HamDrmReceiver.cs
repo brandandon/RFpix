@@ -351,7 +351,14 @@ public sealed class HamDrmReceiver
 
         // Close the books on this transmission, so the next one starts with a clean line.
         var unfinished = _mot.EndOfTransmission();
-        _endedText = file is not null ? ReceivedText(file)
+        // Remember how a picture that's still missing pieces was sent, and by whom, for a BSR.
+        if (unfinished is not null && _transmissionMode is { } heardMode && Fac is { } heardFac)
+            _heardFor[unfinished.TransportId] = new(new TransmitSettings(heardMode, heardFac.Bandwidth, heardFac.Qam,
+                heardFac.Interleave, heardFac.Protection), Callsign, DateTime.Now);
+        var kept = _mot.Unfinished().Select(u => u.TransportId).ToHashSet();
+        foreach (int gone in _heardFor.Keys.Where(id => !kept.Contains(id)).ToList()) _heardFor.Remove(gone);
+        _endedText = file is { Name: BsrRequest.FileNameOnAir } ? BsrText(file)
+            : file is not null ? ReceivedText(file)
             : unfinished is { Name: { } name } ? $"Couldn't finish {name}: {unfinished.SegmentsReceived} of {unfinished.SegmentsExpected} pieces arrived" +
                   (RsFile.LevelOf(name) is not null ? ", too few for Reed-Solomon to rebuild the rest." : ".")
             : TransmissionPacketsGood == 0 ? $"No file came through: none of the {TransmissionPacketsBad} data packets could be read."
@@ -420,9 +427,46 @@ public sealed class HamDrmReceiver
 
     private void Finish(ReceivedFile file)
     {
+        // A request for missing pieces isn't a picture: it's passed on, not shown or saved.
+        if (file.Name == BsrRequest.FileNameOnAir)
+        {
+            if (BsrRequest.Parse(file.Data) is { } request) BsrReceived?.Invoke(new HeardBsr(request, Callsign, DateTime.Now));
+            return;
+        }
         // (An .rs1-.rs4 file arrives already unwrapped by the MotReceiver.)
         LastFile = file;
         FileReceived?.Invoke(file);
+    }
+
+    private string BsrText(ReceivedFile file) =>
+        BsrRequest.Parse(file.Data) is { } r
+            ? $"Heard a request for {r.Missing.Count} missing pieces (BSR)" + (Callsign is { Length: > 0 } c ? $" from {c}" : "") + "."
+            : "Heard a request for missing pieces (BSR) that couldn't be read.";
+
+    /// <summary>Raised (on the audio thread) when a request for missing pieces (a BSR) arrives,
+    /// whoever it's for.</summary>
+    public event Action<HeardBsr>? BsrReceived;
+
+    // How each unfinished picture was sent, by transport ID.
+    private readonly Dictionary<int, (TransmitSettings Settings, string? Callsign, DateTime Heard)> _heardFor = new();
+
+    /// <summary>Pictures still missing pieces, the most recently heard first: what a BSR can ask for.</summary>
+    public IReadOnlyList<IncompleteFile> Incomplete
+    {
+        get
+        {
+            lock (_lock)
+            {
+                var list = new List<IncompleteFile>();
+                foreach (var u in _mot.Unfinished())
+                {
+                    if (u.Name == BsrRequest.FileNameOnAir || u.TransportId == _mot.Progress?.TransportId && Detection.Mode is not null)
+                        continue;   // not a picture, or still arriving
+                    if (_heardFor.TryGetValue(u.TransportId, out var h)) list.Add(new IncompleteFile(u, h.Settings, h.Callsign, h.Heard));
+                }
+                return list;
+            }
+        }
     }
 
     /// <summary>Raised (on the audio thread) when a file has been received complete.</summary>
@@ -694,6 +738,7 @@ public sealed class HamDrmReceiver
             _lastFoundFrame = null;
             ForgetFac();
             _mot = new MotReceiver();   // a new source: forget files in progress too
+            _heardFor.Clear();
             LastFile = null;
             _heldFile = null;
             _endedText = null;
@@ -749,6 +794,22 @@ public sealed record TransmissionReport(
         }
     }
 }
+
+/// <summary>A picture still missing pieces, and how it was sent (see <see cref="HamDrmReceiver.Incomplete"/>).</summary>
+public sealed record IncompleteFile(UnfinishedFile File, TransmitSettings Settings, string? Callsign, DateTime Heard)
+{
+    /// <summary>The request for its missing pieces, EasyPal style (with its name and mode).</summary>
+    public BsrRequest Request() =>
+        new(File.TransportId, File.PieceSize, File.Missing, File.Name, BsrRequest.ModeCodeOf(Settings));
+
+    /// <summary>The request's sound: bsr.bin sent with the same settings the picture came with
+    /// (as QSSTV does), from <paramref name="callsign"/>.</summary>
+    public HamDrmTransmitter Transmitter(string callsign) =>
+        new(BsrRequest.FileNameOnAir, Request().ToBytes(), Settings, callsign, transportId: BsrTransportIds.Next());
+}
+
+/// <summary>A request for missing pieces that was heard, and who sent it.</summary>
+public sealed record HeardBsr(BsrRequest Request, string? Callsign, DateTime Heard);
 
 /// <summary>What's known about the transmission being received (see <see cref="HamDrmReceiver.Heard"/>).</summary>
 public sealed record HeardSettings(HamDrmMode Mode, FacInfo? Fac, int? ReedSolomon, string? Callsign);

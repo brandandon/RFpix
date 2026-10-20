@@ -33,6 +33,13 @@ public sealed record ReceivedFile(string Name, byte[] Data, int TransportId)
     public int RepairedPieces { get; init; }
 }
 
+/// <summary>A file that's still missing pieces, kept so a repeat or a fix can complete it.</summary>
+/// <param name="Name">Null if its header never arrived.</param>
+/// <param name="PieceSize">Bytes in a full piece (0 if no full piece arrived).</param>
+/// <param name="Pieces">How many pieces the file has.</param>
+/// <param name="Missing">The pieces that haven't arrived, in order.</param>
+public sealed record UnfinishedFile(int TransportId, string? Name, int PieceSize, int Pieces, IReadOnlyList<int> Missing);
+
 /// <summary>How far along the current file is.</summary>
 /// <param name="Name">Null until the file's header has arrived.</param>
 /// <param name="Size">The file's size in bytes, or 0 until the header has arrived.</param>
@@ -56,6 +63,10 @@ public sealed class MotReceiver
     }
 
     private readonly Dictionary<int, Transfer> _transfers = new();
+    private readonly List<int> _recent = new();   // transport IDs, the most recently heard last
+
+    /// <summary>Files still missing pieces that are kept (the oldest are forgotten after this many).</summary>
+    public const int KeepUnfinished = 10;
     private readonly Dictionary<int, (List<byte> Data, int Counter)> _assembling = new();   // per packet ID
     private int? _currentId;
     private readonly HashSet<int> _seen = new();
@@ -142,6 +153,17 @@ public sealed class MotReceiver
 
         if (type != 3 && type != 4) return null;   // only file headers and bodies matter here
         if (!_transfers.TryGetValue(transportId, out var t)) _transfers[transportId] = t = new Transfer();
+        if (_currentId != transportId)
+        {
+            _recent.Remove(transportId);
+            _recent.Add(transportId);
+            // Keep only the latest few unfinished files (never the one arriving now).
+            while (_recent.Count > KeepUnfinished)
+            {
+                _transfers.Remove(_recent[0]);
+                _recent.RemoveAt(0);
+            }
+        }
         _currentId = transportId;
         if (type == 4)
         {
@@ -238,7 +260,11 @@ public sealed class MotReceiver
         TransferProgress? unfinished = null;
         if (_currentId is int id && _transfers.TryGetValue(id, out var t) && !t.Done && t.Name is not null)
             unfinished = ProgressOf(id, t);
-        foreach (int done in _transfers.Where(p => p.Value.Done).Select(p => p.Key).ToList()) _transfers.Remove(done);
+        foreach (int done in _transfers.Where(p => p.Value.Done).Select(p => p.Key).ToList())
+        {
+            _transfers.Remove(done);
+            _recent.Remove(done);
+        }
         _assembling.Clear();
         _currentId = null;
         _seen.Clear();
@@ -283,6 +309,29 @@ public sealed class MotReceiver
                    { ReedSolomonLevel = level };
         return new ReceivedFile(name, data, transportId)
                { ReedSolomonLevel = level, Problem = "The Reed-Solomon protection couldn't repair this file." };
+    }
+
+    /// <summary>The files still missing pieces whose size is known, the most recently heard first.</summary>
+    public IReadOnlyList<UnfinishedFile> Unfinished()
+    {
+        var list = new List<UnfinishedFile>();
+        for (int i = _recent.Count - 1; i >= 0; i--)
+            if (_transfers.TryGetValue(_recent[i], out var t) && !t.Done && UnfinishedOf(_recent[i], t) is { } u) list.Add(u);
+        return list;
+    }
+
+    /// <summary>The file with this transport ID if it's still missing pieces, or null.</summary>
+    public UnfinishedFile? Unfinished(int transportId) =>
+        _transfers.TryGetValue(transportId, out var t) && !t.Done ? UnfinishedOf(transportId, t) : null;
+
+    private static UnfinishedFile? UnfinishedOf(int id, Transfer t)
+    {
+        int total = t.LastSegment is int last ? last + 1
+                  : t.BodySize > 0 && t.SegmentSize > 0 ? (t.BodySize + t.SegmentSize - 1) / t.SegmentSize
+                  : 0;
+        if (total == 0) return null;
+        var missing = Enumerable.Range(0, total).Where(i => !t.Segments.ContainsKey(i)).ToList();
+        return missing.Count == 0 ? null : new UnfinishedFile(id, t.Name, t.SegmentSize, total, missing);
     }
 
     private static TransferProgress ProgressOf(int id, Transfer t)

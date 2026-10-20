@@ -19,6 +19,10 @@
 //   made the fifth, so 4 of them go out.)
 // Pieces sent twice give the receiver a second chance at any it missed.
 //
+// A "fix" (the answer to a request for missing pieces, see Bsr.cs) sends the run-in, then
+// only the pieces asked for, then the run-out. (QSSTV means to repeat the header every 30
+// pieces in a fix too, but its counter never moves, so it doesn't; RFpix does the same.)
+//
 // Ported from QSSTV's DABMOT.cpp, MOTSlideShow.cpp and DataDecoder.cpp; a test checks
 // every packet against QSSTV's own transmitter, bit for bit.
 
@@ -60,7 +64,9 @@ public sealed class MotSender
     /// <param name="name">The file name the receiver will save it as, e.g. "img04.jpg".</param>
     /// <param name="data">The file's bytes.</param>
     /// <param name="frameBytes">Whole bytes one frame carries (<see cref="MscDecoder.PacketBytes"/>).</param>
-    public MotSender(string name, byte[] data, int frameBytes)
+    /// <param name="onlyPieces">For a fix: send only these body pieces (between the run-in and run-out).</param>
+    /// <param name="transportId">To use instead of the one made from the name (a request uses 0-2).</param>
+    public MotSender(string name, byte[] data, int frameBytes, IReadOnlyList<int>? onlyPieces = null, int? transportId = null)
     {
         if (data.Length == 0) throw new ArgumentException("There's nothing to send: the file is empty.");
         if (string.IsNullOrEmpty(name)) throw new ArgumentException("The file needs a name.");
@@ -68,10 +74,15 @@ public sealed class MotSender
         if (PieceSize < 1) throw new ArgumentException($"A frame of {frameBytes} bytes is too small to carry data.");
 
         _name = Encoding.Latin1.GetBytes(name.Length > MaxNameLength ? name[..MaxNameLength] : name);
-        TransportId = TransportIdFor(_name);
+        TransportId = transportId ?? TransportIdFor(_name);
         _headerPieces = Pieces(Header(data.Length), HeaderPieceSize);
         _bodyPieces = Pieces(data, PieceSize);
-        Order = MakeOrder(_headerPieces.Count, _bodyPieces.Count);
+        if (onlyPieces is not null)
+        {
+            onlyPieces = onlyPieces.Where(p => p >= 0 && p < _bodyPieces.Count).Distinct().Order().ToList();
+            if (onlyPieces.Count == 0) throw new ArgumentException("None of the pieces asked for are in this file.");
+        }
+        Order = MakeOrder(_headerPieces.Count, _bodyPieces.Count, onlyPieces);
     }
 
     /// <summary>QSSTV's "special hamcode": a sum and an exclusive-or of the name's characters.</summary>
@@ -185,7 +196,7 @@ public sealed class MotSender
         return pieces;
     }
 
-    private static List<int> MakeOrder(int headers, int bodies)
+    private static List<int> MakeOrder(int headers, int bodies, IReadOnlyList<int>? only = null)
     {
         var order = new List<int>();
         void HeaderAndLast()
@@ -204,11 +215,13 @@ public sealed class MotSender
         }
 
         RunInOrOut(RunIn);
-        for (int i = 0; i < bodies; i++)
-        {
-            if (i % HeaderEvery == 0) HeaderAndLast();
-            order.Add(i);
-        }
+        if (only is not null) order.AddRange(only);
+        else
+            for (int i = 0; i < bodies; i++)
+            {
+                if (i % HeaderEvery == 0) HeaderAndLast();
+                order.Add(i);
+            }
         RunInOrOut(RunOut);
         return order;
     }

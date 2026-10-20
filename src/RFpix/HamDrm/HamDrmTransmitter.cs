@@ -47,6 +47,10 @@ public sealed class HamDrmTransmitter
     /// <summary>How long the transmission lasts.</summary>
     public TimeSpan Duration => TimeSpan.FromSeconds(Frames * FrameSeconds);
 
+    /// <summary>Bytes of the file in each piece, and how many pieces it's cut into.</summary>
+    public int PieceSize { get; }
+    public int Pieces { get; }
+
     /// <summary>The file's number on the air (from its name).</summary>
     public int TransportId { get; }
 
@@ -57,7 +61,10 @@ public sealed class HamDrmTransmitter
     /// <summary>Prepares a transmission. Nothing is generated until <see cref="Audio"/>.</summary>
     /// <param name="name">The file name the receiver saves it as (e.g. "test04.jpg").</param>
     /// <param name="callsign">The sender's callsign, shown by the receiver (up to 9 characters).</param>
-    public HamDrmTransmitter(string name, byte[] data, TransmitSettings settings, string callsign)
+    /// <param name="onlyPieces">For a fix: send only these pieces of the file (see <see cref="MotSender"/>).</param>
+    /// <param name="transportId">To use instead of the one made from the name (a BSR request uses 0-2).</param>
+    public HamDrmTransmitter(string name, byte[] data, TransmitSettings settings, string callsign,
+                             IReadOnlyList<int>? onlyPieces = null, int? transportId = null)
     {
         _settings = settings;
         _callsign = callsign.Trim().ToUpperInvariant();
@@ -65,7 +72,9 @@ public sealed class HamDrmTransmitter
             throw new ArgumentException($"HamDRM carries at most {FacEncoder.MaxLabelLength} callsign characters.");
         _layout = CellLayout.For(settings.Mode, settings.Bandwidth);
         _msc = new MscEncoder(_layout.DataCellsPerFrame, settings.Qam, settings.Protection);
-        var mot = new MotSender(name, data, _msc.DataBits / 8);
+        var mot = new MotSender(name, data, _msc.DataBits / 8, onlyPieces, transportId);
+        PieceSize = mot.PieceSize;
+        Pieces = mot.BodyPieces;
         TransportId = mot.TransportId;
         _packets = mot.Packets(_msc.DataBits / 8);
         // QSSTV makes one more packet than it sends: it stops right after making it.
