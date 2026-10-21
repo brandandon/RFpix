@@ -16,7 +16,8 @@
 //      waterfall text from Settings (Misc tab) before and after the picture.
 //   6. CW sends the callsign in Morse code; ID writes it on the waterfall.
 //   7. "Send as Analog SSTV": the picture is fitted to the chosen mode's frame instead (each
-//      mode has a fixed size and time) and sent as analog SSTV (Analog/SstvEncoder.cs).
+//      mode has a fixed size and time) and sent as analog SSTV (Analog/SstvEncoder.cs), without
+//      waterfall text (ID, WF TXT and WF PIC are hidden then; they come back in Digital).
 
 using Avalonia;
 using Avalonia.Controls;
@@ -110,7 +111,10 @@ public partial class SendPage : UserControl, IDisposable
         (_analog ? AnalogButton : DigitalButton).IsChecked = true;
         ShowSendAs();
         _updating = false;
-        DigitalButton.IsCheckedChanged += (_, _) => OnSendAsChanged();
+        // Each radio button reports being switched on and off; only the one switched on counts
+        // (the other is still on for a moment while the switch happens).
+        DigitalButton.IsCheckedChanged += (_, _) => { if (DigitalButton.IsChecked == true) OnSendAsChanged(analog: false); };
+        AnalogButton.IsCheckedChanged += (_, _) => { if (AnalogButton.IsChecked == true) OnSendAsChanged(analog: true); };
         AnalogModeBox.SelectionChanged += (_, _) => OnAnalogChanged();
         FillButton.IsCheckedChanged += (_, _) => OnAnalogChanged();
 
@@ -129,10 +133,10 @@ public partial class SendPage : UserControl, IDisposable
 
     private SstvModeInfo AnalogMode => SstvModes.All[Math.Clamp(AnalogModeBox.SelectedIndex, 0, SstvModes.All.Count - 1)];
 
-    private void OnSendAsChanged()
+    private void OnSendAsChanged(bool analog)
     {
-        if (_updating) return;
-        _analog = AnalogButton.IsChecked == true;
+        if (_updating || analog == _analog) return;
+        _analog = analog;
         AppSettings.Current.SendAnalog = _analog;
         AppSettings.Current.Save();
         ShowSendAs();
@@ -140,9 +144,11 @@ public partial class SendPage : UserControl, IDisposable
     }
 
     /// <summary>Shows the controls for HamDRM or for analog SSTV. The repeater time-out and lead-in
-    /// (the last two settings) count for both.</summary>
+    /// (the last two settings) count for both. Analog SSTV goes out without waterfall text, so ID,
+    /// WF TXT and WF PIC are hidden then (their settings stay, for Digital).</summary>
     private void ShowSendAs()
     {
+        IdButton.IsVisible = WfTextButton.IsVisible = WfPicButton.IsVisible = !_analog;
         ProfileWrap.IsVisible = !_analog;
         var settings = SettingsWrap.Children;
         for (int i = 0; i < settings.Count - 2; i++) settings[i].IsVisible = !_analog;
@@ -182,7 +188,7 @@ public partial class SendPage : UserControl, IDisposable
 
         var profile = CurrentSettings();
         var onAir = AnalogOnAir(mode);
-        int seconds = (int)Math.Ceiling((SstvEncoder.Duration(mode) + TextTime).TotalSeconds);
+        int seconds = (int)Math.Ceiling(SstvEncoder.Duration(mode).TotalSeconds);
         EstimateText.Text = $"{Clock(seconds)} on the air";
         bool fits = profile.FitsTimeout(onAir);
         EstimateBorder.Background = fits ? FitsBrush : OverBrush;
@@ -190,18 +196,16 @@ public partial class SendPage : UserControl, IDisposable
         EstimateDetail.Text = profile.TimeoutSeconds <= 0 ? "No repeater time-out set"
             : fits ? $"Inside the repeater's {Clock(profile.TimeoutSeconds)} time-out"
             : $"Over the repeater's {Clock(profile.TimeoutSeconds)} time-out ({Clock((int)Math.Ceiling(onAir.TotalSeconds))} in all): pick a shorter mode.";
-        if (TextTime > TimeSpan.Zero)
-            EstimateDetail.Text += $"\nIncluding {TextTime.TotalSeconds:0} s of waterfall text (set in Settings, Misc tab).";
         SendButton.IsEnabled = true;
         SaveButton.IsEnabled = _sending is null;
     }
 
-    /// <summary>How long an analog picture keeps the transmitter on: lead-in, waterfall text, VIS and picture, tail.</summary>
-    private TimeSpan AnalogOnAir(SstvModeInfo mode) => SstvEncoder.Duration(mode) + CurrentSettings().Overhead(TextTime);
+    /// <summary>How long an analog picture keeps the transmitter on: lead-in, VIS and picture, tail.</summary>
+    private TimeSpan AnalogOnAir(SstvModeInfo mode) => SstvEncoder.Duration(mode) + CurrentSettings().Overhead(TimeSpan.Zero);
 
-    /// <summary>The analog picture's sound, with the waterfall text from Settings around it.</summary>
+    /// <summary>The analog picture's sound (no waterfall text: that's for Digital only).</summary>
     private static Func<float[]> AnalogSound(DecodedPicture picture, SstvModeInfo mode) =>
-        () => SendSupport.WithWaterfallText(SstvEncoder.Audio(picture, mode));
+        () => SstvEncoder.Audio(picture, mode);
 
     // ---- the send settings and profiles ----
 
@@ -812,6 +816,7 @@ public partial class SendPage : UserControl, IDisposable
         SendButton.Content = "Stop";
         SendButton.IsEnabled = true;
         SaveButton.IsEnabled = OpenButton.IsEnabled = CwButton.IsEnabled = IdButton.IsEnabled = false;
+        DigitalButton.IsEnabled = AnalogButton.IsEnabled = false;   // not while sending
         WfTextButton.IsEnabled = WfPicButton.IsEnabled = false;
         Progress.Value = 0;
         Progress.IsVisible = true;
@@ -838,6 +843,7 @@ public partial class SendPage : UserControl, IDisposable
             SendButton.IsEnabled = _analog ? _analogPicture is not null : _fitted is not null && _fitting is null;
             SaveButton.IsEnabled = SendButton.IsEnabled;
             OpenButton.IsEnabled = CwButton.IsEnabled = IdButton.IsEnabled = true;
+            DigitalButton.IsEnabled = AnalogButton.IsEnabled = true;
             WfTextButton.IsEnabled = WfPicButton.IsEnabled = true;
             Progress.IsVisible = false;
         }

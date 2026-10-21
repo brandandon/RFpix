@@ -87,7 +87,8 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
   pick the mode on the right (Martin 1 and 2, Scottie 1, 2 and DX, Robot 36 and 72, PD 50 to PD 290;
   each shows its size and time) and how the picture fits the mode's frame: **Fill the frame** (the
   edges that don't fit are cut off) or **Whole picture** (black bars). The repeater time-out and
-  lead-in count as for HamDRM, and the waterfall text from Settings goes before and after.
+  lead-in count as for HamDRM. Analog pictures go out without waterfall text, so ID, WF TXT and
+  WF PIC are hidden in analog; they come back, with their settings, in Digital.
 - **Receive** tab: nothing to set. RFpix listens for analog SSTV and HamDRM at the same time; an
   analog picture appears line by line, then is saved (as PNG), shown in the Gallery and copied for
   the website. A picture is recognised by its start code (VIS), so tune in before it begins.
