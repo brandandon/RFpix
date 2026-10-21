@@ -123,11 +123,9 @@
     </Grid>
 
     <!-- Row 2: frequency under the mouse, and a hint -->
-    <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*">
-      <TextBlock x:Name="PointerFrequencyText" Grid.Column="0" MinWidth="140" FontWeight="SemiBold" VerticalAlignment="Center" />
-      <CheckBox x:Name="ScrollUpBox" Grid.Column="1" Content="Waterfall scrolls up" IsCheckedChanged="OnScrollUpChanged"
-                ToolTip.Tip="New lines at the bottom, moving up, instead of at the top moving down. (Waterfall text from other stations is made for the usual direction, so it shows upside down this way.)" />
-      <TextBlock Grid.Column="2" Classes="Hint" HorizontalAlignment="Right" VerticalAlignment="Center"
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,*">
+      <TextBlock x:Name="PointerFrequencyText" Grid.Column="0" MinWidth="140" FontWeight="SemiBold" />
+      <TextBlock Grid.Column="1" Classes="Hint" HorizontalAlignment="Right"
                  Text="A HamDRM signal shows as a wide band, roughly 300 to 2800 Hz." />
     </Grid>
 

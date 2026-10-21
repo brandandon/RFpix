@@ -3,7 +3,6 @@
 // The picture is kept as a grid of coloured pixels: one column per frequency
 // step, one row per line. Each new line is painted at the top and everything
 // else moves down one row, so signals "fall" down the screen over time.
-// With ScrollsUp, the picture is drawn upside down: new lines at the bottom, rising.
 // A frequency scale (in Hz) is drawn along the bottom, and marks at HamDRM's three
 // key frequencies: 725, 1475 and 1850 Hz, where every HamDRM signal (any mode) has a
 // steady tone, its "frequency pilots". Those show as three bright lines in the signal;
@@ -35,14 +34,6 @@ public sealed class WaterfallControl : Control
     public static readonly double[] KeyFrequencies = { 725, 1475, 1850 };
 
     private static readonly IPen KeyPen = new Pen(new SolidColorBrush(Color.FromArgb(150, 255, 211, 77)), 1);
-
-    /// <summary>New lines at the bottom, moving up (instead of at the top, moving down).</summary>
-    public bool ScrollsUp
-    {
-        get => _scrollsUp;
-        set { _scrollsUp = value; InvalidateVisual(); }
-    }
-    private bool _scrollsUp;
 
     /// <summary>The frequency at the right-hand edge, in Hz (set from the incoming lines).</summary>
     public double DisplayMaxFrequency { get; private set; } = 3000;
@@ -99,13 +90,7 @@ public sealed class WaterfallControl : Control
 
         if (_bitmap is not null)
         {
-            if (_scrollsUp)
-            {
-                // Upside down: y becomes (height - y), so row 0, the newest, is at the bottom.
-                using (context.PushTransform(new Matrix(1, 0, 0, -1, 0, picture.Height)))
-                    context.DrawImage(_bitmap, new Rect(0, 0, _columns, HistoryLines), picture);
-            }
-            else context.DrawImage(_bitmap, new Rect(0, 0, _columns, HistoryLines), picture);
+            context.DrawImage(_bitmap, new Rect(0, 0, _columns, HistoryLines), picture);
         }
 
         // The key frequency marks, top to bottom of the picture.

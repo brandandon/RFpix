@@ -92,9 +92,7 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
   you can watch it while you use the Send tab. Listening carries on. Close that window (or click
   **Bring Receive back**) to put it back. RFpix remembers where it was, and whether it was out.
 - **Receive** tab: the signal's offset, clock, strength and quality are in boxes; **Quality** is green
-  when it's good enough for the settings being sent, red when it isn't. **Waterfall scrolls up**
-  (under the waterfall) puts new lines at the bottom. Waterfall text and pictures from other stations
-  are made for the usual downward waterfall, so they show upside down when it scrolls up.
+  when it's good enough for the settings being sent, red when it isn't.
 
 ## Missing pieces (BSR) (new in v0.3.6)
 

@@ -141,7 +141,6 @@ public partial class ReceivePage : UserControl, IDisposable
 
         AppSettings.SoundDevicesChanged += OnSoundDevicesChanged;
         LayoutUpdated += OnLayoutUpdated;
-        ScrollUpBox.IsChecked = Waterfall.ScrollsUp = AppSettings.Current.WaterfallScrollsUp;
         UpdateStartButton();
     }
 
@@ -548,15 +547,6 @@ public partial class ReceivePage : UserControl, IDisposable
 
         double hz = Math.Clamp(x / width, 0, 1) * Waterfall.DisplayMaxFrequency;
         PointerFrequencyText.Text = $"{hz:0} Hz";
-    }
-
-    // The waterfall's direction: new lines at the top falling down (usual), or at the bottom rising.
-    private void OnScrollUpChanged(object? sender, RoutedEventArgs e)
-    {
-        if (Waterfall is null) return;   // still being built
-        Waterfall.ScrollsUp = ScrollUpBox.IsChecked == true;
-        AppSettings.Current.WaterfallScrollsUp = Waterfall.ScrollsUp;
-        AppSettings.Current.Save();
     }
 
     private void OnWaterfallPointerExited(object? sender, PointerEventArgs e)
