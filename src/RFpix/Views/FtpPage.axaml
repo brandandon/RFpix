@@ -21,7 +21,7 @@
           <Button Content="Browse…" Click="OnBrowseClick" />
         </StackPanel>
         <TextBlock Classes="Hint" TextWrapping="Wrap" Margin="26,0,0,0"
-                   Text="The pictures in the Received folder stay as they came; these copies are for the website. Another uploader (the SSTV Auto Uploader, say) can watch this folder instead of RFpix." />
+                   Text="The pictures in the Received folder stay as they came; these copies are for the website. Digital (HamDRM) and analog SSTV copies are kept apart, in the folder's Digital and Analog subfolders. Another uploader (the SSTV Auto Uploader, say) can watch those instead of RFpix." />
       </StackPanel>
 
       <!-- Uploading -->
@@ -29,7 +29,7 @@
         <TextBlock Text="Upload" FontWeight="SemiBold" />
         <CheckBox x:Name="UploadBox" Content="Upload new pictures from that folder to my website" />
         <TextBlock Classes="Hint" TextWrapping="Wrap" Margin="26,0,0,0"
-                   Text="As the SSTV Auto Uploader does: the newest picture becomes image1.jpg and the others move up (image1 to image2...), so the website shows the latest ones. Each file is then moved into the folder's Archives subfolder. Don't run both at once." />
+                   Text="As the SSTV Auto Uploader does: the newest picture becomes image1.jpg and the others move up (image1 to image2...), so the website shows the latest ones. Digital and analog pictures go to their own folders on the server below, each with its own image1 to image12. Each file is then moved into its folder's Archives subfolder. Don't run both at once." />
       </StackPanel>
 
       <!-- Server -->
@@ -58,9 +58,15 @@
             <TextBlock Text="Password" FontSize="13" />
             <TextBox x:Name="PasswordBox" Width="220" PasswordChar="●" />
           </StackPanel>
+        </WrapPanel>
+        <WrapPanel>
           <StackPanel Spacing="4" Margin="0,0,14,8">
-            <TextBlock Text="Folder on the server (optional)" FontSize="13" />
-            <TextBox x:Name="RemoteFolderBox" Width="260" Watermark="blank: the folder you log in to" />
+            <TextBlock Text="Folder on the server for digital pictures" FontSize="13" />
+            <TextBox x:Name="RemoteFolderBox" Width="300" Watermark="blank: the folder you log in to" />
+          </StackPanel>
+          <StackPanel Spacing="4" Margin="0,0,14,8">
+            <TextBlock Text="Folder on the server for analog pictures" FontSize="13" />
+            <TextBox x:Name="RemoteFolderAnalogBox" Width="300" Watermark="blank: the folder you log in to" />
           </StackPanel>
         </WrapPanel>
         <TextBlock Classes="Hint" TextWrapping="Wrap"

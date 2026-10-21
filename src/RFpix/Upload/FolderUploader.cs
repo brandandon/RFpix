@@ -9,8 +9,10 @@
 //   4. Move the file into the folder's "Archives" subfolder, named by its date and time.
 // If the server can't be reached, it tries again 30 seconds later.
 //
-// RFpix puts a JPEG copy of each picture in the folder (UploadCopies), but anything else
-// that saves JPEGs there (MMSSTV, say) is uploaded too.
+// RFpix keeps digital and analog pictures apart: copies go to the folder's Digital and Analog
+// subfolders, each watched by its own uploader and sent to its own folder on the server, each
+// with its own image1 to image12 (UploadService). Anything else that saves JPEGs in one of those
+// folders (MMSSTV, say) is uploaded too.
 
 using System.Globalization;
 
@@ -45,8 +47,24 @@ public sealed class UploadSettings
     public int Port { get; set; } = 21;
     public string Username { get; set; } = "";
     public string? ProtectedPassword { get; set; }
-    /// <summary>A folder on the server to change to after logging in ("" for the login folder).</summary>
+    /// <summary>The folder on the server for digital (HamDRM) pictures, after logging in ("" for the login folder).</summary>
     public string RemoteFolder { get; set; } = "";
+    /// <summary>The folder on the server for analog SSTV pictures ("" for the login folder).</summary>
+    public string RemoteFolderAnalog { get; set; } = "";
+
+    /// <summary>The copies are kept apart: Folder\Digital and Folder\Analog.</summary>
+    public const string DigitalSubfolder = "Digital", AnalogSubfolder = "Analog";
+
+    public string CopyFolder(bool analog) => System.IO.Path.Combine(Folder, analog ? AnalogSubfolder : DigitalSubfolder);
+
+    /// <summary>The settings one uploader works from: the Digital or Analog copy folder, and its server folder.</summary>
+    public UploadSettings For(bool analog)
+    {
+        var copy = (UploadSettings)MemberwiseClone();
+        copy.Folder = CopyFolder(analog);
+        copy.RemoteFolder = analog ? RemoteFolderAnalog : RemoteFolder;
+        return copy;
+    }
     public double StableSeconds { get; set; } = 3;
     public int ImageCount { get; set; } = 12;
     public string RemotePrefix { get; set; } = "image";

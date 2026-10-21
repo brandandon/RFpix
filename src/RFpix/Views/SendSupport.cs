@@ -163,7 +163,7 @@ internal static class SendSupport
                 profile.Settings.Description, profile.ReedSolomon));
             RaiseGalleryChanged();
             var picture = fitted.File;
-            _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when, sent: true));
+            _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when, analog: false, sent: true));
             return null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -182,7 +182,7 @@ internal static class SendSupport
             string path = GalleryIndex.SaveSent(SentFolder, name, Pictures.EncodeJpeg(picture, 92), when);
             GalleryIndex.Add(SentFolder, new GalleryEntry(Path.GetFileName(path), when, name, callsign, $"Analog SSTV  ·  {mode.Name}"));
             RaiseGalleryChanged();
-            _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when, sent: true));
+            _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when, analog: true, sent: true));
             return null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PictureException)

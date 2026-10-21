@@ -42,6 +42,7 @@ public partial class FtpPage : UserControl, IDisposable
         PasswordBox.Text = "";
         PasswordBox.Watermark = s.ProtectedPassword is null ? "" : "(saved; type to change)";
         RemoteFolderBox.Text = s.RemoteFolder;
+        RemoteFolderAnalogBox.Text = s.RemoteFolderAnalog;
         CountBox.Text = s.ImageCount.ToString();
         PrefixBox.Text = s.RemotePrefix;
         ExtensionBox.Text = s.RemoteExtension;
@@ -84,6 +85,7 @@ public partial class FtpPage : UserControl, IDisposable
             Username = (UserBox.Text ?? "").Trim(),
             ProtectedPassword = typed.Length > 0 ? Secrets.Protect(typed) : old.ProtectedPassword,
             RemoteFolder = (RemoteFolderBox.Text ?? "").Trim(),
+            RemoteFolderAnalog = (RemoteFolderAnalogBox.Text ?? "").Trim(),
             StableSeconds = stable,
             ImageCount = count,
             RemotePrefix = (PrefixBox.Text ?? "").Trim(),
@@ -101,8 +103,8 @@ public partial class FtpPage : UserControl, IDisposable
         AppSettings.Current.Save();
         UploadService.Restart();
         Show(s);
-        ShowStatus(s.Upload ? $"Saved. Uploading new pictures from {s.Folder} to {s.Host}."
-                   : s.SaveCopies ? $"Saved. Copies go to {s.Folder}; uploading is off."
+        ShowStatus(s.Upload ? $"Saved. Uploading new pictures from {s.CopyFolder(false)} and {s.CopyFolder(true)} to {s.Host}."
+                   : s.SaveCopies ? $"Saved. Copies go to {s.CopyFolder(false)} and {s.CopyFolder(true)}; uploading is off."
                    : "Saved. Copies and uploading are off.", problem: false);
     }
 
@@ -114,7 +116,10 @@ public partial class FtpPage : UserControl, IDisposable
         ShowStatus($"Connecting to {s.Host} ({s.Protocol}, port {s.Port})…", problem: false);
         try
         {
-            string result = await Task.Run(() => FolderUploader.Test(s, RemoteFolders.Connect));
+            // Both folders on the server: digital, then analog.
+            string result = await Task.Run(() =>
+                "Digital: " + FolderUploader.Test(s.For(analog: false), RemoteFolders.Connect) + "\n" +
+                "Analog: " + FolderUploader.Test(s.For(analog: true), RemoteFolders.Connect));
             ShowStatus(result, problem: false);
             UploadService.Add($"Test: {result}");
         }

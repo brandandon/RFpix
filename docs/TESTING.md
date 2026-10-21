@@ -81,6 +81,19 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
 
+## Digital and analog kept apart, signal boxes (new after v0.4.4)
+
+- **Received pictures**: HamDRM pictures now go to `Received\Digital` and analog SSTV pictures to
+  `Received\Analog`. Pictures already in `Received` stay where they are; the Gallery's Received
+  tab shows all three folders together.
+- **Website copies**: copies go to the Digital and Analog subfolders of the copies folder (for
+  example `C:\FTPIMAGE\Digital`). **Settings > FTP server** has two server folders, one for each;
+  each kind gets its own image1 to image12 on the website. **Test** checks both server folders.
+  Click **Save** after changing anything.
+- **Receive** tab: the Offset, Clock, Strength and Quality boxes are always there, each a fixed
+  size, and empty while there's no HamDRM signal ("No HamDRM signal" is gone). Quality shows the
+  dB needed in brackets, for example "14 dB (11)".
+
 ## Overlay templates (new in v0.4.2 to v0.4.4)
 
 - **Send** tab, **Template…** (under Open picture): pick a template from the thumbnails (each is

@@ -155,4 +155,15 @@ public class UploadTests
         Assert.True(white > 100, $"{white} white pixels");  // the letters
         Assert.Equal(128, bgra[0]);                        // the original is unchanged
     }
+
+    [Fact]
+    public void Digital_and_analog_copies_go_to_their_own_folders_here_and_on_the_server()
+    {
+        var s = new UploadSettings { Folder = @"E:\RXpiximg", RemoteFolder = "/sstv/digital", RemoteFolderAnalog = "/sstv/analog" };
+        Assert.Equal(Path.Combine(@"E:\RXpiximg", "Digital"), s.CopyFolder(analog: false));
+        Assert.Equal(Path.Combine(@"E:\RXpiximg", "Analog"), s.For(analog: true).Folder);
+        Assert.Equal("/sstv/digital", s.For(analog: false).RemoteFolder);
+        Assert.Equal("/sstv/analog", s.For(analog: true).RemoteFolder);
+        Assert.Equal(@"E:\RXpiximg", s.Folder);   // the settings themselves are unchanged
+    }
 }

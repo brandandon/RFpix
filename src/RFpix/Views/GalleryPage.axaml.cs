@@ -56,12 +56,17 @@ public partial class GalleryPage : UserControl
     }
 
     // Thumbnails are kept by full path (a received and a sent picture can share a name).
-    private string Key(GalleryEntry entry) => Path.Combine(Folder, entry.File);
+    private static string Key(GalleryEntry entry) => entry.FullPath;
 
     private bool ShowingSent => Tabs.SelectedIndex == 1;
 
     private string Folder => ShowingSent ? SendSupport.SentFolder
                                          : AppSettings.Current.ReceivedFolder ?? ReceivedFileSaver.DefaultFolder;
+
+    // Received pictures are in the Received folder's Digital and Analog folders (and, from
+    // before they were kept apart, the Received folder itself).
+    private string[] Folders => ShowingSent ? new[] { Folder }
+        : new[] { Folder, Path.Combine(Folder, ReceivedFileSaver.DigitalSubfolder), Path.Combine(Folder, ReceivedFileSaver.AnalogSubfolder) };
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
@@ -89,11 +94,12 @@ public partial class GalleryPage : UserControl
         _stale = false;
         int generation = ++_generation;
         string folder = Folder;
+        var folders = Folders;
         string find = (FindBox.Text ?? "").Trim();
         List<GalleryEntry> entries;
         try
         {
-            entries = await Task.Run(() => GalleryIndex.List(folder));
+            entries = await Task.Run(() => GalleryIndex.List(folders));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -111,7 +117,7 @@ public partial class GalleryPage : UserControl
         ReceivedTab.Content = ShowingSent ? "Received" : $"Received ({total})";
         SentTab.Content = ShowingSent ? $"Sent ({total})" : "Sent";
         BuildTiles(matching);
-        if (_selected is not null && _entries.FirstOrDefault(e => e.File == _selected.File) is { } still) Select(still);
+        if (_selected is not null && _entries.FirstOrDefault(e => e.FullPath == _selected.FullPath) is { } still) Select(still);
         else ShowDetails(null);
         await LoadThumbnailsAsync(generation, folder);
     }
@@ -178,7 +184,7 @@ public partial class GalleryPage : UserControl
         ToolTip.SetTip(tile, entry.File);
         tile.Click += (_, _) => Select(entry);
         tile.DoubleTapped += (_, _) => OpenFullSize(entry);
-        _tiles[entry.File] = tile;
+        _tiles[Key(entry)] = tile;
         return tile;
     }
 
@@ -188,7 +194,7 @@ public partial class GalleryPage : UserControl
         foreach (var entry in _entries.ToList())
         {
             if (generation != _generation) return;
-            string path = Path.Combine(folder, entry.File);
+            string path = entry.FullPath;
             DateTime written;
             try { written = File.GetLastWriteTimeUtc(path); } catch (IOException) { continue; }
             if (_thumbnails.TryGetValue(path, out var have) && have.Written == written) continue;
@@ -199,11 +205,11 @@ public partial class GalleryPage : UserControl
             _thumbnails.TryGetValue(path, out var old);
             _thumbnails[path] = (written, bitmap, m.Width, m.Height);
             bool current = generation == _generation;
-            if (current && _tiles.TryGetValue(entry.File, out var tile) && tile.Tag is Image image) image.Source = bitmap;
+            if (current && _tiles.TryGetValue(Key(entry), out var tile) && tile.Tag is Image image) image.Source = bitmap;
             // (An older thumbnail of a changed file is let go once nothing shows it.)
             if (old.Bitmap is not null && !ReferenceEquals(DetailImage.Source, old.Bitmap) && current) old.Bitmap.Dispose();
             if (!current) return;
-            if (_selected?.File == entry.File) ShowDetails(_selected);
+            if (_selected?.FullPath == entry.FullPath) ShowDetails(_selected);
         }
     }
 
@@ -222,9 +228,9 @@ public partial class GalleryPage : UserControl
 
     private void Select(GalleryEntry entry)
     {
-        if (_selected is not null && _tiles.TryGetValue(_selected.File, out var before)) before.Classes.Remove("Selected");
+        if (_selected is not null && _tiles.TryGetValue(Key(_selected), out var before)) before.Classes.Remove("Selected");
         _selected = entry;
-        if (_tiles.TryGetValue(entry.File, out var tile)) tile.Classes.Add("Selected");
+        if (_tiles.TryGetValue(Key(entry), out var tile)) tile.Classes.Add("Selected");
         ShowDetails(entry);
     }
 
@@ -318,7 +324,7 @@ public partial class GalleryPage : UserControl
         try
         {
             var launcher = TopLevel.GetTopLevel(this)?.Launcher;
-            if (launcher is not null) await launcher.LaunchFileInfoAsync(new FileInfo(Path.Combine(Folder, entry.File)));
+            if (launcher is not null) await launcher.LaunchFileInfoAsync(new FileInfo(entry.FullPath));
         }
         catch (Exception ex)
         {
@@ -328,7 +334,7 @@ public partial class GalleryPage : UserControl
 
     private void OnSendThisClick(object? sender, RoutedEventArgs e)
     {
-        if (_selected is { } entry) SendRequested?.Invoke(Path.Combine(Folder, entry.File));
+        if (_selected is { } entry) SendRequested?.Invoke(entry.FullPath);
     }
 
     private void OnShowInFolderClick(object? sender, RoutedEventArgs e)
@@ -336,7 +342,7 @@ public partial class GalleryPage : UserControl
         if (_selected is not { } entry) return;
         try
         {
-            string path = Path.Combine(Folder, entry.File);
+            string path = entry.FullPath;
             if (OperatingSystem.IsWindows()) Process.Start("explorer.exe", $"/select,\"{path}\"");
             else OnOpenFolderClick(sender, e);
         }
@@ -371,7 +377,7 @@ public partial class GalleryPage : UserControl
             DeleteButton.Content = "Click again to delete";
             return;
         }
-        string folder = Folder, path = Path.Combine(folder, entry.File);
+        string folder = entry.Folder ?? Folder, path = entry.FullPath;
         try
         {
             if (OperatingSystem.IsWindows())

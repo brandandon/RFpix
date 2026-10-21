@@ -250,7 +250,8 @@ public partial class ReceivePage : UserControl, IDisposable
         LevelText.Text = "Not listening";
         FormatText.Text = "";
         SignalText.Text = "";
-        SignalPanel.IsVisible = false;
+        SignalText.IsVisible = false;
+        ShowSignal();   // empty boxes
         TransmissionText.Text = "";
         FileText.Text = "";
         // Start fresh next time, so a signal from one source isn't carried over to another.
@@ -443,22 +444,20 @@ public partial class ReceivePage : UserControl, IDisposable
 
     private void ShowSignal()
     {
+        // Above the boxes: a problem, or the analog SSTV picture arriving; otherwise nothing.
+        string line = _receiver.Problem
+                      ?? (_sstv.Receiving is { } analog ? $"Analog SSTV: {analog.Name}  ·  line {_analogLines} of {analog.Height}" : "");
+        SignalText.Text = line;
+        SignalText.IsVisible = line.Length > 0;
+
+        // The boxes stay, empty until there's a reading (a no-break space keeps each one's height).
+        const string Empty = "\u00A0";
         var s = _receiver.Signal;
-        SignalPanel.IsVisible = s is not null;
-        SignalText.IsVisible = s is null;
-        if (s is null)
-        {
-            // "No HamDRM signal", or the problem; or the analog SSTV picture arriving.
-            SignalText.Text = _sstv.Receiving is { } analog && _receiver.Problem is null
-                ? $"Analog SSTV: {analog.Name}  ·  line {_analogLines} of {analog.Height}"
-                : _receiver.StatusText;
-            return;
-        }
-        SignalOffset.Text = s.OffsetHz is double hz ? $"{hz:+0.0;-0.0;0.0} Hz" : "finding…";
-        SignalClock.Text = s.ClockPpm is double ppm ? $"{ppm:+0;-0;0} ppm" : "…";
-        SignalStrength.Text = $"{s.Strength:P0}";
-        SignalQuality.Text = s.QualityDb is double q ? $"{q:0} dB" + (s.QualityNeededDb is double n ? $"  (needs {n:0})" : "") : "…";
-        switch (s.QualityGood)
+        SignalOffset.Text = s?.OffsetHz is double hz ? $"{hz:+0.0;-0.0;0.0} Hz" : Empty;
+        SignalClock.Text = s?.ClockPpm is double ppm ? $"{Math.Clamp(ppm, -999, 999):+0;-0;0} ppm" : Empty;
+        SignalStrength.Text = s is not null ? $"{s.Strength:P0}" : Empty;
+        SignalQuality.Text = s?.QualityDb is double q ? $"{q:0} dB" + (s.QualityNeededDb is double n ? $" ({n:0})" : "") : Empty;
+        switch (s?.QualityGood)
         {
             case true:
                 QualityBox.Background = GoodBrush;
@@ -574,6 +573,10 @@ public partial class ReceivePage : UserControl, IDisposable
 
     private static string ReceivedFolder => AppSettings.Current.ReceivedFolder ?? ReceivedFileSaver.DefaultFolder;
 
+    // Digital (HamDRM) and analog SSTV pictures are kept apart, in two folders inside it.
+    private static string DigitalFolder => Path.Combine(ReceivedFolder, ReceivedFileSaver.DigitalSubfolder);
+    private static string AnalogFolder => Path.Combine(ReceivedFolder, ReceivedFileSaver.AnalogSubfolder);
+
     // Counts received pictures, so a slow decode can't replace a newer picture on the screen.
     private int _pictureCount;
 
@@ -584,19 +587,19 @@ public partial class ReceivePage : UserControl, IDisposable
         try
         {
             var when = DateTime.Now;
-            savedAs = Path.GetFileName(ReceivedFileSaver.Save(file, ReceivedFolder, callsign, when));
+            savedAs = Path.GetFileName(ReceivedFileSaver.Save(file, DigitalFolder, callsign, when));
             // What the Gallery shows about it.
-            GalleryIndex.Add(ReceivedFolder, new GalleryEntry(savedAs, when, file.Name, string.IsNullOrEmpty(callsign) ? null : callsign,
+            GalleryIndex.Add(DigitalFolder, new GalleryEntry(savedAs, when, file.Name, string.IsNullOrEmpty(callsign) ? null : callsign,
                 file.Settings?.Description, file.ReedSolomonLevel ?? (file.Settings is null ? null : 0), quality,
                 file.RepairedPieces, _askedFor.Remove(file.TransportId)));
             SendSupport.RaiseGalleryChanged();
             // A JPEG copy for the website, stamped with the time (Settings, FTP server tab).
             var data = file.Data;
-            if (PictureFormats.Detect(data) is not null) _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(data, when));
+            if (PictureFormats.Detect(data) is not null) _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(data, when, analog: false));
         }
         catch (Exception ex)
         {
-            ShowError($"Received {file.Name}{from}, but couldn't save it to {ReceivedFolder}: {ex.Message}");
+            ShowError($"Received {file.Name}{from}, but couldn't save it to {DigitalFolder}: {ex.Message}");
             return;
         }
         if (file.Problem is not null) ShowError($"{file.Name}: {file.Problem}");
@@ -705,16 +708,16 @@ public partial class ReceivePage : UserControl, IDisposable
         {
             var png = await Task.Run(() => Pictures.EncodePng(got.Picture));
             string name = $"SSTV {got.Mode.Name}.png";
-            string savedAs = Path.GetFileName(ReceivedFileSaver.Save(new ReceivedFile(name, png, 0), ReceivedFolder, null, when));
-            GalleryIndex.Add(ReceivedFolder, new GalleryEntry(savedAs, when, name, null, $"Analog SSTV  ·  {got.Mode.Name}"));
+            string savedAs = Path.GetFileName(ReceivedFileSaver.Save(new ReceivedFile(name, png, 0), AnalogFolder, null, when));
+            GalleryIndex.Add(AnalogFolder, new GalleryEntry(savedAs, when, name, null, $"Analog SSTV  ·  {got.Mode.Name}"));
             SendSupport.RaiseGalleryChanged();
             var picture = got.Picture;
-            _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when));
+            _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when, analog: true));
             PictureCaption.Text = $"Analog SSTV {got.Mode.Name}  ·  {when:HH:mm}{status}\nSaved as \"{savedAs}\"";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PictureException)
         {
-            ShowError($"Received an analog SSTV picture ({got.Mode.Name}), but couldn't save it to {ReceivedFolder}: {ex.Message}");
+            ShowError($"Received an analog SSTV picture ({got.Mode.Name}), but couldn't save it to {AnalogFolder}: {ex.Message}");
         }
     }
 

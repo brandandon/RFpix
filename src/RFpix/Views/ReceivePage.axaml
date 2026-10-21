@@ -48,14 +48,15 @@
         <TextBlock x:Name="FormatText" Classes="Hint" FontSize="12" />
         <!-- While recording: how long and how big; afterwards: where it was saved -->
         <TextBlock x:Name="RecordText" FontSize="12" IsVisible="False" />
-        <!-- With no signal (or a problem): "No HamDRM signal". With one: its offset, clock, strength
-             and quality, one box each (quality green when good enough for the settings, red when not) -->
-        <TextBlock x:Name="SignalText" FontWeight="SemiBold" />
-        <WrapPanel x:Name="SignalPanel" IsVisible="False">
-          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Offset" /><TextBlock x:Name="SignalOffset" Classes="SettingValue" /></StackPanel></Border>
-          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Clock" /><TextBlock x:Name="SignalClock" Classes="SettingValue" /></StackPanel></Border>
-          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Strength" /><TextBlock x:Name="SignalStrength" Classes="SettingValue" /></StackPanel></Border>
-          <Border Classes="Setting" x:Name="QualityBox"
+        <!-- A problem, or the analog SSTV picture arriving (otherwise hidden). Then the HamDRM signal's
+             offset, clock, strength and quality, one fixed-size box each, always showing (empty with
+             no signal); quality green when good enough for the settings, red when not -->
+        <TextBlock x:Name="SignalText" FontWeight="SemiBold" IsVisible="False" />
+        <WrapPanel x:Name="SignalPanel">
+          <Border Classes="Setting" Width="104"><StackPanel><TextBlock Classes="SettingLabel" Text="Offset" /><TextBlock x:Name="SignalOffset" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting" Width="92"><StackPanel><TextBlock Classes="SettingLabel" Text="Clock" /><TextBlock x:Name="SignalClock" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting" Width="76"><StackPanel><TextBlock Classes="SettingLabel" Text="Strength" /><TextBlock x:Name="SignalStrength" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting" x:Name="QualityBox" Width="110"
                   ToolTip.Tip="Green: good enough for the settings being sent. Red: too weak or noisy for them; pieces will be lost.">
             <StackPanel><TextBlock x:Name="QualityLabel" Classes="SettingLabel" Text="Quality" /><TextBlock x:Name="SignalQuality" Classes="SettingValue" /></StackPanel>
           </Border>

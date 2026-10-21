@@ -90,4 +90,23 @@ public class GalleryTests
         }
         finally { Directory.Delete(folder, true); }
     }
+
+    [Fact]
+    public void Pictures_from_several_folders_are_listed_together_newest_first()
+    {
+        string folder = NewFolder();
+        try
+        {
+            string digital = Path.Combine(folder, "Digital"), analog = Path.Combine(folder, "Analog");
+            Directory.CreateDirectory(digital);
+            Directory.CreateDirectory(analog);
+            File.WriteAllBytes(Path.Combine(folder, "2026-10-19 2000 KD9DD old.jp2"), new byte[] { 1 });
+            File.WriteAllBytes(Path.Combine(digital, "2026-10-21 0900 W9ABC new.jp2"), new byte[] { 2 });
+            File.WriteAllBytes(Path.Combine(analog, "2026-10-20 1200 SSTV Martin 1.png"), new byte[] { 3 });
+            var list = GalleryIndex.List(new[] { folder, digital, analog });
+            Assert.Equal(new[] { "new.jp2", "SSTV Martin 1.png", "old.jp2" }, list.Select(e => e.Name));
+            Assert.Equal(Path.Combine(analog, "2026-10-20 1200 SSTV Martin 1.png"), list[1].FullPath);
+        }
+        finally { Directory.Delete(folder, true); }
+    }
 }

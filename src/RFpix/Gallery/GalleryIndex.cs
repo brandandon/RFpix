@@ -25,7 +25,14 @@ namespace RFpix.Gallery;
 /// <param name="CompletedByBsr">True if pieces were missing and a fix (asked for with BSR) brought them.</param>
 public sealed record GalleryEntry(string File, DateTime When, string? Name = null, string? Callsign = null,
                                   string? Settings = null, int? ReedSolomon = null, double? QualityDb = null,
-                                  int RepairedPieces = 0, bool CompletedByBsr = false);
+                                  int RepairedPieces = 0, bool CompletedByBsr = false)
+{
+    /// <summary>The folder it's in (set when listed; not saved).</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public string? Folder { get; init; }
+
+    /// <summary>Where the picture is.</summary>
+    public string FullPath => System.IO.Path.Combine(Folder ?? "", File);
+}
 
 public static class GalleryIndex
 {
@@ -76,11 +83,15 @@ public static class GalleryIndex
         {
             if (!IsPicture(path)) continue;
             string file = Path.GetFileName(path);
-            if (entries.TryGetValue(file, out var e)) list.Add(e);
-            else list.Add(FromName(file, File.GetLastWriteTime(path)));
+            var entry = entries.TryGetValue(file, out var e) ? e : FromName(file, File.GetLastWriteTime(path));
+            list.Add(entry with { Folder = folder });
         }
         return list.OrderByDescending(e => e.When).ThenByDescending(e => e.File, StringComparer.Ordinal).ToList();
     }
+
+    /// <summary>Every picture in all these folders, the newest first.</summary>
+    public static List<GalleryEntry> List(IEnumerable<string> folders) =>
+        folders.SelectMany(List).OrderByDescending(e => e.When).ThenByDescending(e => e.File, StringComparer.Ordinal).ToList();
 
     // RFpix's own names: "2026-10-20 1942 W9ABC tower.jp2", "2026-10-20 1942 tower.jp2", maybe " (2)".
     private static readonly Regex SavedName =
