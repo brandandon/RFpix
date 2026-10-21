@@ -2,7 +2,8 @@
   SettingsPage.axaml - the Settings page, in three tabs:
     Audio - the radio's sound devices (receive input and send output)
     Radio - how RFpix reaches and keys the radio (the RadioPage control)
-    Misc  - your callsign, the colour theme, and later sound-card calibration
+    Misc  - your callsign, waterfall text, the colour theme, and sound-card calibration
+    FTP server - copies of pictures for a website, and uploading them (the FtpPage control)
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -103,6 +104,11 @@
             </StackPanel>
           </StackPanel>
         </ScrollViewer>
+      </TabItem>
+
+      <!-- FTP server: copies for a website, and uploading them -->
+      <TabItem Header="FTP server" FontSize="16">
+        <views:FtpPage x:Name="FtpTab" />
       </TabItem>
     </TabControl>
   </Grid>

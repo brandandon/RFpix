@@ -574,6 +574,9 @@ public partial class ReceivePage : UserControl, IDisposable
                 file.Settings?.Description, file.ReedSolomonLevel ?? (file.Settings is null ? null : 0), quality,
                 file.RepairedPieces, _askedFor.Remove(file.TransportId)));
             SendSupport.RaiseGalleryChanged();
+            // A JPEG copy for the website, stamped with the time (Settings, FTP server tab).
+            var data = file.Data;
+            if (PictureFormats.Detect(data) is not null) _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(data, when));
         }
         catch (Exception ex)
         {

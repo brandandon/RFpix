@@ -294,6 +294,7 @@ public partial class SettingsPage : UserControl, IDisposable
     {
         _calibrating?.Cancel();
         RadioTab.Dispose();
+        FtpTab.Dispose();
         _input.Dispose();
         _output.Dispose();
     }

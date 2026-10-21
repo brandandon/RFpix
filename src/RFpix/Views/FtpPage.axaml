@@ -1,0 +1,110 @@
+<!--
+  FtpPage.axaml - the FTP server tab of the Settings page: JPEG copies of pictures for a
+  website (stamped with the date and time, as MMSSTV does) and uploading them, the same way
+  as the SSTV Auto Uploader (the newest is image1.jpg, the older ones move up).
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RFpix.Views.FtpPage">
+  <ScrollViewer FontSize="14">
+    <StackPanel Spacing="20" MaxWidth="860" HorizontalAlignment="Left" Margin="0,0,16,16">
+
+      <!-- Copies -->
+      <StackPanel Spacing="6">
+        <TextBlock Text="Copies for the website" FontWeight="SemiBold" />
+        <CheckBox x:Name="SaveCopiesBox" Content="Save a JPEG copy of each picture received" />
+        <CheckBox x:Name="StampBox" Content="Write the date and time on the copy (lower left corner, as MMSSTV does)" Margin="26,0,0,0" />
+        <CheckBox x:Name="CopySentBox" Content="Copy the pictures I send too" Margin="26,0,0,0" />
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="26,4,0,0">
+          <TextBlock Text="Folder" VerticalAlignment="Center" />
+          <TextBox x:Name="FolderBox" Width="360" Watermark="C:\FTPIMAGE" />
+          <Button Content="Browse…" Click="OnBrowseClick" />
+        </StackPanel>
+        <TextBlock Classes="Hint" TextWrapping="Wrap" Margin="26,0,0,0"
+                   Text="The pictures in the Received folder stay as they came; these copies are for the website. Another uploader (the SSTV Auto Uploader, say) can watch this folder instead of RFpix." />
+      </StackPanel>
+
+      <!-- Uploading -->
+      <StackPanel Spacing="6">
+        <TextBlock Text="Upload" FontWeight="SemiBold" />
+        <CheckBox x:Name="UploadBox" Content="Upload new pictures from that folder to my website" />
+        <TextBlock Classes="Hint" TextWrapping="Wrap" Margin="26,0,0,0"
+                   Text="As the SSTV Auto Uploader does: the newest picture becomes image1.jpg and the others move up (image1 to image2...), so the website shows the latest ones. Each file is then moved into the folder's Archives subfolder. Don't run both at once." />
+      </StackPanel>
+
+      <!-- Server -->
+      <StackPanel Spacing="8">
+        <TextBlock Text="Server" FontWeight="SemiBold" />
+        <WrapPanel>
+          <StackPanel Spacing="4" Margin="0,0,14,8">
+            <TextBlock Text="Connection" FontSize="13" />
+            <ComboBox x:Name="ProtocolBox" Width="220" />
+          </StackPanel>
+          <StackPanel Spacing="4" Margin="0,0,14,8">
+            <TextBlock Text="Server address" FontSize="13" />
+            <TextBox x:Name="HostBox" Width="260" Watermark="e.g. ftp.kd9dd.com" />
+          </StackPanel>
+          <StackPanel Spacing="4" Margin="0,0,14,8">
+            <TextBlock Text="Port" FontSize="13" />
+            <TextBox x:Name="PortBox" Width="80" />
+          </StackPanel>
+        </WrapPanel>
+        <WrapPanel>
+          <StackPanel Spacing="4" Margin="0,0,14,8">
+            <TextBlock Text="User name" FontSize="13" />
+            <TextBox x:Name="UserBox" Width="220" />
+          </StackPanel>
+          <StackPanel Spacing="4" Margin="0,0,14,8">
+            <TextBlock Text="Password" FontSize="13" />
+            <TextBox x:Name="PasswordBox" Width="220" PasswordChar="●" />
+          </StackPanel>
+          <StackPanel Spacing="4" Margin="0,0,14,8">
+            <TextBlock Text="Folder on the server (optional)" FontSize="13" />
+            <TextBox x:Name="RemoteFolderBox" Width="260" Watermark="blank: the folder you log in to" />
+          </StackPanel>
+        </WrapPanel>
+        <TextBlock Classes="Hint" TextWrapping="Wrap"
+                   Text="The password is kept encrypted for your Windows account. FTPS is FTP with encryption (explicit TLS); SFTP is file transfer over SSH (usually port 22)." />
+      </StackPanel>
+
+      <!-- On the website -->
+      <StackPanel Spacing="8">
+        <TextBlock Text="On the website" FontWeight="SemiBold" />
+        <WrapPanel>
+          <StackPanel Spacing="4" Margin="0,0,14,8">
+            <TextBlock Text="Pictures shown" FontSize="13" />
+            <TextBox x:Name="CountBox" Width="80" />
+          </StackPanel>
+          <StackPanel Spacing="4" Margin="0,0,14,8">
+            <TextBlock Text="File name (start, number, end)" FontSize="13" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBox x:Name="PrefixBox" Width="110" />
+              <TextBlock Text="1" VerticalAlignment="Center" />
+              <TextBox x:Name="ExtensionBox" Width="80" />
+            </StackPanel>
+          </StackPanel>
+          <StackPanel Spacing="4" Margin="0,0,14,8">
+            <TextBlock Text="Archive subfolder" FontSize="13" />
+            <TextBox x:Name="ArchiveBox" Width="140" />
+          </StackPanel>
+          <StackPanel Spacing="4" Margin="0,0,14,8">
+            <TextBlock Text="Wait until a file stops changing (s)" FontSize="13" />
+            <TextBox x:Name="StableBox" Width="80" />
+          </StackPanel>
+        </WrapPanel>
+      </StackPanel>
+
+      <!-- Save and test -->
+      <StackPanel Spacing="8">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button x:Name="SaveButton" Content="Save" Classes="accent" MinWidth="90" Click="OnSaveClick" />
+          <Button x:Name="TestButton" Content="Test the connection" Click="OnTestClick" />
+        </StackPanel>
+        <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
+        <TextBlock Text="Upload log" FontSize="13" Classes="Hint" />
+        <TextBox x:Name="LogBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="160" FontSize="12"
+                 FontFamily="Cascadia Mono,Consolas,monospace" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -89,6 +89,11 @@
     <!-- Magick.NET (ImageMagick for .NET, Apache licence) opens pictures of nearly any kind
          for sending, and makes and reads JPEG and AVIF (the RFpix-only, smaller format). -->
     <PackageReference Include="Magick.NET-Q8-x64" Version="14.17.2" />
+    <!-- Uploading pictures to a website: FTP and FTPS (FluentFTP, MIT), SFTP (SSH.NET, MIT),
+         and keeping the password encrypted on Windows (ProtectedData, MIT). -->
+    <PackageReference Include="FluentFTP" Version="52.1.0" />
+    <PackageReference Include="SSH.NET" Version="2025.0.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.0" />
   </ItemGroup>
 
 </Project>

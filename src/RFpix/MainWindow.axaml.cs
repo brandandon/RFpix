@@ -31,6 +31,7 @@ public partial class MainWindow : Window
         NavList.SelectedIndex = 0;   // start on the first page (TX/RX, on its Receive tab)
         RestorePlacement();
         GalleryPage.SendRequested += OnGallerySend;
+        RFpix.Upload.UploadService.Restart();   // uploading pictures to a website, if that's set up
     }
 
     // The Gallery's "Send this picture": over to TX/RX, Send tab, with the picture open.
@@ -110,6 +111,7 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         GalleryPage.SendRequested -= OnGallerySend;
+        RFpix.Upload.UploadService.Stop();
         foreach (var page in _pages.Values.OfType<IDisposable>())
         {
             page.Dispose();

@@ -160,6 +160,8 @@ internal static class SendSupport
             GalleryIndex.Add(SentFolder, new GalleryEntry(Path.GetFileName(path), when, fitted.FileName, callsign,
                 profile.Settings.Description, profile.ReedSolomon));
             RaiseGalleryChanged();
+            var picture = fitted.File;
+            _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when, sent: true));
             return null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

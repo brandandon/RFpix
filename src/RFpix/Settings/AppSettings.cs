@@ -52,6 +52,9 @@ public sealed class AppSettings
     public string WaterfallTextBefore { get; set; } = "";
     public string WaterfallTextAfter { get; set; } = "";
 
+    /// <summary>Copies for the website, and uploading them (Settings, FTP server tab).</summary>
+    public RFpix.Upload.UploadSettings Upload { get; set; } = new();
+
     /// <summary>The text last sent with WF TXT on the Send tab, offered again next time.</summary>
     public string? LastWaterfallText { get; set; }
 
