@@ -85,9 +85,9 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 
 - **Send** tab, next to **ID**: **WF TXT** opens a small window to type up to 40 characters to write
   on everyone's waterfall, with a preview and how long it takes. **WF PIC** draws a small picture on
-  the waterfall in shades of grey: choose a picture (a logo or simple drawing works best), pick
-  Small, Medium or Large (about 5, 8 or 12 seconds), tick **Invert** if a dark logo looks better
-  reversed, and check the preview.
+  the waterfall in shades of grey: choose a picture (a logo or simple drawing works best); it's
+  fitted into a square 108 pixels across (250 to 2780 Hz, up to about 14 seconds). Tick **Invert**
+  if a dark logo looks better reversed, and check the preview.
 - **TX/RX**: **Pop out Receive** (right of the tabs) moves the Receive tab into its own window, so
   you can watch it while you use the Send tab. Listening carries on. Close that window (or click
   **Bring Receive back**) to put it back. RFpix remembers where it was, and whether it was out.
