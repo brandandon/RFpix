@@ -81,6 +81,21 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
 
+## Waterfall text and pictures, pop-out Receive (new in v0.3.7)
+
+- **Send** tab, next to **ID**: **WF TXT** opens a small window to type up to 40 characters to write
+  on everyone's waterfall, with a preview and how long it takes. **WF PIC** draws a small picture on
+  the waterfall in shades of grey: choose a picture (a logo or simple drawing works best), pick
+  Small, Medium or Large (about 5, 8 or 12 seconds), tick **Invert** if a dark logo looks better
+  reversed, and check the preview.
+- **TX/RX**: **Pop out Receive** (right of the tabs) moves the Receive tab into its own window, so
+  you can watch it while you use the Send tab. Listening carries on. Close that window (or click
+  **Bring Receive back**) to put it back. RFpix remembers where it was, and whether it was out.
+- **Receive** tab: the signal's offset, clock, strength and quality are in boxes; **Quality** is green
+  when it's good enough for the settings being sent, red when it isn't. **Waterfall scrolls up**
+  (under the waterfall) puts new lines at the bottom. Waterfall text and pictures from other stations
+  are made for the usual downward waterfall, so they show upside down when it scrolls up.
+
 ## Missing pieces (BSR) (new in v0.3.6)
 
 When a picture arrives with pieces missing, a **Missing pieces** box appears on the **Receive** tab,

@@ -21,6 +21,7 @@ running EasyPal or QSSTV.
 | --- | --- |
 | Oct 19 | Sound-card calibration (milestone 1 complete); IC-9700 data mode by CI-V; repeater time-out and adjustable lead-in in send profiles; received settings shown in boxes; faster page switching; window size remembered (v0.3.5) |
 | Oct 20 | Missing-piece repair (BSR), working with EasyPal and QSSTV: ask for the pieces a picture is missing, or send them when asked; the Gallery of received and sent pictures (v0.3.6) |
+| Oct 20 | Your own text (WF TXT) and pictures (WF PIC) on the waterfall; the Receive tab can pop out into its own window; signal readings in boxes, quality green or red; waterfall can scroll up (v0.3.7) |
 | Oct 18 | Waterfall text before and after each picture; CW and ID buttons; Settings in Audio, Radio and Misc tabs; Send tab laid out to fit any window size (v0.3.4) |
 | Oct 18 | Sending your own pictures (v0.3.3): image optimizer fits a picture to the transmit time (Auto or Manual), original and as-sent side by side with zoom, JPEG 2000, JPEG or AVIF (RFpix-only, smaller), settings drop-downs and saved profiles; test transmissions on their own Alpha Testing page; transparent logo; key frequency marks on the waterfall |
 | Oct 17 | TX/RX page with Receive and Send tabs; sound devices on the Settings page; wider picture area; logo above the menu (v0.3.0) |
