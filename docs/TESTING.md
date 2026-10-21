@@ -81,6 +81,19 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
 
+## Website copies and FTP upload (new in v0.4.0)
+
+**Settings > FTP server**:
+- **Save a JPEG copy of each picture received** puts a copy in a folder (C:\FTPIMAGE to start with),
+  with the date and time in the lower left corner, as MMSSTV does. Tick **Copy the pictures I send
+  too** for your own. The pictures in the Received folder stay as they came.
+- **Upload new pictures from that folder to my website** works like the SSTV Auto Uploader: the
+  newest picture becomes image1.jpg and the others move up, so the site shows the latest 12; each
+  file then moves into the folder's Archives subfolder. Fill in the server (FTP, FTPS or SFTP),
+  user name and password, click **Test the connection**, then **Save**. Don't run the SSTV Auto
+  Uploader on the same folder at the same time (or leave RFpix's upload off and keep using it).
+- The upload log at the bottom shows each upload, and any problem (RFpix tries again every 30 seconds).
+
 ## Waterfall text and pictures, pop-out Receive (new in v0.3.7)
 
 - **Send** tab, next to **ID**: **WF TXT** opens a small window to type up to 40 characters to write
