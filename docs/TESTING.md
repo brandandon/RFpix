@@ -81,6 +81,24 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
 
+## Overlay templates (new in v0.4.2 to v0.4.4)
+
+- **Send** tab, **Template…** (under Open picture): pick a template from the thumbnails (each is
+  shown on your picture), or None. It's drawn on the picture as it goes out, in Digital and Analog
+  alike, at the size that's sent, so the text stays sharp on a small analog frame and a large
+  digital picture. The "As sent" box shows the result.
+- Templates can hold codes filled in when sending: **%me** (your callsign), **%to** and **%name**
+  (the station you're sending to), **%rst**, **%date**, **%time** and **%utc**. The To, Name and RST
+  boxes appear beside the Template button when the template uses them.
+- RFpix comes with five: Callsign bar, CQ SSTV net, Reply, Framed and Date stamp.
+- **New template…**, **Edit…** (or **Copy and edit…** for RFpix's own) open the editor: click an item
+  on the picture to choose it, drag it to move it, drag its corner square to resize it. Add text,
+  boxes (plain, see-through or fading between two colours, with rounded corners), logos (a PNG with a
+  see-through background works best) and a border round the whole picture. **Preview** switches
+  between an analog (320 × 256) and a digital (1280 × 960) picture, to check it works at both sizes.
+- Your templates are files in Documents\RFpix\Templates (logos included): **Open templates folder**
+  in the picker, to back them up or share them with the net.
+
 ## Analog SSTV (new in v0.4.0)
 
 - **Send** tab: **Send as** at the top: **Digital (HamDRM)** as before, or **Analog SSTV**. In analog,

@@ -51,6 +51,18 @@ public static class TemplateStore
         },
         new OverlayTemplate
         {
+            Name = "Framed", BuiltIn = true,
+            Items =
+            {
+                new() { Kind = OverlayKind.Border, X = 0, Y = 0, Width = 1, Height = 1, Fill = "#FFFFFF", Opacity = 1, Thickness = 0.018 },
+                new() { Kind = OverlayKind.Box, X = 0.018, Y = 0.82, Width = 0.964, Height = 0.162, Fill = "#1E63D6", FillTo = "#000000", Opacity = 0.75 },
+                new() { Kind = OverlayKind.Text, X = 0.05, Y = 0.82, Width = 0.55, Height = 0.162, Text = "%me", Size = 0.1, OutlineColor = null, Shadow = true },
+                new() { Kind = OverlayKind.Text, X = 0.5, Y = 0.82, Width = 0.45, Height = 0.162, Text = "%date\n%utc", Size = 0.05,
+                        Bold = false, Align = OverlayAlign.Right, OutlineColor = null },
+            },
+        },
+        new OverlayTemplate
+        {
             Name = "Date stamp", BuiltIn = true,
             Items =
             {
