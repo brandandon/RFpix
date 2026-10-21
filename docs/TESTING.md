@@ -81,6 +81,19 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
 
+## Analog SSTV (new in v0.4.0)
+
+- **Send** tab: **Send as** at the top: **Digital (HamDRM)** as before, or **Analog SSTV**. In analog,
+  pick the mode on the right (Martin 1 and 2, Scottie 1, 2 and DX, Robot 36 and 72, PD 50 to PD 290;
+  each shows its size and time) and how the picture fits the mode's frame: **Fill the frame** (the
+  edges that don't fit are cut off) or **Whole picture** (black bars). The repeater time-out and
+  lead-in count as for HamDRM, and the waterfall text from Settings goes before and after.
+- **Receive** tab: nothing to set. RFpix listens for analog SSTV and HamDRM at the same time; an
+  analog picture appears line by line, then is saved (as PNG), shown in the Gallery and copied for
+  the website. A picture is recognised by its start code (VIS), so tune in before it begins.
+- Please try sending to and receiving from MMSSTV and QSSTV stations in the modes the net uses, and
+  tell us how the pictures look (slanted, wrong colours, cut short).
+
 ## Website copies and FTP upload (new in v0.4.0)
 
 **Settings > FTP server**:
