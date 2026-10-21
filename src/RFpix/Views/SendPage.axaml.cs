@@ -811,6 +811,7 @@ public partial class SendPage : UserControl, IDisposable
 
     private void SendAnalog()
     {
+        ShowAnalog();   // drawn again, so a template's date and time are the sending time's
         if (_analogPicture is not { } picture) return;
         var mode = AnalogMode;
         var profile = CurrentSettings();
