@@ -592,7 +592,7 @@ public partial class ReceivePage : UserControl, IDisposable
             SendSupport.RaiseGalleryChanged();
             // A JPEG copy for the website, stamped with the time (Settings, FTP server tab).
             var data = file.Data;
-            if (PictureFormats.Detect(data) is not null) _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(data, when));
+            if (PictureFormats.Detect(data) is not null || GalleryIndex.IsPicture(file.Name)) _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(data, when));
         }
         catch (Exception ex)
         {

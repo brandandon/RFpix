@@ -97,8 +97,8 @@
       <!-- Save and test -->
       <StackPanel Spacing="8">
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button x:Name="SaveButton" Content="Save" Classes="accent" MinWidth="90" Click="OnSaveClick" />
-          <Button x:Name="TestButton" Content="Test the connection" Click="OnTestClick" />
+          <Button x:Name="TestButton" Content="Test the connection" Click="OnTestClick"
+                  ToolTip.Tip="Logs in and lists the server folder (nothing is uploaded)." />
         </StackPanel>
         <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
         <TextBlock Text="Upload log" FontSize="13" Classes="Hint" />

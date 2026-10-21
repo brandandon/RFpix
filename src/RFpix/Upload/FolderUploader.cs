@@ -108,6 +108,7 @@ public sealed class FolderUploader : IDisposable
     private readonly Dictionary<string, (long Size, DateTime Written, DateTime Since)> _seen = new();
     private readonly Dictionary<string, DateTime> _retryAfter = new();
     private readonly HashSet<string> _skip = new();
+    private bool _saidMissing;
 
     private void Run()
     {
@@ -124,7 +125,13 @@ public sealed class FolderUploader : IDisposable
     /// <summary>One look at the folder: uploads what's ready. (Public for the tests.)</summary>
     public void Look(DateTime now)
     {
-        if (!Directory.Exists(_settings.Folder)) return;
+        if (!Directory.Exists(_settings.Folder))
+        {
+            if (!_saidMissing) Say($"The folder {_settings.Folder} isn't there: nothing to upload until it is.");
+            _saidMissing = true;
+            return;
+        }
+        _saidMissing = false;
         var present = new HashSet<string>();
         var ready = new List<(DateTime Written, string Path)>();
         foreach (var path in Directory.EnumerateFiles(_settings.Folder))
