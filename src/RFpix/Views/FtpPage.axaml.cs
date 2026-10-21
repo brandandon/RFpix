@@ -1,6 +1,5 @@
-// FtpPage.axaml.cs - the code half of the FTP server tab. The boxes show the saved settings.
-// Every change is kept as it's made (the password encrypted), like the other Settings tabs,
-// and uploading starts, restarts or stops to match, a moment after the last change. Test
+// FtpPage.axaml.cs - the code half of the FTP server tab. The boxes show the saved settings;
+// Save keeps them (the password encrypted) and starts, restarts or stops uploading; Test
 // logs in to the server and lists its folder.
 
 using Avalonia.Controls;
@@ -16,8 +15,6 @@ namespace RFpix.Views;
 public partial class FtpPage : UserControl, IDisposable
 {
     private static readonly string[] Protocols = { "FTP", "FTPS", "SFTP" };
-    private readonly Avalonia.Threading.DispatcherTimer _applyTimer = new() { Interval = TimeSpan.FromMilliseconds(800) };
-    private bool _loading;
 
     public FtpPage()
     {
@@ -28,20 +25,10 @@ public partial class FtpPage : UserControl, IDisposable
         Show(AppSettings.Current.Upload);
         LogBox.Text = string.Join("\n", UploadService.RecentLog);
         UploadService.Logged += OnLogged;
-
-        // Any change is kept (and uploading follows) a moment after the last one.
-        _applyTimer.Tick += (_, _) => { _applyTimer.Stop(); Apply(); };
-        void Changed() { if (!_loading) { _applyTimer.Stop(); _applyTimer.Start(); } }
-        foreach (var box in new[] { SaveCopiesBox, StampBox, CopySentBox, UploadBox })
-            box.IsCheckedChanged += (_, _) => Changed();
-        foreach (var box in new[] { FolderBox, HostBox, PortBox, UserBox, PasswordBox, RemoteFolderBox, CountBox, PrefixBox, ExtensionBox, ArchiveBox, StableBox })
-            box.TextChanged += (_, _) => Changed();
-        ProtocolBox.SelectionChanged += (_, _) => Changed();
     }
 
     private void Show(UploadSettings s)
     {
-        _loading = true;
         SaveCopiesBox.IsChecked = s.SaveCopies;
         StampBox.IsChecked = s.StampCopies;
         CopySentBox.IsChecked = s.CopySent;
@@ -60,7 +47,6 @@ public partial class FtpPage : UserControl, IDisposable
         ExtensionBox.Text = s.RemoteExtension;
         ArchiveBox.Text = s.ArchiveName;
         StableBox.Text = s.StableSeconds.ToString("0.#");
-        _loading = false;
     }
 
     // FTP and FTPS use port 21, SFTP 22: switch it if it's still one of those.
@@ -107,21 +93,14 @@ public partial class FtpPage : UserControl, IDisposable
         return (s, null);
     }
 
-    // Keeps the settings as the boxes show them, and starts, restarts or stops uploading to match.
-    private void Apply()
+    private void OnSaveClick(object? sender, RoutedEventArgs e)
     {
         var (s, problem) = Read();
-        if (s is null) { ShowStatus($"Not saved yet: {problem}", problem: true); return; }
+        if (s is null) { ShowStatus(problem!, problem: true); return; }
         AppSettings.Current.Upload = s;
         AppSettings.Current.Save();
         UploadService.Restart();
-        if (PasswordBox.Text?.Length > 0)
-        {
-            _loading = true;
-            PasswordBox.Text = "";   // kept (encrypted): the box shows it's saved
-            PasswordBox.Watermark = "(saved; type to change)";
-            _loading = false;
-        }
+        Show(s);
         ShowStatus(s.Upload ? $"Saved. Uploading new pictures from {s.Folder} to {s.Host}."
                    : s.SaveCopies ? $"Saved. Copies go to {s.Folder}; uploading is off."
                    : "Saved. Copies and uploading are off.", problem: false);
@@ -176,9 +155,5 @@ public partial class FtpPage : UserControl, IDisposable
         else StatusText.ClearValue(TextBlock.ForegroundProperty);
     }
 
-    public void Dispose()
-    {
-        if (_applyTimer.IsEnabled) { _applyTimer.Stop(); Apply(); }   // closing RFpix right after a change: keep it
-        UploadService.Logged -= OnLogged;
-    }
+    public void Dispose() => UploadService.Logged -= OnLogged;
 }

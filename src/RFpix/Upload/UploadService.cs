@@ -39,8 +39,7 @@ public static class UploadService
         lock (Lock) { old = _uploader; _uploader = null; }
         old?.Dispose();
         var s = AppSettings.Current.Upload;
-        Add(s.SaveCopies ? $"Saving a copy of each picture received in {s.Folder}." : "Not saving copies for the website.");
-        if (!s.Upload) { Add("Uploading is off."); return; }
+        if (!s.Upload) return;
         if (s.Problem() is { } problem) { Add($"Not uploading: {problem}"); return; }
         try { Directory.CreateDirectory(s.Folder); }
         catch (Exception ex) { Add($"Not uploading: couldn't use the folder {s.Folder} ({ex.Message})."); return; }
@@ -79,10 +78,9 @@ public static class UploadService
             // Written under another name first, so the uploader never sees half a file.
             File.WriteAllBytes(path + ".part", jpeg);
             File.Move(path + ".part", path);
-            Add($"Saved a copy for the website: {Path.GetFileName(path)}");
             return path;
         }
-        catch (Exception ex)   // (any problem: this runs in the background, where it would otherwise go unseen)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PictureException)
         {
             Add($"Couldn't save a copy in {s.Folder}: {ex.Message}");
             return null;
@@ -95,6 +93,6 @@ public static class UploadService
         var s = AppSettings.Current.Upload;
         if (!s.SaveCopies || (sent && !s.CopySent)) return null;
         try { return SaveCopy(Pictures.Decode(pictureFile), when, sent); }
-        catch (Exception ex) { Add($"Couldn't make a copy for the website: {ex.Message}"); return null; }
+        catch (PictureException ex) { Add($"Couldn't make a copy for the website: {ex.Message}"); return null; }
     }
 }

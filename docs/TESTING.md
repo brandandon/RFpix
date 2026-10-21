@@ -122,8 +122,7 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 - **Upload new pictures from that folder to my website** works like the SSTV Auto Uploader: the
   newest picture becomes image1.jpg and the others move up, so the site shows the latest 12; each
   file then moves into the folder's Archives subfolder. Fill in the server (FTP, FTPS or SFTP),
-  user name and password, and click **Test the connection**. Changes are kept as you make them
-  (there's no Save button), and uploading starts or stops to match. Don't run the SSTV Auto
+  user name and password, click **Test the connection**, then **Save**. Don't run the SSTV Auto
   Uploader on the same folder at the same time (or leave RFpix's upload off and keep using it).
 - The upload log at the bottom shows each upload, and any problem (RFpix tries again every 30 seconds).
 
