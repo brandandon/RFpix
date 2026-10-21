@@ -12,15 +12,9 @@
       <Button Content="Choose picture…" Click="OnChooseClick" />
       <TextBlock x:Name="FileText" VerticalAlignment="Center" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="360" />
     </StackPanel>
-    <WrapPanel>
-      <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,24,6">
-        <TextBlock Text="Size" VerticalAlignment="Center" />
-        <ComboBox x:Name="SizeBox" Width="190" />
-      </StackPanel>
-      <CheckBox x:Name="InvertBox" Content="Invert (swap light and dark)" Margin="0,0,0,6" />
-    </WrapPanel>
+    <CheckBox x:Name="InvertBox" Content="Invert (swap light and dark)" />
     <TextBlock Text="How it will look" Classes="Hint" FontSize="12" />
-    <Border Background="#0B1A40" CornerRadius="4" Padding="6" Height="300" ClipToBounds="True">
+    <Border Background="#0B1A40" CornerRadius="4" Padding="6" Width="336" Height="336" HorizontalAlignment="Left" ClipToBounds="True">
       <Panel>
         <TextBlock x:Name="PreviewHint" Text="Choose a picture: a logo or a simple drawing works best." Foreground="#C9D4E3"
                    HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="12" />
@@ -29,7 +23,7 @@
     </Border>
     <TextBlock x:Name="TimeText" Classes="Hint" />
     <TextBlock Classes="Hint" FontSize="12" TextWrapping="Wrap"
-               Text="Drawn 98 pixels across (300 to 2600 Hz) in shades of grey: white is full strength, black is silent. Shown here as on a waterfall that scrolls down." />
+               Text="Fitted into a square 108 pixels across (250 to 2780 Hz), up to about 14 seconds, in shades of grey: white is full strength, black is silent. Shown here as on a waterfall that scrolls down." />
     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
       <Button x:Name="SendButton" Content="Send" Classes="accent" MinWidth="90" Click="OnSendClick" IsEnabled="False" IsDefault="True" />
       <Button Content="Cancel" MinWidth="90" Click="OnCancelClick" IsCancel="True" />

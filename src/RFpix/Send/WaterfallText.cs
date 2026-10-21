@@ -87,11 +87,12 @@ public static class WaterfallText
     public static float[] Audio(string text) =>
         RowsAudio(Pixels(text).Select(r => r.Select(on => on ? 1.0 : 0.0).ToArray()).ToArray());
 
-    /// <summary>The sound for any picture on the waterfall: rows (top first) of <see cref="Columns"/>
-    /// strengths, 0 (silent) to 1 (full). Text is all 0s and 1s; WaterfallPicture uses shades between.</summary>
-    public static float[] RowsAudio(double[][] rows)
+    /// <summary>The sound for any picture on the waterfall: rows (top first) of strengths, 0 (silent)
+    /// to 1 (full), one per 23.4 Hz pixel from <paramref name="lowHz"/> up. Text is all 0s and 1s,
+    /// <see cref="Columns"/> across; WaterfallPicture uses shades between, and its own width.</summary>
+    public static float[] RowsAudio(double[][] rows, double lowHz = LowHz)
     {
-        int columns = Columns, first = (int)Math.Round(LowHz / PixelHz);
+        int columns = rows.Length > 0 ? rows.Max(r => r.Length) : Columns, first = (int)Math.Round(lowHz / PixelHz);
         // Each pixel's tone: its strength, and its starting point in the cycle (the chirp).
         // At full strength a row of all pixels is about -18 dBFS, as QSSTV.
         double amplitude = 6000.0 / 32768 / Math.Sqrt(columns);

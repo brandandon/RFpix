@@ -6,10 +6,11 @@
 // different strength. A waterfall shows strength in decibels, so the shades are spread over
 // 30 dB: white is full strength, mid-grey about 15 dB quieter, and black is silent.
 //
-// The picture is made 98 pixels wide at most (the waterfall text's grid: 300 to 2600 Hz in
-// 23.4 Hz steps), and 40, 62 or 90 rows tall (about 5, 8 or 12 seconds at 128 ms a row),
-// keeping its shape. A waterfall pixel is roughly as tall as it is wide on most screens.
-// Logos and simple drawings come out best; a photo at this size is very rough.
+// The picture is fitted into a square of 108 x 108 pixels, keeping its shape: 108 across,
+// in the waterfall text's 23.4 Hz steps from 250 to 2780 Hz (a little wider than waterfall
+// text, and still inside HamDRM's own band, so it gets through the same filters), and up to
+// 108 rows of 128 ms (about 14 seconds). A waterfall pixel is roughly as tall as it is wide
+// on most screens, so a square picture looks square. Logos and simple drawings come out best.
 
 using RFpix.Imaging;
 
@@ -17,8 +18,11 @@ namespace RFpix.Send;
 
 public static class WaterfallPicture
 {
-    /// <summary>The heights offered, in rows: small, medium and large.</summary>
-    public static readonly int[] Heights = { 40, 62, 90 };
+    /// <summary>Pixels across (and the most rows): 108.</summary>
+    public const int Columns = 108;
+
+    /// <summary>The lowest frequency used: 250 Hz (the top is 250 + 108 x 23.4 = 2780 Hz).</summary>
+    public const double LowHz = 250;
 
     /// <summary>The span of shades on the waterfall, from the faintest grey to white.</summary>
     public const double RangeDb = 30;
@@ -26,13 +30,12 @@ public static class WaterfallPicture
     /// <summary>Darker than this is sent as silence (black).</summary>
     public const double Black = 0.08;
 
-    /// <summary>The picture as tone strengths: rows (top first) of <see cref="WaterfallText.Columns"/>
-    /// values from 0 (silent) to 1 (full), centred across.</summary>
-    /// <param name="rows">The most rows (the picture is made to fit, keeping its shape).</param>
+    /// <summary>The picture as tone strengths: rows (top first) of <see cref="Columns"/> values from
+    /// 0 (silent) to 1 (full), fitted into a 108 x 108 square keeping its shape, centred across.</summary>
     /// <param name="invert">Swap light and dark (a dark logo on white often looks better reversed).</param>
-    public static double[][] Levels(DecodedPicture picture, int rows, bool invert)
+    public static double[][] Levels(DecodedPicture picture, bool invert)
     {
-        int columns = WaterfallText.Columns;
+        int columns = Columns, rows = Columns;
         // Fit inside columns x rows, keeping the shape.
         double scale = Math.Min((double)columns / picture.Width, (double)rows / picture.Height);
         int w = Math.Clamp((int)Math.Round(picture.Width * scale), 1, columns);
@@ -64,7 +67,7 @@ public static class WaterfallPicture
         level <= 0 ? 0 : Math.Clamp(1 + 20 * Math.Log10(level) / RangeDb, 0, 1);
 
     /// <summary>The sound: 48 kHz, -1 to 1, bottom row first (as waterfall text).</summary>
-    public static float[] Audio(double[][] levels) => WaterfallText.RowsAudio(levels);
+    public static float[] Audio(double[][] levels) => WaterfallText.RowsAudio(levels, LowHz);
 
     /// <summary>How long a picture of this many rows takes to send.</summary>
     public static TimeSpan Duration(int rows) =>
@@ -73,7 +76,7 @@ public static class WaterfallPicture
     /// <summary>The preview: the picture as it shows on a waterfall (white on dark blue), one pixel per tone.</summary>
     public static DecodedPicture Preview(double[][] levels)
     {
-        int columns = WaterfallText.Columns, h = levels.Length;
+        int columns = levels.Length > 0 ? levels[0].Length : Columns, h = levels.Length;
         var bgra = new byte[4 * columns * h];
         for (int y = 0; y < h; y++)
             for (int x = 0; x < columns; x++)

@@ -18,9 +18,6 @@ public partial class WaterfallPictureWindow : Window
     public WaterfallPictureWindow()
     {
         InitializeComponent();
-        SizeBox.ItemsSource = new[] { "Small (about 5 s)", "Medium (about 8 s)", "Large (about 12 s)" };
-        SizeBox.SelectedIndex = 1;
-        SizeBox.SelectionChanged += (_, _) => ShowPreview();
         InvertBox.IsCheckedChanged += (_, _) => ShowPreview();
     }
 
@@ -63,8 +60,7 @@ public partial class WaterfallPictureWindow : Window
         }
         else
         {
-            int rows = WaterfallPicture.Heights[Math.Clamp(SizeBox.SelectedIndex, 0, WaterfallPicture.Heights.Length - 1)];
-            _levels = WaterfallPicture.Levels(_picture, rows, InvertBox.IsChecked == true);
+            _levels = WaterfallPicture.Levels(_picture, InvertBox.IsChecked == true);
             PreviewImage.Source = Bitmaps.From(WaterfallPicture.Preview(_levels));
         }
         old?.Dispose();
