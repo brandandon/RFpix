@@ -134,4 +134,90 @@ public class SstvTests
         Assert.Equal(496, small.Height);
         Assert.Throws<ArgumentException>(() => SstvEncoder.Audio(wide, SstvModes.Get(SstvMode.Martin1)));
     }
+
+    // ---- receiving ----
+
+    private static DecodedPicture Pattern(int w, int h)
+    {
+        var bgra = new byte[4 * w * h];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                int i = 4 * (y * w + x);
+                double fx = (double)x / w, fy = (double)y / h;
+                bgra[i] = (byte)(127 + 120 * Math.Sin(fx * 9 + fy * 3));
+                bgra[i + 1] = (byte)(255 * fx);
+                bgra[i + 2] = (byte)(255 * fy);
+                bgra[i + 3] = 255;
+            }
+        return new DecodedPicture(w, h, bgra);
+    }
+
+    private static double Psnr(DecodedPicture a, DecodedPicture b)
+    {
+        double mse = 0;
+        for (int i = 0; i < a.Bgra.Length; i++) if (i % 4 != 3) { double d = a.Bgra[i] - b.Bgra[i]; mse += d * d; }
+        mse /= a.Bgra.Length * 3 / 4.0;
+        return 10 * Math.Log10(255 * 255 / mse);
+    }
+
+    private static SstvPicture? Receive(float[] audio, out SstvModeInfo? started)
+    {
+        var rx = new SstvReceiver();
+        SstvPicture? got = null;
+        SstvModeInfo? s = null;
+        rx.Started += m => s = m;
+        rx.Finished += p => got = p;
+        var withSilence = new float[audio.Length + 96000];
+        audio.CopyTo(withSilence, 48000);
+        for (int at = 0; at < withSilence.Length; at += 4800)
+            rx.AddSamples(withSilence.AsSpan(at, Math.Min(4800, withSilence.Length - at)));
+        rx.End();
+        started = s;
+        return got;
+    }
+
+    [Theory]
+    [InlineData(SstvMode.Robot36, 26)]
+    [InlineData(SstvMode.Martin2, 30)]
+    [InlineData(SstvMode.Scottie2, 30)]
+    [InlineData(SstvMode.PD50, 30)]
+    public void A_picture_sent_is_received_in_the_mode_its_VIS_code_names(SstvMode mode, double quality)
+    {
+        var m = SstvModes.Get(mode);
+        var picture = SstvEncoder.Fit(Pattern(400, 300), m);
+        var got = Receive(SstvEncoder.Audio(picture, m), out var started);
+        Assert.Equal(mode, started!.Mode);
+        Assert.NotNull(got);
+        Assert.True(got!.Complete);
+        Assert.Equal(m.Height, got.Lines);
+        double psnr = Psnr(picture, got.Picture);
+        Assert.True(psnr > quality, $"quality {psnr:0.0} dB");
+    }
+
+    [Fact]
+    public void A_sender_whose_sound_card_runs_fast_doesnt_slant_the_picture()
+    {
+        var m = SstvModes.Get(SstvMode.Martin2);
+        var picture = SstvEncoder.Fit(Pattern(400, 300), m);
+        // 400 ppm fast: the sound plays 400 ppm shorter, so each line ends 0.09 ms early.
+        var audio = RFpix.Audio.ClockCorrector.Resample(SstvEncoder.Audio(picture, m), 1 / (1 + 400e-6));
+        var got = Receive(audio, out _);
+        Assert.NotNull(got);
+        Assert.True(Psnr(picture, got!.Picture) > 30);
+    }
+
+    [Fact]
+    public void A_picture_cut_short_is_kept_as_far_as_it_got()
+    {
+        var m = SstvModes.Get(SstvMode.Robot36);
+        var audio = SstvEncoder.Audio(SstvEncoder.Fit(Pattern(320, 240), m), m);
+        var half = audio.AsSpan(0, (int)(SstvModes.VisTime.TotalSeconds * 48000 + audio.Length) / 2).ToArray();
+        var got = Receive(half, out _);
+        Assert.NotNull(got);
+        Assert.False(got!.Complete);
+        Assert.InRange(got.Lines, 100, 140);
+        Assert.Null(Receive(new float[48000 * 3], out var nothing));   // silence: nothing
+        Assert.Null(nothing);
+    }
 }
