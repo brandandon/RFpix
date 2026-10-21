@@ -299,14 +299,23 @@ public sealed class SstvReceiver
             else _missedSyncs++;
         }
 
-        // The value (0-255) of a scan's pixels, averaged over each pixel's time.
+        // The value (0-255) of a scan's pixels, averaged over each pixel's time. The frequency
+        // track blurs sharp changes over about half a millisecond (its filter), so a scan's first and last
+        // pixels would take in some of the tone before or after it: a 1200 Hz sync just after
+        // Robot's colour scan reads as "no colour", which shows as a green stripe down the right
+        // edge. So pixels are read only from the part of the scan clear of that blur; the edge
+        // pixels take the nearest clear value.
+        private const double EdgeMs = 0.45;
+
         private double[] Scan(double at, double ms, int width)
         {
             var values = new double[width];
             double samples = ms * TrackRate / 1000, step = samples / width;
+            double edge = Math.Min(Ms(EdgeMs), samples / 4);
+            double lo = at + edge, hi = at + samples - edge;
             for (int x = 0; x < width; x++)
             {
-                double from = at + x * step, to = from + step;
+                double from = Math.Max(at + x * step, lo), to = Math.Min(at + (x + 1) * step, hi);
                 double sum = 0;
                 int n = 0;
                 for (long t = (long)Math.Ceiling(from); t < to; t++)
@@ -314,7 +323,13 @@ public sealed class SstvReceiver
                     float f = _rx.Track(t);
                     if (f > 0) { sum += f; n++; }
                 }
-                if (n == 0) { float f = _rx.Track((long)Math.Round((from + to) / 2)); if (f > 0) { sum = f; n = 1; } }
+                if (n == 0)
+                {
+                    // Narrower than a track sample, or in the blurred edge: the nearest clear sample.
+                    double centre = Math.Clamp(at + (x + 0.5) * step, lo, hi);
+                    float f = _rx.Track((long)Math.Round(centre));
+                    if (f > 0) { sum = f; n = 1; }
+                }
                 values[x] = n == 0 ? 0 : Math.Clamp((sum / n - SstvModes.BlackHz) / (SstvModes.WhiteHz - SstvModes.BlackHz) * 255, 0, 255);
             }
             return values;

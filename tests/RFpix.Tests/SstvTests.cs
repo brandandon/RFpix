@@ -220,4 +220,23 @@ public class SstvTests
         Assert.Null(Receive(new float[48000 * 3], out var nothing));   // silence: nothing
         Assert.Null(nothing);
     }
+
+    [Theory]
+    [InlineData(SstvMode.Robot36)]
+    [InlineData(SstvMode.Robot72)]
+    [InlineData(SstvMode.Martin1)]
+    public void The_edges_of_the_picture_keep_their_colour(SstvMode mode)
+    {
+        // The sync after Robot's colour scan once turned the right-hand edge green.
+        var m = SstvModes.Get(mode);
+        var picture = Flat(m.Width, m.Height, 130, 120, 110);
+        var got = Receive(SstvEncoder.Audio(picture, m), out _)!.Picture;
+        int y = m.Height / 2;
+        foreach (int x in new[] { 0, 1, m.Width - 2, m.Width - 1 })
+        {
+            int i = 4 * (y * m.Width + x);
+            Assert.True(Math.Abs(got.Bgra[i + 2] - 130) <= 8 && Math.Abs(got.Bgra[i + 1] - 120) <= 8 && Math.Abs(got.Bgra[i] - 110) <= 8,
+                        $"pixel {x}: ({got.Bgra[i + 2]}, {got.Bgra[i + 1]}, {got.Bgra[i]})");
+        }
+    }
 }
