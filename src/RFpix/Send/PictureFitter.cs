@@ -165,10 +165,11 @@ public sealed class PictureFitter
 
     /// <summary>The picture at the size and quality the operator picked.</summary>
     /// <param name="longSide">Its longer side in pixels (never more than it is).</param>
+    /// <param name="decorate">Draws the overlay template on the picture at that size (null: none).</param>
     public FittedPicture Manual(DecodedPicture original, string baseName, PictureFormat format, SendProfile profile,
-                                int longSide, int quality)
+                                int longSide, int quality, Func<DecodedPicture, DecodedPicture>? decorate = null)
     {
-        var picture = Scaled(original, longSide);
+        var picture = Scaled(original, longSide, decorate);
         quality = Math.Clamp(quality, 1, 100);
         return Package(picture, format, quality, _encode(picture, format, quality), baseName, profile);
     }
@@ -176,8 +177,9 @@ public sealed class PictureFitter
     /// <summary>The best-looking picture that goes out within the profile's target time.
     /// If even the smallest, roughest version runs over, that's what comes back (and
     /// <see cref="FittedPicture.FitsTarget"/> says so).</summary>
+    /// <param name="decorate">Draws the overlay template on the picture at the size being tried (null: none).</param>
     public FittedPicture Auto(DecodedPicture original, string baseName, PictureFormat format, SendProfile profile,
-                              CancellationToken cancel = default)
+                              CancellationToken cancel = default, Func<DecodedPicture, DecodedPicture>? decorate = null)
     {
         string sendName = profile.ReedSolomon > 0 ? $"{baseName}.rs{profile.ReedSolomon}" : $"{baseName}.{format.Extension()}";
         int budget = MaxFileBytes(sendName, profile, AutoAllowance);
@@ -192,7 +194,7 @@ public sealed class PictureFitter
         while (true)
         {
             cancel.ThrowIfCancellationRequested();
-            var picture = Scaled(original, longSide);
+            var picture = Scaled(original, longSide, decorate);
             var (quality, file) = BestQuality(picture, format, budget, cancel);
             bool smallest = longSide <= Math.Min(MinLongSide, originalLong);
             if (file is not null && (quality >= QualityFloor(format) || smallest))
@@ -223,9 +225,11 @@ public sealed class PictureFitter
         return (good, best);
     }
 
-    private static DecodedPicture Scaled(DecodedPicture original, int longSide)
+    /// <summary>The picture at that size, with the template (if any) drawn on it at that size.</summary>
+    private static DecodedPicture Scaled(DecodedPicture original, int longSide, Func<DecodedPicture, DecodedPicture>? decorate)
     {
         var (w, h) = PictureScaler.FitLongSide(original.Width, original.Height, Math.Max(1, longSide));
-        return PictureScaler.Resize(original, w, h);
+        var picture = PictureScaler.Resize(original, w, h);
+        return decorate is null ? picture : decorate(picture);
     }
 }

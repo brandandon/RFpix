@@ -33,6 +33,25 @@
         <TextBlock x:Name="DropHint" Classes="Hint" VerticalAlignment="Center" Text="or drag a picture onto the page" />
       </StackPanel>
 
+      <!-- An overlay template (callsign bar, CQ, reply...), and the boxes its codes need -->
+      <WrapPanel>
+        <Button x:Name="TemplateButton" Content="Template…" Click="OnTemplateClick" Margin="0,0,10,6"
+                ToolTip.Tip="Text, boxes and logos drawn on the picture as it goes out: your callsign, a CQ, a reply with an RST..." />
+        <TextBlock x:Name="TemplateText" VerticalAlignment="Center" Margin="0,0,20,6" />
+        <StackPanel x:Name="ToField" Orientation="Horizontal" Spacing="6" Margin="0,0,16,6">
+          <TextBlock Text="To" VerticalAlignment="Center" />
+          <TextBox x:Name="ToBox" Width="110" MaxLength="12" Watermark="callsign" />
+        </StackPanel>
+        <StackPanel x:Name="NameField" Orientation="Horizontal" Spacing="6" Margin="0,0,16,6">
+          <TextBlock Text="Name" VerticalAlignment="Center" />
+          <TextBox x:Name="NameBox" Width="110" MaxLength="20" />
+        </StackPanel>
+        <StackPanel x:Name="RstField" Orientation="Horizontal" Spacing="6" Margin="0,0,16,6">
+          <TextBlock Text="RST" VerticalAlignment="Center" />
+          <TextBox x:Name="RstBox" Width="60" MaxLength="5" />
+        </StackPanel>
+      </WrapPanel>
+
       <Grid ColumnDefinitions="*,300" ColumnSpacing="20">
 
         <!-- Left: the two pictures, with what goes with each below it -->

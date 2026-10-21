@@ -15,6 +15,8 @@
 //   5. Send, and Save as sound file, work as on the Alpha Testing page (SendSupport), with the
 //      waterfall text from Settings (Misc tab) before and after the picture.
 //   6. CW sends the callsign in Morse code; ID writes it on the waterfall.
+//   8. An overlay template (Templates/) can be picked: it's drawn on the picture at the size
+//      that goes out, with its codes (%to, %rst...) filled from the boxes beside it.
 //   7. "Send as Analog SSTV": the picture is fitted to the chosen mode's frame instead (each
 //      mode has a fixed size and time) and sent as analog SSTV (Analog/SstvEncoder.cs), without
 //      waterfall text (ID, WF TXT and WF PIC are hidden then; they come back in Digital).
@@ -33,6 +35,7 @@ using RFpix.Imaging;
 using RFpix.Radio;
 using RFpix.Send;
 using RFpix.Settings;
+using RFpix.Templates;
 
 namespace RFpix.Views;
 
@@ -76,6 +79,8 @@ public partial class SendPage : UserControl, IDisposable
     private double _gain;                        // the level slider as a multiplier, read as it plays
     private bool _analog;                        // sending analog SSTV, not HamDRM
     private DecodedPicture? _analogPicture;      // the picture fitted to the analog mode's frame
+    private OverlayTemplate? _template;          // drawn on the picture as it goes out (null: none)
+    private readonly DispatcherTimer _fieldsTimer = new() { Interval = TimeSpan.FromMilliseconds(600) };
 
     public SendPage()
     {
@@ -113,6 +118,14 @@ public partial class SendPage : UserControl, IDisposable
         _updating = false;
         // Each radio button reports being switched on and off; only the one switched on counts
         // (the other is still on for a moment while the switch happens).
+        _template = TemplateStore.Find(settings.TemplateName);
+        ToBox.Text = settings.TemplateTo;
+        NameBox.Text = settings.TemplateToName;
+        RstBox.Text = settings.TemplateRst;
+        ShowTemplate();
+        foreach (var box in new[] { ToBox, NameBox, RstBox })
+            box.TextChanged += (_, _) => { if (!_updating) { _fieldsTimer.Stop(); _fieldsTimer.Start(); } };
+        _fieldsTimer.Tick += (_, _) => { _fieldsTimer.Stop(); OnFieldsChanged(); };
         DigitalButton.IsCheckedChanged += (_, _) => { if (DigitalButton.IsChecked == true) OnSendAsChanged(analog: false); };
         AnalogButton.IsCheckedChanged += (_, _) => { if (AnalogButton.IsChecked == true) OnSendAsChanged(analog: true); };
         AnalogModeBox.SelectionChanged += (_, _) => OnAnalogChanged();
@@ -128,6 +141,51 @@ public partial class SendPage : UserControl, IDisposable
     }
 
     private static string Clock(int seconds) => $"{seconds / 60}:{seconds % 60:00}";
+
+    // ---- the overlay template ----
+
+    private TemplateFields Fields() => new(SendSupport.Callsign, (ToBox.Text ?? "").Trim().ToUpperInvariant(),
+                                           (NameBox.Text ?? "").Trim(), (RstBox.Text ?? "").Trim(), DateTime.Now);
+
+    /// <summary>Draws the template on a picture (null if there's no template).</summary>
+    private Func<DecodedPicture, DecodedPicture>? Decorator()
+    {
+        if (_template is not { } t) return null;
+        var fields = Fields();
+        return p => OverlayRenderer.Draw(p, t, fields);
+    }
+
+    private void ShowTemplate()
+    {
+        TemplateText.Text = _template is null ? "No template" : $"Template: {_template.Name}";
+        var codes = _template?.Codes() ?? new HashSet<string>();
+        ToField.IsVisible = codes.Contains("%to");
+        NameField.IsVisible = codes.Contains("%name");
+        RstField.IsVisible = codes.Contains("%rst");
+    }
+
+    private async void OnTemplateClick(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        var picker = new TemplatePickerWindow(_original, _template?.Name, Fields());
+        var chosen = await picker.ShowDialog<string?>(owner);
+        if (chosen is null) return;   // cancelled
+        _template = chosen.Length == 0 ? null : TemplateStore.Find(chosen);
+        AppSettings.Current.TemplateName = _template?.Name;
+        AppSettings.Current.Save();
+        ShowTemplate();
+        Refit(auto: true);
+    }
+
+    // The To, Name or RST box changed (and typing has paused): keep it, and fit again.
+    private void OnFieldsChanged()
+    {
+        AppSettings.Current.TemplateTo = (ToBox.Text ?? "").Trim().ToUpperInvariant();
+        AppSettings.Current.TemplateToName = (NameBox.Text ?? "").Trim();
+        AppSettings.Current.TemplateRst = (RstBox.Text ?? "").Trim();
+        AppSettings.Current.Save();
+        if (_template is not null) Refit(auto: true);
+    }
 
     // ---- digital or analog ----
 
@@ -179,6 +237,7 @@ public partial class SendPage : UserControl, IDisposable
         }
         var mode = AnalogMode;
         _analogPicture = SstvEncoder.Fit(original, mode, whole: WholeButton.IsChecked == true);
+        if (Decorator() is { } decorate) _analogPicture = decorate(_analogPicture);
         var old = SentImage.Source as IDisposable;
         SentImage.Source = SentZoomImage.Source = Bitmaps.From(_analogPicture);
         old?.Dispose();
@@ -512,6 +571,7 @@ public partial class SendPage : UserControl, IDisposable
         var format = CurrentFormat;
         int side = (int)Math.Round(SizeSlider.Value), quality = (int)Math.Round(QualitySlider.Value);
         string name = _baseName;
+        var decorate = Decorator();
         SendButton.IsEnabled = _sending is not null;   // Stop stays usable while sending
         SaveButton.IsEnabled = false;
         EstimateBorder.Background = WaitingBrush;
@@ -530,8 +590,8 @@ public partial class SendPage : UserControl, IDisposable
             {
                 try
                 {
-                    var f = auto ? _fitter.Auto(original, name, format, profile, cancel.Token)
-                                 : _fitter.Manual(original, name, format, profile, side, quality);
+                    var f = auto ? _fitter.Auto(original, name, format, profile, cancel.Token, decorate)
+                                 : _fitter.Manual(original, name, format, profile, side, quality, decorate);
                     if (cancel.IsCancellationRequested) return null;
                     return ((FittedPicture, DecodedPicture)?)(f, Pictures.Decode(f.File));   // what the receiver will see
                 }
@@ -894,6 +954,7 @@ public partial class SendPage : UserControl, IDisposable
     {
         AppSettings.TransmitLevelChanged -= ShowShared;
         _refitTimer.Stop();
+        _fieldsTimer.Stop();
         _fitting?.Cancel();
         _sending?.Cancel();   // closing RFpix mid-send: stop (Transmission un-keys)
         _output.Dispose();

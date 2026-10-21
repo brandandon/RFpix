@@ -58,6 +58,12 @@ public sealed class AppSettings
     public RFpix.Analog.SstvMode AnalogMode { get; set; } = RFpix.Analog.SstvMode.Martin1;
     public bool AnalogWhole { get; set; }
 
+    /// <summary>The overlay template in use on the Send tab (null: none), and its fill-in boxes.</summary>
+    public string? TemplateName { get; set; }
+    public string TemplateTo { get; set; } = "";
+    public string TemplateToName { get; set; } = "";
+    public string TemplateRst { get; set; } = "595";
+
     /// <summary>Copies for the website, and uploading them (Settings, FTP server tab).</summary>
     public RFpix.Upload.UploadSettings Upload { get; set; } = new();
 
