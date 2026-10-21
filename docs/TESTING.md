@@ -81,7 +81,7 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
 
-## Digital and analog kept apart, signal boxes (new after v0.4.4)
+## Digital and analog kept apart, signal boxes (new in v0.4.5)
 
 - **Received pictures**: HamDRM pictures now go to `Received\Digital` and analog SSTV pictures to
   `Received\Analog`. Pictures already in `Received` stay where they are; the Gallery's Received
