@@ -16,7 +16,7 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <RootNamespace>RFpix</RootNamespace>
     <AssemblyName>RFpix</AssemblyName>
-    <Version>0.4.2</Version>
+    <Version>0.4.3</Version>
     <Product>RFpix</Product>
     <Description>Digital SSTV (HamDRM) for ham radio</Description>
     <!-- The icon Windows shows for RFpix.exe (in File Explorer and when pinned). -->

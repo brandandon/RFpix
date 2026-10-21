@@ -1,0 +1,64 @@
+<!--
+  TemplateEditorWindow.axaml - making and changing overlay templates. Left: the template on
+  a picture (click an item to choose it, drag it to move it, drag its corner handle to
+  resize it), shown at an analog or a digital picture's size. Right: the items, back to
+  front, and the chosen item's settings (made in the code, for the kind of item).
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RFpix.Views.TemplateEditorWindow"
+        Title="Template editor" Width="1180" Height="760" MinWidth="860" MinHeight="560"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="18" RowSpacing="12">
+    <!-- Name, saving, and the preview's size -->
+    <WrapPanel Grid.Row="0">
+      <TextBlock Text="Name" VerticalAlignment="Center" Margin="0,0,8,6" FontWeight="SemiBold" />
+      <TextBox x:Name="NameBox" Width="240" MaxLength="40" Margin="0,0,12,6" />
+      <Button x:Name="SaveButton" Content="Save" Classes="accent" MinWidth="80" Click="OnSaveClick" Margin="0,0,8,6" />
+      <Button x:Name="SaveAsButton" Content="Save as new" Click="OnSaveAsClick" Margin="0,0,8,6"
+              ToolTip.Tip="Saves a copy under the name in the box, keeping the one you opened." />
+      <Button x:Name="DeleteButton" Content="Delete" Click="OnDeleteClick" Margin="0,0,24,6" />
+      <TextBlock Text="Preview" VerticalAlignment="Center" Margin="0,0,8,6" />
+      <RadioButton x:Name="AnalogSizeButton" GroupName="PreviewSize" Content="Analog (320 × 256)" Margin="0,0,10,6" />
+      <RadioButton x:Name="DigitalSizeButton" GroupName="PreviewSize" Content="Digital (1280 × 960)" Margin="0,0,0,6" />
+    </WrapPanel>
+
+    <Grid Grid.Row="1" ColumnDefinitions="*,360" ColumnSpacing="16">
+      <!-- The template on a picture -->
+      <Border Grid.Column="0" CornerRadius="6" ClipToBounds="True" Background="#20808080"
+              BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+        <Panel x:Name="PreviewHost" Background="Transparent" Cursor="Hand">
+          <Image x:Name="PreviewImage" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />
+          <Canvas x:Name="SelectionCanvas" IsHitTestVisible="False" />
+        </Panel>
+      </Border>
+
+      <!-- The items, and the chosen one's settings -->
+      <Grid Grid.Column="1" RowDefinitions="Auto,Auto,140,Auto,*" RowSpacing="8">
+        <TextBlock Grid.Row="0" Text="Items (later ones are drawn on top)" FontWeight="SemiBold" />
+        <WrapPanel Grid.Row="1">
+          <Button Content="+ Text" Click="OnAddTextClick" Margin="0,0,6,6" />
+          <Button Content="+ Box" Click="OnAddBoxClick" Margin="0,0,6,6" />
+          <Button Content="+ Logo" Click="OnAddLogoClick" Margin="0,0,6,6" />
+          <Button Content="+ Border" Click="OnAddBorderClick" Margin="0,0,6,6" />
+        </WrapPanel>
+        <ListBox Grid.Row="2" x:Name="ItemsList" />
+        <WrapPanel Grid.Row="3">
+          <Button Content="Up" Click="OnUpClick" Margin="0,0,6,6" ToolTip.Tip="Draw it later (on top of more)." />
+          <Button Content="Down" Click="OnDownClick" Margin="0,0,6,6" ToolTip.Tip="Draw it earlier (under more)." />
+          <Button Content="Copy" Click="OnCopyItemClick" Margin="0,0,6,6" />
+          <Button Content="Remove" Click="OnRemoveItemClick" Margin="0,0,6,6" />
+        </WrapPanel>
+        <ScrollViewer Grid.Row="4">
+          <StackPanel x:Name="PropertiesPanel" Spacing="8" Margin="0,0,12,0" />
+        </ScrollViewer>
+      </Grid>
+    </Grid>
+
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+      <TextBlock Grid.Column="0" x:Name="StatusText" TextWrapping="Wrap" VerticalAlignment="Center"
+                 Text="Click an item to choose it, drag it to move it, drag the corner square to resize it. Codes in text: %me %to %name %rst %date %time %utc." />
+      <Button Grid.Column="1" Content="Close" MinWidth="90" Click="OnCloseClick" IsCancel="True" />
+    </Grid>
+  </Grid>
+</Window>

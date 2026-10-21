@@ -47,31 +47,35 @@ public static class SstvEncoder
     /// <summary>The picture made the mode's size: enlarged or reduced to fill it, the middle kept
     /// (the edges that don't fit are cut off, as most SSTV programs do); or, with
     /// <paramref name="whole"/>, all of it shown, with black bars where it doesn't fill.</summary>
-    public static DecodedPicture Fit(DecodedPicture picture, SstvModeInfo mode, bool whole = false)
+    public static DecodedPicture Fit(DecodedPicture picture, SstvModeInfo mode, bool whole = false) =>
+        Fit(picture, mode.Width, mode.Height, whole);
+
+    /// <summary>The same, for any frame size.</summary>
+    public static DecodedPicture Fit(DecodedPicture picture, int width, int height, bool whole = false)
     {
-        if (picture.Width == mode.Width && picture.Height == mode.Height) return picture;
+        if (picture.Width == width && picture.Height == height) return picture;
         if (whole)
         {
-            double s = Math.Min((double)mode.Width / picture.Width, (double)mode.Height / picture.Height);
-            int fw = Math.Clamp((int)Math.Round(picture.Width * s), 1, mode.Width);
-            int fh = Math.Clamp((int)Math.Round(picture.Height * s), 1, mode.Height);
+            double s = Math.Min((double)width / picture.Width, (double)height / picture.Height);
+            int fw = Math.Clamp((int)Math.Round(picture.Width * s), 1, width);
+            int fh = Math.Clamp((int)Math.Round(picture.Height * s), 1, height);
             var inner = Resample(picture, fw, fh);
-            var framed = new byte[4 * mode.Width * mode.Height];
+            var framed = new byte[4 * width * height];
             for (int i = 3; i < framed.Length; i += 4) framed[i] = 255;   // black, opaque
-            int ox = (mode.Width - fw) / 2, oy = (mode.Height - fh) / 2;
+            int ox = (width - fw) / 2, oy = (height - fh) / 2;
             for (int y = 0; y < fh; y++)
-                Array.Copy(inner.Bgra, 4 * y * fw, framed, 4 * ((y + oy) * mode.Width + ox), 4 * fw);
-            return new DecodedPicture(mode.Width, mode.Height, framed);
+                Array.Copy(inner.Bgra, 4 * y * fw, framed, 4 * ((y + oy) * width + ox), 4 * fw);
+            return new DecodedPicture(width, height, framed);
         }
-        double scale = Math.Max((double)mode.Width / picture.Width, (double)mode.Height / picture.Height);
-        int w = Math.Max(mode.Width, (int)Math.Ceiling(picture.Width * scale));
-        int h = Math.Max(mode.Height, (int)Math.Ceiling(picture.Height * scale));
+        double scale = Math.Max((double)width / picture.Width, (double)height / picture.Height);
+        int w = Math.Max(width, (int)Math.Ceiling(picture.Width * scale));
+        int h = Math.Max(height, (int)Math.Ceiling(picture.Height * scale));
         var resized = Resample(picture, w, h);
-        int left = (w - mode.Width) / 2, top = (h - mode.Height) / 2;
-        var bgra = new byte[4 * mode.Width * mode.Height];
-        for (int y = 0; y < mode.Height; y++)
-            Array.Copy(resized.Bgra, 4 * ((y + top) * w + left), bgra, 4 * y * mode.Width, 4 * mode.Width);
-        return new DecodedPicture(mode.Width, mode.Height, bgra);
+        int left = (w - width) / 2, top = (h - height) / 2;
+        var bgra = new byte[4 * width * height];
+        for (int y = 0; y < height; y++)
+            Array.Copy(resized.Bgra, 4 * ((y + top) * w + left), bgra, 4 * y * width, 4 * width);
+        return new DecodedPicture(width, height, bgra);
     }
 
     // Area-average when making smaller (PictureScaler), and simple interpolation when making bigger.

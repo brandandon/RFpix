@@ -169,7 +169,8 @@ public partial class SendPage : UserControl, IDisposable
         if (TopLevel.GetTopLevel(this) is not Window owner) return;
         var picker = new TemplatePickerWindow(_original, _template?.Name, Fields());
         var chosen = await picker.ShowDialog<string?>(owner);
-        if (chosen is null) return;   // cancelled
+        // Cancelled: the same template, read again (it may have been changed in the editor, or deleted).
+        chosen ??= _template?.Name ?? "";
         _template = chosen.Length == 0 ? null : TemplateStore.Find(chosen);
         AppSettings.Current.TemplateName = _template?.Name;
         AppSettings.Current.Save();

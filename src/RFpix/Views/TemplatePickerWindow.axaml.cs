@@ -1,6 +1,7 @@
 // TemplatePickerWindow.axaml.cs - the code half of the template picker. It returns the name of
 // the template picked ("" for None), or null if cancelled (ShowDialog<string?>). Each tile shows
-// the template drawn on the picture (or on a sample, with no picture open yet).
+// the template drawn on the picture (or on a sample, with no picture open yet); "Edit" under a
+// tile opens the editor (TemplateEditorWindow), and the tiles are made again after it closes.
 
 using Avalonia;
 using Avalonia.Controls;
@@ -16,7 +17,8 @@ namespace RFpix.Views;
 public partial class TemplatePickerWindow : Window
 {
     private const int ThumbnailWidth = 240;
-    private readonly DecodedPicture _sample;
+    private readonly DecodedPicture _sample;   // small, for the thumbnails
+    private readonly DecodedPicture _full;     // for the editor
     private readonly string? _current;
     private readonly TemplateFields _fields;
     private int _generation;
@@ -30,7 +32,8 @@ public partial class TemplatePickerWindow : Window
         InitializeComponent();
         _current = current;
         _fields = fields;
-        _sample = SmallCopy(picture ?? SamplePicture(640, 480));
+        _full = picture ?? SamplePicture(1280, 960);
+        _sample = SmallCopy(_full);
         Opened += (_, _) => Fill();
     }
 
@@ -104,8 +107,29 @@ public partial class TemplatePickerWindow : Window
         button.Click += (_, _) => Close(t?.Name ?? "");
         var tile = new StackPanel { Spacing = 2, Margin = new Thickness(0, 0, 12, 12) };
         tile.Children.Add(button);
+        if (t is not null)
+        {
+            var edit = new Button
+            {
+                Content = t.BuiltIn ? "Copy and edit…" : "Edit…",
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(8, 2),
+                FontSize = 12,
+            };
+            edit.Click += async (_, _) => await EditAsync(t);
+            tile.Children.Add(edit);
+        }
         return tile;
     }
+
+    private async Task EditAsync(OverlayTemplate? t)
+    {
+        var editor = new TemplateEditorWindow(t, _full, _fields);
+        await editor.ShowDialog(this);
+        Fill();
+    }
+
+    private async void OnNewClick(object? sender, RoutedEventArgs e) => await EditAsync(null);
 
     private async void OnOpenFolderClick(object? sender, RoutedEventArgs e)
     {
