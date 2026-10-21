@@ -17,6 +17,9 @@
 //      if it's a picture (JPEG, JPEG 2000, PNG...), shown on the right.
 //   9. "Record" saves what the radio hears to a WAV file (see Receive/AudioRecorder.cs),
 //      starting with the 30 seconds before it was pressed.
+//  11. The same sound goes to the analog SSTV receiver (Analog/SstvReceiver.cs) too, so Martin,
+//      Scottie, Robot and PD pictures are received as well, with nothing to switch: each
+//      appears line by line in the picture box, and is saved (as PNG) when it ends.
 //  10. A picture that ends with pieces missing is listed under "Missing pieces": Ask for
 //      them sends a request (BSR) to its sender. A request someone else sends is passed
 //      to the TX/RX page (BsrHeard), which offers to answer it.
@@ -51,6 +54,8 @@ public partial class ReceivePage : UserControl, IDisposable
     private readonly DispatcherTimer _meterTimer;
     private readonly SpectrumAnalyzer _analyzer = new(maxFrequency: 3000);
     private readonly HamDrmReceiver _receiver = new();
+    private readonly RFpix.Analog.SstvReceiver _sstv = new();   // analog SSTV, alongside HamDRM
+    private volatile int _analogLines;                         // lines of the analog picture so far
     private readonly IAudioOutput _output = AudioSystem.CreateOutput();   // for BSR requests
     private CancellationTokenSource? _asking;          // a BSR request going out
     private readonly HashSet<int> _askedFor = new();   // pictures asked for (transport IDs)
@@ -85,6 +90,7 @@ public partial class ReceivePage : UserControl, IDisposable
             // The recording is over (and all its audio processed), so its transmission is
             // too: show any picture still waiting.
             _receiver.EndOfAudio();
+            _sstv.End();
             Dispatcher.UIThread.Post(() =>
             {
                 string name = _player.FileName ?? "the recording";
@@ -101,6 +107,11 @@ public partial class ReceivePage : UserControl, IDisposable
             Dispatcher.UIThread.Post(() => { ShowReceivedFile(file, callsign, quality); ShowIncomplete(); });
         };
         _receiver.BsrReceived += bsr => Dispatcher.UIThread.Post(() => BsrHeard?.Invoke(bsr));
+
+        // Analog SSTV (on the audio thread): show each picture as it arrives, and save it at the end.
+        _sstv.Started += mode => { _analogLines = 0; Dispatcher.UIThread.Post(() => ShowAnalogStart(mode)); };
+        _sstv.Progress += (picture, lines) => { _analogLines = lines; Dispatcher.UIThread.Post(() => ShowAnalogProgress(picture, lines)); };
+        _sstv.Finished += picture => Dispatcher.UIThread.Post(() => ShowAnalogPicture(picture));
 
         // When a transmission ends: if it was one of RFpix's test transmissions, say how it
         // came through and add it to the test log.
@@ -247,6 +258,7 @@ public partial class ReceivePage : UserControl, IDisposable
         _pump.Post(() =>
         {
             _receiver.Reset();
+            _sstv.End();
             Dispatcher.UIThread.Post(ShowIncomplete);
         });
     }
@@ -406,8 +418,9 @@ public partial class ReceivePage : UserControl, IDisposable
 
         // Feed the same audio to the waterfall's spectrum analyzer...
         _analyzer.AddSamples(e.Samples, e.Count, e.SampleRate);
-        // ...and to the HamDRM receiver.
+        // ...and to the HamDRM receiver, and the analog SSTV one.
         _receiver.AddSamples(e.Samples, e.Count, e.SampleRate);
+        if (e.SampleRate == RFpix.Analog.SstvReceiver.InputRate) _sstv.AddSamples(e.Samples.AsSpan(0, e.Count));
         // The radio's sound is also kept for recording (the last 30 seconds, or all of it while recording).
         if (source == _input) _recorder.AddSamples(e.Samples, e.Count, e.SampleRate);
     }
@@ -435,7 +448,10 @@ public partial class ReceivePage : UserControl, IDisposable
         SignalText.IsVisible = s is null;
         if (s is null)
         {
-            SignalText.Text = _receiver.StatusText;   // "No HamDRM signal", or the problem
+            // "No HamDRM signal", or the problem; or the analog SSTV picture arriving.
+            SignalText.Text = _sstv.Receiving is { } analog && _receiver.Problem is null
+                ? $"Analog SSTV: {analog.Name}  ·  line {_analogLines} of {analog.Height}"
+                : _receiver.StatusText;
             return;
         }
         SignalOffset.Text = s.OffsetHz is double hz ? $"{hz:+0.0;-0.0;0.0} Hz" : "finding…";
@@ -661,6 +677,44 @@ public partial class ReceivePage : UserControl, IDisposable
         catch (Exception ex)
         {
             ShowError($"Couldn't open {ReceivedFolder}: {ex.Message}");
+        }
+    }
+
+    // ---- analog SSTV ----
+
+    private void ShowAnalogStart(RFpix.Analog.SstvModeInfo mode)
+    {
+        ++_pictureCount;   // a HamDRM picture still being decoded won't replace this one
+        PictureCaption.Text = $"Receiving analog SSTV: {mode.Name} ({mode.Width} × {mode.Height})";
+    }
+
+    private void ShowAnalogProgress(DecodedPicture picture, int lines)
+    {
+        var old = PictureImage.Source as IDisposable;
+        PictureImage.Source = Bitmaps.From(picture);
+        old?.Dispose();
+        PicturePlaceholder.IsVisible = false;
+    }
+
+    private async void ShowAnalogPicture(RFpix.Analog.SstvPicture got)
+    {
+        ShowAnalogProgress(got.Picture, got.Lines);
+        var when = got.Ended;
+        string status = got.Complete ? "" : $"  ·  cut short: {got.Lines} of {got.Mode.Height} lines";
+        try
+        {
+            var png = await Task.Run(() => Pictures.EncodePng(got.Picture));
+            string name = $"SSTV {got.Mode.Name}.png";
+            string savedAs = Path.GetFileName(ReceivedFileSaver.Save(new ReceivedFile(name, png, 0), ReceivedFolder, null, when));
+            GalleryIndex.Add(ReceivedFolder, new GalleryEntry(savedAs, when, name, null, $"Analog SSTV  ·  {got.Mode.Name}"));
+            SendSupport.RaiseGalleryChanged();
+            var picture = got.Picture;
+            _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when));
+            PictureCaption.Text = $"Analog SSTV {got.Mode.Name}  ·  {when:HH:mm}{status}\nSaved as \"{savedAs}\"";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PictureException)
+        {
+            ShowError($"Received an analog SSTV picture ({got.Mode.Name}), but couldn't save it to {ReceivedFolder}: {ex.Message}");
         }
     }
 

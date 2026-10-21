@@ -2,8 +2,10 @@
 // the sound output in use, the checks before keying the radio, and the send itself
 // (connect to the radio if needed, key, play, un-key).
 
+using RFpix.Analog;
 using RFpix.Audio;
 using RFpix.Gallery;
+using RFpix.Imaging;
 using RFpix.HamDrm;
 using RFpix.Radio;
 using RFpix.Send;
@@ -165,6 +167,25 @@ internal static class SendSupport
             return null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return $"Couldn't save a copy in {SentFolder}: {ex.Message}";
+        }
+    }
+
+    /// <summary>Notes an analog SSTV picture about to go out: saved (as a JPEG of exactly what's sent)
+    /// in the Sent folder for the Gallery, and copied for the website if that's set. Returns a problem, or null.</summary>
+    public static string? RecordSentAnalog(DecodedPicture picture, string name, SstvModeInfo mode, string callsign)
+    {
+        try
+        {
+            var when = DateTime.Now;
+            string path = GalleryIndex.SaveSent(SentFolder, name, Pictures.EncodeJpeg(picture, 92), when);
+            GalleryIndex.Add(SentFolder, new GalleryEntry(Path.GetFileName(path), when, name, callsign, $"Analog SSTV  ·  {mode.Name}"));
+            RaiseGalleryChanged();
+            _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when, sent: true));
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PictureException)
         {
             return $"Couldn't save a copy in {SentFolder}: {ex.Message}";
         }

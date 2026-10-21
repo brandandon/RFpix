@@ -45,10 +45,24 @@ public static class SstvEncoder
         mode.PictureTime + (vis ? SstvModes.VisTime : TimeSpan.Zero);
 
     /// <summary>The picture made the mode's size: enlarged or reduced to fill it, the middle kept
-    /// (the edges that don't fit are cut off, as most SSTV programs do).</summary>
-    public static DecodedPicture Fit(DecodedPicture picture, SstvModeInfo mode)
+    /// (the edges that don't fit are cut off, as most SSTV programs do); or, with
+    /// <paramref name="whole"/>, all of it shown, with black bars where it doesn't fill.</summary>
+    public static DecodedPicture Fit(DecodedPicture picture, SstvModeInfo mode, bool whole = false)
     {
         if (picture.Width == mode.Width && picture.Height == mode.Height) return picture;
+        if (whole)
+        {
+            double s = Math.Min((double)mode.Width / picture.Width, (double)mode.Height / picture.Height);
+            int fw = Math.Clamp((int)Math.Round(picture.Width * s), 1, mode.Width);
+            int fh = Math.Clamp((int)Math.Round(picture.Height * s), 1, mode.Height);
+            var inner = Resample(picture, fw, fh);
+            var framed = new byte[4 * mode.Width * mode.Height];
+            for (int i = 3; i < framed.Length; i += 4) framed[i] = 255;   // black, opaque
+            int ox = (mode.Width - fw) / 2, oy = (mode.Height - fh) / 2;
+            for (int y = 0; y < fh; y++)
+                Array.Copy(inner.Bgra, 4 * y * fw, framed, 4 * ((y + oy) * mode.Width + ox), 4 * fw);
+            return new DecodedPicture(mode.Width, mode.Height, framed);
+        }
         double scale = Math.Max((double)mode.Width / picture.Width, (double)mode.Height / picture.Height);
         int w = Math.Max(mode.Width, (int)Math.Ceiling(picture.Width * scale));
         int h = Math.Max(mode.Height, (int)Math.Ceiling(picture.Height * scale));

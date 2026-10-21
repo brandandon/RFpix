@@ -58,6 +58,13 @@ public static class Pictures
         return image.ToByteArray(MagickFormat.Jpeg);
     });
 
+    /// <summary>Makes a PNG of the picture (exact: no quality lost).</summary>
+    public static byte[] EncodePng(DecodedPicture picture) => Making("PNG", () =>
+    {
+        using var image = FromPicture(picture);
+        return image.ToByteArray(MagickFormat.Png);
+    });
+
     /// <summary>Makes an AVIF of the picture at a quality from 1 to 100.</summary>
     public static byte[] EncodeAvif(DecodedPicture picture, int quality) => Making("AVIF", () =>
     {

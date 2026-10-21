@@ -52,6 +52,12 @@ public sealed class AppSettings
     public string WaterfallTextBefore { get; set; } = "";
     public string WaterfallTextAfter { get; set; } = "";
 
+    /// <summary>The Send tab: analog SSTV (instead of HamDRM), its mode, and whether the whole
+    /// picture is fitted in (black bars) rather than filling the frame.</summary>
+    public bool SendAnalog { get; set; }
+    public RFpix.Analog.SstvMode AnalogMode { get; set; } = RFpix.Analog.SstvMode.Martin1;
+    public bool AnalogWhole { get; set; }
+
     /// <summary>Copies for the website, and uploading them (Settings, FTP server tab).</summary>
     public RFpix.Upload.UploadSettings Upload { get; set; } = new();
 

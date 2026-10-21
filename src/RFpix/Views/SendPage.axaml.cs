@@ -15,6 +15,8 @@
 //   5. Send, and Save as sound file, work as on the Alpha Testing page (SendSupport), with the
 //      waterfall text from Settings (Misc tab) before and after the picture.
 //   6. CW sends the callsign in Morse code; ID writes it on the waterfall.
+//   7. "Send as Analog SSTV": the picture is fitted to the chosen mode's frame instead (each
+//      mode has a fixed size and time) and sent as analog SSTV (Analog/SstvEncoder.cs).
 
 using Avalonia;
 using Avalonia.Controls;
@@ -23,6 +25,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using RFpix.Analog;
 using RFpix.Audio;
 using RFpix.HamDrm;
 using RFpix.Imaging;
@@ -70,6 +73,8 @@ public partial class SendPage : UserControl, IDisposable
     private CancellationTokenSource? _sending;   // set while sending; cancelling it = Stop
     private bool _updating;                      // true while code (not the operator) sets the controls
     private double _gain;                        // the level slider as a multiplier, read as it plays
+    private bool _analog;                        // sending analog SSTV, not HamDRM
+    private DecodedPicture? _analogPicture;      // the picture fitted to the analog mode's frame
 
     public SendPage()
     {
@@ -98,7 +103,16 @@ public partial class SendPage : UserControl, IDisposable
         QualitySlider.Value = 50;
         ShowSliderTexts();
         ShowManualControls();
+        AnalogModeBox.ItemsSource = SstvModes.All.Select(m => $"{m.Name}  ({m.Width} × {m.Height}, {Clock((int)Math.Ceiling(SstvEncoder.Duration(m).TotalSeconds))})").ToList();
+        AnalogModeBox.SelectedIndex = Math.Max(0, SstvModes.All.ToList().FindIndex(m => m.Mode == settings.AnalogMode));
+        (settings.AnalogWhole ? WholeButton : FillButton).IsChecked = true;
+        _analog = settings.SendAnalog;
+        (_analog ? AnalogButton : DigitalButton).IsChecked = true;
+        ShowSendAs();
         _updating = false;
+        DigitalButton.IsCheckedChanged += (_, _) => OnSendAsChanged();
+        AnalogModeBox.SelectionChanged += (_, _) => OnAnalogChanged();
+        FillButton.IsCheckedChanged += (_, _) => OnAnalogChanged();
 
         _refitTimer.Tick += (_, _) => { _refitTimer.Stop(); Refit(auto: false); };
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
@@ -110,6 +124,84 @@ public partial class SendPage : UserControl, IDisposable
     }
 
     private static string Clock(int seconds) => $"{seconds / 60}:{seconds % 60:00}";
+
+    // ---- digital or analog ----
+
+    private SstvModeInfo AnalogMode => SstvModes.All[Math.Clamp(AnalogModeBox.SelectedIndex, 0, SstvModes.All.Count - 1)];
+
+    private void OnSendAsChanged()
+    {
+        if (_updating) return;
+        _analog = AnalogButton.IsChecked == true;
+        AppSettings.Current.SendAnalog = _analog;
+        AppSettings.Current.Save();
+        ShowSendAs();
+        Refit(auto: true);
+    }
+
+    /// <summary>Shows the controls for HamDRM or for analog SSTV. The repeater time-out and lead-in
+    /// (the last two settings) count for both.</summary>
+    private void ShowSendAs()
+    {
+        ProfileWrap.IsVisible = !_analog;
+        var settings = SettingsWrap.Children;
+        for (int i = 0; i < settings.Count - 2; i++) settings[i].IsVisible = !_analog;
+        FitPanel.IsVisible = AnalogPanel.IsVisible = _analog;
+        TargetRow.IsVisible = SizePanel.IsVisible = QualityPanel.IsVisible = FormatPanel.IsVisible = !_analog;
+        if (_analog) ZoomBox.IsChecked = false;
+        ZoomBox.IsEnabled = !_analog && _original is not null;
+    }
+
+    private void OnAnalogChanged()
+    {
+        if (_updating) return;
+        AppSettings.Current.AnalogMode = AnalogMode.Mode;
+        AppSettings.Current.AnalogWhole = WholeButton.IsChecked == true;
+        AppSettings.Current.Save();
+        if (_analog) ShowAnalog();
+    }
+
+    /// <summary>Analog SSTV: the picture fitted to the mode's frame, and its time on the air.</summary>
+    private void ShowAnalog()
+    {
+        _fitting?.Cancel();
+        ++_fitNumber;   // a HamDRM fit still running is no longer wanted
+        if (_original is not { } original)
+        {
+            SendButton.IsEnabled = _sending is not null;
+            return;
+        }
+        var mode = AnalogMode;
+        _analogPicture = SstvEncoder.Fit(original, mode, whole: WholeButton.IsChecked == true);
+        var old = SentImage.Source as IDisposable;
+        SentImage.Source = SentZoomImage.Source = Bitmaps.From(_analogPicture);
+        old?.Dispose();
+        NoPictureText.IsVisible = false;
+        SentLabel.Text = $"As sent: {mode.Width} × {mode.Height}  ·  {mode.Name}";
+        ApplyZoom();
+
+        var profile = CurrentSettings();
+        var onAir = AnalogOnAir(mode);
+        int seconds = (int)Math.Ceiling((SstvEncoder.Duration(mode) + TextTime).TotalSeconds);
+        EstimateText.Text = $"{Clock(seconds)} on the air";
+        bool fits = profile.FitsTimeout(onAir);
+        EstimateBorder.Background = fits ? FitsBrush : OverBrush;
+        EstimateText.Foreground = EstimateDetail.Foreground = Brushes.White;
+        EstimateDetail.Text = profile.TimeoutSeconds <= 0 ? "No repeater time-out set"
+            : fits ? $"Inside the repeater's {Clock(profile.TimeoutSeconds)} time-out"
+            : $"Over the repeater's {Clock(profile.TimeoutSeconds)} time-out ({Clock((int)Math.Ceiling(onAir.TotalSeconds))} in all): pick a shorter mode.";
+        if (TextTime > TimeSpan.Zero)
+            EstimateDetail.Text += $"\nIncluding {TextTime.TotalSeconds:0} s of waterfall text (set in Settings, Misc tab).";
+        SendButton.IsEnabled = true;
+        SaveButton.IsEnabled = _sending is null;
+    }
+
+    /// <summary>How long an analog picture keeps the transmitter on: lead-in, waterfall text, VIS and picture, tail.</summary>
+    private TimeSpan AnalogOnAir(SstvModeInfo mode) => SstvEncoder.Duration(mode) + CurrentSettings().Overhead(TextTime);
+
+    /// <summary>The analog picture's sound, with the waterfall text from Settings around it.</summary>
+    private static Func<float[]> AnalogSound(DecodedPicture picture, SstvModeInfo mode) =>
+        () => SendSupport.WithWaterfallText(SstvEncoder.Audio(picture, mode));
 
     // ---- the send settings and profiles ----
 
@@ -389,7 +481,7 @@ public partial class SendPage : UserControl, IDisposable
         _updating = false;
         ShowSliderTexts();
         ShowManualControls();
-        ZoomBox.IsEnabled = true;
+        ZoomBox.IsEnabled = !_analog;
         ShowStatus("", problem: false);
         Refit(auto: true);
     }
@@ -403,6 +495,7 @@ public partial class SendPage : UserControl, IDisposable
     private async void Refit(bool auto)
     {
         _refitTimer.Stop();
+        if (_analog) { ShowAnalog(); return; }
         if (_original is not { } original) return;
         _fitting?.Cancel();
         var cancel = new CancellationTokenSource();
@@ -537,7 +630,7 @@ public partial class SendPage : UserControl, IDisposable
     /// so the two line up, and they move together.</summary>
     private void ApplyZoom()
     {
-        bool zoom = ZoomBox.IsChecked == true && _fitted is not null;
+        bool zoom = ZoomBox.IsChecked == true && _fitted is not null && !_analog;
         OriginalImage.IsVisible = SentImage.IsVisible = !zoom;
         OriginalScroll.IsVisible = SentScroll.IsVisible = ZoomHint.IsVisible = zoom;
         if (!zoom) return;
@@ -626,6 +719,11 @@ public partial class SendPage : UserControl, IDisposable
             ShowStatus("Stopping…", problem: false);
             return;
         }
+        if (_analog)
+        {
+            SendAnalog();
+            return;
+        }
         if (_fitted is not { } fitted) return;
         var profile = fitted.Profile;
         if (!profile.FitsTimeout(OnAir(fitted)))
@@ -643,6 +741,26 @@ public partial class SendPage : UserControl, IDisposable
         string? notSaved = SendSupport.RecordSent(fitted, call);
         Transmit(() => SendSupport.WithWaterfallText(fitted.Transmitter(call).Audio()), fitted.FileName,
                  $"Sent {fitted.FileName} as {call}." + (notSaved is null ? "" : $" ({notSaved})"),
+                 TimeSpan.FromSeconds(profile.LeadInSeconds));
+    }
+
+    private void SendAnalog()
+    {
+        if (_analogPicture is not { } picture) return;
+        var mode = AnalogMode;
+        var profile = CurrentSettings();
+        if (!profile.FitsTimeout(AnalogOnAir(mode)))
+        {
+            ShowStatus($"{mode.Name} would be on the air {Clock((int)Math.Ceiling(AnalogOnAir(mode).TotalSeconds))}, longer than the repeater's " +
+                       $"{Clock(profile.TimeoutSeconds)} time-out, so the repeater would cut it off. Pick a shorter mode.", problem: true);
+            return;
+        }
+        string call = SendSupport.Callsign;
+        if (SendSupport.Problem(_output, call) is { } problem) { ShowStatus(problem, problem: true); return; }
+        if (SendSupport.IsSending) { ShowStatus(AlreadySending, problem: true); return; }
+        string? notSaved = SendSupport.RecordSentAnalog(picture, $"{_baseName}.jpg", mode, call);
+        Transmit(AnalogSound(picture, mode), $"{_baseName} in {mode.Name}",
+                 $"Sent {_baseName} in {mode.Name}." + (notSaved is null ? "" : $" ({notSaved})"),
                  TimeSpan.FromSeconds(profile.LeadInSeconds));
     }
 
@@ -717,7 +835,7 @@ public partial class SendPage : UserControl, IDisposable
             _sending.Dispose();
             _sending = null;
             SendButton.Content = "Send";
-            SendButton.IsEnabled = _fitted is not null && _fitting is null;
+            SendButton.IsEnabled = _analog ? _analogPicture is not null : _fitted is not null && _fitting is null;
             SaveButton.IsEnabled = SendButton.IsEnabled;
             OpenButton.IsEnabled = CwButton.IsEnabled = IdButton.IsEnabled = true;
             WfTextButton.IsEnabled = WfPicButton.IsEnabled = true;
@@ -727,7 +845,12 @@ public partial class SendPage : UserControl, IDisposable
 
     private async void OnSaveClick(object? sender, RoutedEventArgs e)
     {
-        if (_fitted is not { } fitted || TopLevel.GetTopLevel(this) is not { } top) return;
+        if (TopLevel.GetTopLevel(this) is not { } top) return;
+        if (!_analog && _fitted is null || _analog && _analogPicture is null) return;
+        var fitted = _fitted;
+        var analogPicture = _analogPicture;
+        var analogMode = AnalogMode;
+        bool analog = _analog;
         string call = SendSupport.Callsign;
         if (call.Length == 0) { ShowStatus("Set your callsign in Settings (Misc tab) first: it's sent with the transmission.", problem: true); return; }
 
@@ -743,8 +866,9 @@ public partial class SendPage : UserControl, IDisposable
         try
         {
             ShowStatus("Making the sound file…", problem: false);
-            await SendSupport.SaveSoundAsync(() => SendSupport.WithWaterfallText(fitted.Transmitter(call).Audio()), path,
-                                             SendSupport.Gain(LevelSlider.Value));
+            await SendSupport.SaveSoundAsync(analog ? AnalogSound(analogPicture!, analogMode)
+                                                    : () => SendSupport.WithWaterfallText(fitted!.Transmitter(call).Audio()),
+                                             path, SendSupport.Gain(LevelSlider.Value));
             ShowStatus($"Saved {Path.GetFileName(path)}.", problem: false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
