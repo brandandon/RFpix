@@ -1,0 +1,28 @@
+<!--
+  WaterfallTextWindow.axaml - "WF TXT" on the Send tab: type a short text to write on the
+  waterfall. The preview shows it as it will look; Send sends it (with your transmit level).
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RFpix.Views.WaterfallTextWindow"
+        Title="Waterfall text" Width="520" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+  <StackPanel Margin="20" Spacing="12">
+    <TextBlock Text="Text to write on the waterfall" FontWeight="SemiBold" />
+    <TextBox x:Name="WfTextBox" MaxLength="40" Watermark="e.g. CQ SSTV NET" />
+    <Grid ColumnDefinitions="*,Auto">
+      <TextBlock x:Name="TimeText" Grid.Column="0" Classes="Hint" />
+      <TextBlock x:Name="CountText" Grid.Column="1" Classes="Hint" />
+    </Grid>
+    <TextBlock Text="How it will look" Classes="Hint" FontSize="12" />
+    <Border Background="#0B1A40" CornerRadius="4" Padding="6" Height="200" ClipToBounds="True">
+      <Image x:Name="PreviewImage" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="None" />
+    </Border>
+    <TextBlock Classes="Hint" FontSize="12" TextWrapping="Wrap"
+               Text="Up to 40 characters. A short text is drawn bigger; a long one is split into lines. Shown here as on a waterfall that scrolls down (EasyPal, QSSTV and RFpix's usual way)." />
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <Button x:Name="SendButton" Content="Send" Classes="accent" MinWidth="90" Click="OnSendClick" IsDefault="True" />
+      <Button Content="Cancel" MinWidth="90" Click="OnCancelClick" IsCancel="True" />
+    </StackPanel>
+  </StackPanel>
+</Window>

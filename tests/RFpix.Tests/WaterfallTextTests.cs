@@ -76,6 +76,70 @@ public class WaterfallTextTests
         Assert.True(Strength(audio, 0, 2048 * 3, 2800) < 0.0005);
     }
 
+    // ---- waterfall pictures ----
+
+    private static RFpix.Imaging.DecodedPicture Gradient(int width, int height)
+    {
+        // Black at the left to white at the right.
+        var bgra = new byte[4 * width * height];
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+            {
+                byte v = (byte)(255 * x / (width - 1));
+                int i = 4 * (y * width + x);
+                bgra[i] = bgra[i + 1] = bgra[i + 2] = v;
+                bgra[i + 3] = 255;
+            }
+        return new RFpix.Imaging.DecodedPicture(width, height, bgra);
+    }
+
+    [Fact]
+    public void A_picture_is_fitted_to_the_waterfall_keeping_its_shape()
+    {
+        var wide = WaterfallPicture.Levels(Gradient(400, 100), 62, invert: false);
+        Assert.Equal(24, wide.Length);                      // 98 across, so 98 x 24.5 (rounded to even: 24) rows
+        Assert.All(wide, r => Assert.Equal(98, r.Length));
+        var tall = WaterfallPicture.Levels(Gradient(100, 400), 40, invert: false);
+        Assert.Equal(40, tall.Length);                      // 40 rows, so 10 across, centred
+        Assert.Equal(0, tall[0][40]);                       // outside the picture: silent
+        Assert.True(tall[0][53] > 0);
+    }
+
+    [Fact]
+    public void Shades_are_spread_over_30_dB_and_black_is_silent()
+    {
+        Assert.Equal(1, WaterfallPicture.Level(1));
+        Assert.Equal(0, WaterfallPicture.Level(0.02));
+        Assert.Equal(-15, 20 * Math.Log10(WaterfallPicture.Level(0.5)), 6);
+        Assert.Equal(0.5, WaterfallPicture.Shade(WaterfallPicture.Level(0.5)), 6);
+
+        var levels = WaterfallPicture.Levels(Gradient(98, 10), 10, invert: false);
+        Assert.Equal(0, levels[0][0]);                      // black at the left
+        Assert.Equal(1, levels[0][97], 2);                  // white at the right
+        var inverted = WaterfallPicture.Levels(Gradient(98, 10), 10, invert: true);
+        Assert.Equal(1, inverted[0][0], 2);
+        Assert.Equal(0, inverted[0][97]);
+    }
+
+    [Fact]
+    public void A_waterfall_picture_sounds_its_shades_bottom_row_first()
+    {
+        var levels = new double[2][];
+        levels[0] = new double[98];   // top row: one bright pixel at column 10
+        levels[1] = new double[98];   // bottom row: one faint pixel at column 60
+        levels[0][10] = 1;
+        levels[1][60] = WaterfallPicture.Level(0.5);
+        var audio = WaterfallPicture.Audio(levels);
+        Assert.Equal(2 * 6144, audio.Length);
+        Assert.Equal(2 * 0.128, WaterfallPicture.Duration(2).TotalSeconds, 3);
+        int first = (int)Math.Round(300 / WaterfallText.PixelHz);
+        double faint = Strength(audio, 2048, 2048, (first + 60) * WaterfallText.PixelHz);         // first 128 ms: the bottom row
+        double bright = Strength(audio, 6144 + 2048, 2048, (first + 10) * WaterfallText.PixelHz); // then the top row
+        Assert.True(Strength(audio, 2048, 2048, (first + 10) * WaterfallText.PixelHz) < 0.0005);
+        Assert.Equal(-15, 20 * Math.Log10(faint / bright), 0);
+        Assert.Equal(98, WaterfallPicture.Preview(levels).Width);
+    }
+
     // ---- Morse code ----
 
     [Fact]

@@ -52,6 +52,13 @@ public sealed class AppSettings
     public string WaterfallTextBefore { get; set; } = "";
     public string WaterfallTextAfter { get; set; } = "";
 
+    /// <summary>The text last sent with WF TXT on the Send tab, offered again next time.</summary>
+    public string? LastWaterfallText { get; set; }
+
+    /// <summary>Where the popped-out Receive window was, and whether it was out when RFpix closed.</summary>
+    public WindowPlacement? ReceiveWindow { get; set; }
+    public bool ReceivePoppedOut { get; set; }
+
     /// <summary>The Receive tab's waterfall: new lines at the bottom, moving up (instead of top, down).</summary>
     public bool WaterfallScrollsUp { get; set; }
 

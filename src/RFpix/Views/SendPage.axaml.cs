@@ -660,6 +660,24 @@ public partial class SendPage : UserControl, IDisposable
         Transmit(() => WaterfallText.Audio(call), "your callsign on the waterfall", $"Sent {call} on the waterfall.");
     }
 
+    // WF TXT: a text of your own on the waterfall (typed in a small window).
+    private async void OnWfTextClick(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        var text = await new WaterfallTextWindow().ShowDialog<string?>(owner);
+        if (string.IsNullOrWhiteSpace(text)) return;
+        Transmit(() => WaterfallText.Audio(text), "your text on the waterfall", $"Sent \"{text}\" on the waterfall.");
+    }
+
+    // WF PIC: a small picture on the waterfall (chosen and previewed in a small window).
+    private async void OnWfPicClick(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        var levels = await new WaterfallPictureWindow().ShowDialog<double[][]?>(owner);
+        if (levels is null || levels.Length == 0) return;
+        Transmit(() => WaterfallPicture.Audio(levels), "a picture on the waterfall", "Sent the picture on the waterfall.");
+    }
+
     /// <summary>Sends a sound (a picture, CW or ID). Send becomes Stop meanwhile, and the
     /// buttons that would start another sending are off.</summary>
     /// <summary>How long a picture keeps the transmitter on: lead-in, waterfall text, picture and tail.</summary>
@@ -676,6 +694,7 @@ public partial class SendPage : UserControl, IDisposable
         SendButton.Content = "Stop";
         SendButton.IsEnabled = true;
         SaveButton.IsEnabled = OpenButton.IsEnabled = CwButton.IsEnabled = IdButton.IsEnabled = false;
+        WfTextButton.IsEnabled = WfPicButton.IsEnabled = false;
         Progress.Value = 0;
         Progress.IsVisible = true;
         try
@@ -701,6 +720,7 @@ public partial class SendPage : UserControl, IDisposable
             SendButton.IsEnabled = _fitted is not null && _fitting is null;
             SaveButton.IsEnabled = SendButton.IsEnabled;
             OpenButton.IsEnabled = CwButton.IsEnabled = IdButton.IsEnabled = true;
+            WfTextButton.IsEnabled = WfPicButton.IsEnabled = true;
             Progress.IsVisible = false;
         }
     }

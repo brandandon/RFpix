@@ -205,12 +205,16 @@
           </StackPanel>
         </Border>
 
-          <!-- Identify: your callsign in Morse code, or as text on the waterfall -->
+          <!-- Identify: your callsign in Morse code, or as text on the waterfall; or your own text or picture on the waterfall -->
           <StackPanel Orientation="Horizontal" Spacing="8">
             <Button x:Name="CwButton" Content="CW" Click="OnCwClick" MinWidth="56" Padding="10,4"
                     ToolTip.Tip="Sends your callsign in Morse code: a 750 Hz tone at 15 words per minute." />
             <Button x:Name="IdButton" Content="ID" Click="OnIdClick" MinWidth="56" Padding="10,4"
                     ToolTip.Tip="Writes your callsign on everyone's waterfall." />
+            <Button x:Name="WfTextButton" Content="WF TXT" Click="OnWfTextClick" Padding="10,4"
+                    ToolTip.Tip="Write a short text of your own (up to 40 characters) on everyone's waterfall." />
+            <Button x:Name="WfPicButton" Content="WF PIC" Click="OnWfPicClick" Padding="10,4"
+                    ToolTip.Tip="Draw a small picture (a logo, say) on everyone's waterfall, in shades of grey." />
           </StackPanel>
         </StackPanel>
       </Grid>

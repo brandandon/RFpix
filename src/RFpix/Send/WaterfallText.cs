@@ -84,9 +84,13 @@ public static class WaterfallText
     }
 
     /// <summary>The sound for the text: 48 kHz, -1 to 1. Empty for blank text.</summary>
-    public static float[] Audio(string text)
+    public static float[] Audio(string text) =>
+        RowsAudio(Pixels(text).Select(r => r.Select(on => on ? 1.0 : 0.0).ToArray()).ToArray());
+
+    /// <summary>The sound for any picture on the waterfall: rows (top first) of <see cref="Columns"/>
+    /// strengths, 0 (silent) to 1 (full). Text is all 0s and 1s; WaterfallPicture uses shades between.</summary>
+    public static float[] RowsAudio(double[][] rows)
     {
-        var rows = Pixels(text);
         int columns = Columns, first = (int)Math.Round(LowHz / PixelHz);
         // Each pixel's tone: its strength, and its starting point in the cycle (the chirp).
         // At full strength a row of all pixels is about -18 dBFS, as QSSTV.
@@ -101,12 +105,13 @@ public static class WaterfallText
         {
             var pixels = rows[rows.Length - 1 - r];   // bottom row first
             Array.Clear(row);
-            for (int c = 0; c < columns; c++)
+            for (int c = 0; c < columns && c < pixels.Length; c++)
             {
-                if (!pixels[c]) continue;
+                double level = Math.Clamp(pixels[c], 0, 1);
+                if (level <= 0) continue;
                 int bin = first + c;   // a whole number of cycles in 2048 samples, so the repeats join smoothly
                 for (int n = 0; n < RowSamples; n++)
-                    row[n] += amplitude * Math.Cos(2 * Math.PI * bin * n / RowSamples + phase[c]);
+                    row[n] += level * amplitude * Math.Cos(2 * Math.PI * bin * n / RowSamples + phase[c]);
             }
             int start = r * RowSamples * RowRepeats;
             for (int k = 0; k < RowRepeats * RowSamples; k++)

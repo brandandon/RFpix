@@ -34,11 +34,16 @@
       <TextBlock x:Name="NoteText" FontSize="13" TextWrapping="Wrap" />
     </Border>
 
-    <TabStrip Grid.Row="3" x:Name="Tabs" SelectedIndex="0" SelectionChanged="OnTabChanged">
-      <TabStripItem Content="Receive" FontSize="16" />
-      <TabStripItem Content="Send" FontSize="16" />
-    </TabStrip>
-    <Panel Grid.Row="4" Margin="0,12,0,0">
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto">
+      <TabStrip Grid.Column="0" x:Name="Tabs" SelectedIndex="0" SelectionChanged="OnTabChanged">
+        <TabStripItem x:Name="ReceiveTabItem" Content="Receive" FontSize="16" />
+        <TabStripItem Content="Send" FontSize="16" />
+      </TabStrip>
+      <!-- The Receive tab in a window of its own, to see it and the Send tab together -->
+      <Button Grid.Column="1" x:Name="PopOutButton" Content="Pop out Receive" Click="OnPopOutClick" VerticalAlignment="Center"
+              ToolTip.Tip="Moves the Receive tab into a window of its own, so you can watch receiving while you send (on a second monitor, say). Listening carries on. Close that window to bring it back." />
+    </Grid>
+    <Panel Grid.Row="4" x:Name="TabsHost" Margin="0,12,0,0">
       <views:ReceivePage x:Name="ReceiveTab" FontSize="14" />
       <views:SendPage x:Name="SendTab" FontSize="14" IsVisible="False" />
     </Panel>

@@ -14,6 +14,7 @@ using RFpix.Audio;
 using RFpix.HamDrm;
 using RFpix.Radio;
 using RFpix.Send;
+using RFpix.Settings;
 
 namespace RFpix.Views;
 
@@ -29,12 +30,56 @@ public partial class TxRxPage : UserControl, IDisposable
         InitializeComponent();
         ReceiveTab.BsrHeard += OnBsrHeard;
         _noteTimer.Tick += (_, _) => { _noteTimer.Stop(); NoteBar.IsVisible = false; };
+        // Popped out when RFpix last closed: pop out again once the main window is up.
+        Loaded += (_, _) => { if (AppSettings.Current.ReceivePoppedOut && _receiveWindow is null) PopOut(); };
+    }
+
+    // ---- the Receive tab in its own window ----
+
+    private ReceiveWindow? _receiveWindow;
+    private bool _closing;   // RFpix is closing: remember the window was out
+
+    private void OnPopOutClick(object? sender, RoutedEventArgs e)
+    {
+        if (_receiveWindow is null) PopOut();
+        else _receiveWindow.Close();   // brings it back (Closed)
+    }
+
+    private void PopOut()
+    {
+        TabsHost.Children.Remove(ReceiveTab);
+        ReceiveTab.IsVisible = true;
+        _receiveWindow = new ReceiveWindow(ReceiveTab);
+        _receiveWindow.Closed += (_, _) => PutBack();
+        ReceiveTabItem.IsVisible = false;
+        Tabs.SelectedIndex = 1;
+        PopOutButton.Content = "Bring Receive back";
+        AppSettings.Current.ReceivePoppedOut = true;
+        AppSettings.Current.Save();
+        _receiveWindow.Show();
+    }
+
+    private void PutBack()
+    {
+        if (_receiveWindow is null) return;
+        _receiveWindow.TakeBack();
+        _receiveWindow = null;
+        TabsHost.Children.Insert(0, ReceiveTab);
+        ReceiveTabItem.IsVisible = true;
+        PopOutButton.Content = "Pop out Receive";
+        if (_closing) return;
+        Tabs.SelectedIndex = 0;
+        ReceiveTab.IsVisible = true;
+        SendTab.IsVisible = false;
+        AppSettings.Current.ReceivePoppedOut = false;
+        AppSettings.Current.Save();
     }
 
     // Show the chosen tab and hide the other (both keep running).
     private void OnTabChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (ReceiveTab is null || SendTab is null) return;   // still being built
+        if (_receiveWindow is not null) { SendTab.IsVisible = true; return; }   // Receive is in its own window
         ReceiveTab.IsVisible = Tabs.SelectedIndex == 0;
         SendTab.IsVisible = Tabs.SelectedIndex == 1;
     }
@@ -43,6 +88,7 @@ public partial class TxRxPage : UserControl, IDisposable
     public async void ShowSendTab(string picturePath)
     {
         Tabs.SelectedIndex = 1;
+        SendTab.IsVisible = true;
         await SendTab.OpenPictureAsync(picturePath);
     }
 
@@ -138,6 +184,8 @@ public partial class TxRxPage : UserControl, IDisposable
     public void Dispose()
     {
         _noteTimer.Stop();
+        _closing = true;
+        _receiveWindow?.Close();   // the Receive tab comes back here (and the window remembers its place)
         _fixing?.Cancel();      // closing RFpix mid-fix: stop (Transmission un-keys)
         _output.Dispose();
         SendTab.Dispose();      // stops a transmission in progress (the radio is released)
