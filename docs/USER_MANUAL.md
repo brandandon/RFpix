@@ -40,7 +40,9 @@ A few things RFpix does for you:
 - **Saves everything.** Every picture received is saved on its own, and can be put on your website automatically.
 - **Adds your callsign.** Templates draw your callsign, a CQ card or a reply on the picture as it goes out.
 
-*\[Screenshot: the TX/RX page, Receive tab, with a picture received\]*
+![The Receive tab (popped out into its own window), with a digital picture just received](images/receive-tab.png)
+
+*The Receive tab, popped out into its own window: the waterfall on the left, the signal and settings boxes at the top, and the last picture received.*
 
 ### 2. Installing
 
@@ -59,7 +61,9 @@ RFpix is free to download from its [releases page on GitHub](https://github.com/
 4. Tick **Put a shortcut on the desktop** if you want one.
 5. Click **Install**, then **Finish**. RFpix starts.
 
-*\[Screenshot: the "Windows protected your PC" message with More info\]*
+![Windows' "Windows protected your PC" message, with the More info link](images/smartscreen.png)
+
+*Click **More info**: a **Run anyway** button appears beside **Don't run**.*
 
 #### Running RFpix.exe without installing
 
@@ -103,7 +107,9 @@ Work through these steps in order the first time you run RFpix. Everything is sa
 - [ ] **8. Send your first picture.** Open the **Send** tab and click **Open picture…** (or drag a picture onto the tab). Choose **Digital (HamDRM)** or **Analog SSTV**, and set **Transmit time** or the analog mode. Then click **Send**.
 - [ ] **9. Set the transmit level.** While sending, watch the radio's ALC meter and move the **Transmit level** slider until the ALC barely moves. The slider works during a transmission, and RFpix remembers where you leave it.
 
-*\[Screenshot: Settings, Radio tab, with a radio picked and the sound devices at the bottom\]*
+![Settings, Radio tab, set up for a Yaesu FT-991A, with the sound devices at the bottom](images/settings-radio.png)
+
+*Settings, Radio tab, set up for a Yaesu FT-991A: the Enhanced COM Port at 38400 baud, CAT keying, and the radio's USB sound devices at the bottom.*
 
 When all nine boxes are ticked, RFpix is ready. Part 2 explains receiving and sending in detail.
 
