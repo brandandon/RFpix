@@ -138,7 +138,7 @@
     <Grid Grid.Row="2" ColumnDefinitions="Auto,*">
       <TextBlock x:Name="PointerFrequencyText" Grid.Column="0" MinWidth="140" FontWeight="SemiBold" />
       <TextBlock Grid.Column="1" Classes="Hint" HorizontalAlignment="Right"
-                 Text="A HamDRM signal shows as a wide band, roughly 300 to 2800 Hz." />
+                 Text="SSTV" />
     </Grid>
 
     <!-- Row 3: problems are explained here -->
