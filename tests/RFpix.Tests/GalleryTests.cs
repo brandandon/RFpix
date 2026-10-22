@@ -109,4 +109,17 @@ public class GalleryTests
         }
         finally { Directory.Delete(folder, true); }
     }
+
+    [Fact]
+    public void Analog_and_digital_pictures_are_told_apart()
+    {
+        string root = Path.Combine("x", "Received");
+        Assert.True(new GalleryEntry("a.png", DateTime.Now) { Folder = Path.Combine(root, "Analog") }.IsAnalog);
+        Assert.False(new GalleryEntry("a.jpg", DateTime.Now) { Folder = Path.Combine(root, "Digital") }.IsAnalog);
+        // From before they were kept apart: by what was noted, or by the name RFpix gives analog pictures.
+        Assert.True(new GalleryEntry("b.png", DateTime.Now, "SSTV Martin 1.png", null, "Analog SSTV  ·  Martin 1") { Folder = root }.IsAnalog);
+        Assert.False(new GalleryEntry("c.jp2", DateTime.Now, "tower.jp2", "N0ABC", "Mode B, 2.5 kHz") { Folder = root }.IsAnalog);
+        Assert.True(GalleryIndex.FromName("2026-10-20 1942 SSTV Martin 1.png", DateTime.MinValue).IsAnalog);
+        Assert.False(GalleryIndex.FromName("2026-10-20 1942 N0ABC tower.jp2", DateTime.MinValue).IsAnalog);
+    }
 }

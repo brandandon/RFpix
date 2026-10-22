@@ -53,6 +53,10 @@ public static class MorseCode
         return dits.ToArray();
     }
 
+    /// <summary>How long the text takes in Morse code.</summary>
+    public static TimeSpan Duration(string text, double wpm = DefaultWpm) =>
+        TimeSpan.FromSeconds(Pattern(text).Length * (int)Math.Round(1.2 / wpm * SampleRate) / (double)SampleRate);
+
     /// <summary>The Morse sound for the text: 48 kHz, -1 to 1.</summary>
     public static float[] Audio(string text, double toneHz = DefaultToneHz, double wpm = DefaultWpm)
     {

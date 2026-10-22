@@ -110,7 +110,7 @@ public sealed class AudioRecorder
     }
 
     /// <summary>Stops recording. The callsigns heard during it (up to 3) replace "recording"
-    /// in the file's name, e.g. "2026-10-11 1530 KD9DD.wav". Returns the saved file's path,
+    /// in the file's name, e.g. "2026-10-11 1530 N0CALL.wav". Returns the saved file's path,
     /// or null if nothing was being recorded.</summary>
     public string? Stop(IEnumerable<string>? callsigns = null)
     {

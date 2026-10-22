@@ -1,10 +1,11 @@
 // SettingsPage.axaml.cs - the code half of the Settings page.
 //
-// Audio tab: the radio's input (what the TX/RX page listens to) and output (what it sends
-// through). Each is remembered by its permanent Windows ID; a change takes effect at once
-// (the TX/RX page is told through AppSettings.SoundDevicesChanged).
-// Radio tab: the RadioPage control, which looks after itself.
-// Misc tab: the callsign (used by the Send tab and the Alpha Testing page), the waterfall text
+// Radio tab: the RadioPage control, which looks after itself, and under it the radio's sound
+// devices: its input (what the TX/RX page listens to) and output (what it sends through). Each
+// is remembered by its permanent Windows ID; a change takes effect at once (the TX/RX page is
+// told through AppSettings.SoundDevicesChanged).
+// Misc tab: the callsign (used by the Send tab and the Alpha Testing page), the grid square
+// (%qth in templates), the waterfall text
 // sent before and after each picture, the theme, and sound-card calibration: for 2 minutes the
 // radio's sound input is listened to and silence played to its output, both counted against
 // the computer's clock (SoundCardClock.cs); the results are saved, and used from then on.
@@ -14,6 +15,7 @@ using Avalonia.Interactivity;
 using RFpix.Audio;
 using RFpix.Send;
 using RFpix.Settings;
+using RFpix.Templates;
 
 namespace RFpix.Views;
 
@@ -27,6 +29,12 @@ public partial class SettingsPage : UserControl, IDisposable
     {
         InitializeComponent();
 
+        // The sound devices go on the Radio tab, under the Test PTT note.
+        ((Panel)AudioPanel.Parent!).Children.Remove(AudioPanel);
+        AudioPanel.ClearValue(Grid.RowProperty);
+        AudioPanel.IsVisible = true;
+        RadioTab.Below.Children.Add(AudioPanel);
+
         // Show the saved theme: 0 = follow Windows, 1 = light, 2 = dark.
         ThemeBox.SelectedIndex = AppSettings.Current.Theme switch
         {
@@ -35,6 +43,7 @@ public partial class SettingsPage : UserControl, IDisposable
             _ => 0
         };
         CallsignBox.Text = AppSettings.Current.Callsign ?? "";
+        GridBox.Text = AppSettings.Current.GridSquare ?? "";
         WaterfallBeforeBox.MaxLength = WaterfallAfterBox.MaxLength = WaterfallText.MaxLength;
         WaterfallBeforeBox.Text = AppSettings.Current.WaterfallTextBefore;
         WaterfallAfterBox.Text = AppSettings.Current.WaterfallTextAfter;
@@ -110,6 +119,31 @@ public partial class SettingsPage : UserControl, IDisposable
     private void OnCallsignLostFocus(object? sender, RoutedEventArgs e) =>
         CallsignBox.Text = (CallsignBox.Text ?? "").Trim().ToUpperInvariant();
 
+    // ---- grid square ----
+
+    /// <summary>Saved as it's typed once it's a whole grid square (AA00 or AA00aa), written the usual way.</summary>
+    private void OnGridChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (GridProblem is null) return;   // still being built
+        string typed = (GridBox.Text ?? "").Trim();
+        if (typed.Length == 0)
+        {
+            GridProblem.Text = "";
+            if (AppSettings.Current.GridSquare is not null) { AppSettings.Current.GridSquare = null; AppSettings.Current.Save(); }
+            return;
+        }
+        if (GridSquare.Normalise(typed) is not { } grid) { GridProblem.Text = "4 or 6 characters, like AA00 or AA00aa"; return; }
+        GridProblem.Text = "";
+        if (grid == AppSettings.Current.GridSquare) return;
+        AppSettings.Current.GridSquare = grid;
+        AppSettings.Current.Save();
+    }
+
+    private void OnGridLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (GridSquare.Normalise(GridBox.Text ?? "") is { } grid) GridBox.Text = grid;
+    }
+
     // ---- waterfall text ----
 
     private void OnWaterfallTextChanged(object? sender, TextChangedEventArgs e)
@@ -159,7 +193,7 @@ public partial class SettingsPage : UserControl, IDisposable
         string? inputId = AppSettings.Current.InputDeviceId, outputId = AppSettings.Current.OutputDeviceId;
         if (inputId is null || outputId is null)
         {
-            ShowCalibrationStatus("Pick the radio's sound input and output on the Audio tab first.", problem: true);
+            ShowCalibrationStatus("Pick the radio's sound input and output on the Radio tab first.", problem: true);
             return;
         }
         string inputName = (InputBox.SelectedItem as AudioDeviceInfo)?.Name ?? "the sound input";

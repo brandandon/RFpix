@@ -42,7 +42,7 @@ public partial class TemplateEditorWindow : Window
     private bool _dirty, _closeArmed, _building;
 
     public TemplateEditorWindow() : this(null, TemplatePickerWindow.SamplePicture(640, 480),
-                                         new TemplateFields("KD9DD", "W9ABC", "Bob", "595", DateTime.Now)) { }
+                                         TemplateFields.Sample(null, null)) { }
 
     /// <param name="template">The template to change (RFpix's own: a copy is made), or null for a new one.</param>
     public TemplateEditorWindow(OverlayTemplate? template, DecodedPicture picture, TemplateFields fields)
@@ -321,7 +321,7 @@ public partial class TemplateEditorWindow : Window
                 var text = new TextBox { Text = item.Text, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 60 };
                 text.TextChanged += (_, _) => { item.Text = text.Text ?? ""; Changed(relist: true); };
                 panel.Add(text);
-                panel.Add(Hint("Codes: %me your callsign, %to their callsign, %name their name, %rst the report, %date, %time, %utc."));
+                panel.Add(Hint("Codes: %me your callsign, %to their callsign, %name their name, %rst the report, %date, %time, %utc, %qth your grid square."));
                 panel.Add(Label("Font"));
                 var font = new ComboBox { ItemsSource = Fonts, SelectedItem = Fonts.Contains(item.Font) ? item.Font : null, HorizontalAlignment = HorizontalAlignment.Stretch };
                 font.SelectionChanged += (_, _) => { if (font.SelectedItem is string f) { item.Font = f; Changed(); } };

@@ -1,5 +1,5 @@
 // OverlayTemplate.cs - overlay templates: text, boxes and logos drawn on a picture before
-// it's sent (a callsign bar, "CQ SSTV NET", "W9ABC de KD9DD  RST 595"...).
+// it's sent (a callsign bar, "CQ SSTV NET", "N0ABC de N0CALL  RST 595"...).
 //
 // Everything is measured as a share of the picture, not in pixels: an item 3% in from the
 // left, 86% down, 60% wide and 14% tall, with letters 9% of the picture's height. So one
@@ -11,6 +11,7 @@
 //   %me   your callsign        %to    the station you're sending to
 //   %name their name           %rst   the signal report (e.g. 595)
 //   %date today's date         %time  the time (local), %utc the time in UTC
+//   %qth  your grid square (Settings, Misc tab)
 //
 // Templates are saved as small files (one each) in Documents\RFpix\Templates, logos and all,
 // so they can be copied or shared.
@@ -121,12 +122,17 @@ public sealed class OverlayTemplate
 }
 
 /// <summary>What fills a template's codes when it's used.</summary>
-public sealed record TemplateFields(string MyCall, string To, string Name, string Rst, DateTime When)
+public sealed record TemplateFields(string MyCall, string To, string Name, string Rst, DateTime When, string Qth = "")
 {
-    public static readonly string[] Codes = { "%me", "%to", "%name", "%rst", "%date", "%time", "%utc" };
+    public static readonly string[] Codes = { "%me", "%to", "%name", "%rst", "%date", "%time", "%utc", "%qth" };
+
+    /// <summary>For previews: your own callsign and grid square if they're set, and a made-up contact.</summary>
+    public static TemplateFields Sample(string? myCall, string? qth) =>
+        new(string.IsNullOrWhiteSpace(myCall) ? "N0CALL" : myCall.Trim().ToUpperInvariant(), "N0ABC", "Op", "595", DateTime.Now,
+            string.IsNullOrWhiteSpace(qth) ? "AA00aa" : qth.Trim());
 
     /// <summary>The text with its codes filled in. A line left empty by them is dropped, and spaces
-    /// tidied ("%to de %me" with no To callsign becomes "de KD9DD").</summary>
+    /// tidied ("%to de %me" with no To callsign becomes "de N0CALL").</summary>
     public string Fill(string text)
     {
         var utc = When.ToUniversalTime();
@@ -135,6 +141,7 @@ public sealed record TemplateFields(string MyCall, string To, string Name, strin
             .Replace("%me", MyCall, StringComparison.OrdinalIgnoreCase)
             .Replace("%to", To, StringComparison.OrdinalIgnoreCase)
             .Replace("%rst", Rst, StringComparison.OrdinalIgnoreCase)
+            .Replace("%qth", Qth, StringComparison.OrdinalIgnoreCase)
             .Replace("%date", When.ToString("MMM d, yyyy", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
             .Replace("%time", When.ToString("HH:mm", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
             .Replace("%utc", utc.ToString("HHmm", CultureInfo.InvariantCulture) + "Z", StringComparison.OrdinalIgnoreCase);

@@ -1,6 +1,6 @@
 <!--
   GalleryPage.axaml - the Gallery page: every picture received and sent, newest first,
-  grouped by day. Click one for its details (who, when, the settings it came with, the
+  grouped by day; received pictures in two halves, digital (HamDRM) and analog SSTV. Click one for its details (who, when, the settings it came with, the
   signal); double-click to open it full size. "Send this picture" opens it on the Send tab.
   The pictures are the files in the Received and Sent folders; the tiles are made in the code.
 -->
@@ -49,10 +49,29 @@
     </Grid>
 
     <Grid Grid.Row="2" ColumnDefinitions="*,340" ColumnSpacing="20" Margin="0,12,0,0">
-      <!-- The pictures, by day -->
+      <!-- Sent: the pictures, by day -->
       <ScrollViewer Grid.Column="0" x:Name="TilesScroll">
         <StackPanel x:Name="DaysPanel" Margin="0,0,12,12" />
       </ScrollViewer>
+      <!-- Received: digital pictures on the left, analog on the right, each by day -->
+      <Grid Grid.Column="0" x:Name="SplitPanel" ColumnDefinitions="*,*" ColumnSpacing="16" IsVisible="False">
+        <Grid Grid.Column="0" RowDefinitions="Auto,*">
+          <TextBlock x:Name="DigitalHeading" Text="Digital" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,6" />
+          <ScrollViewer Grid.Row="1">
+            <StackPanel x:Name="DigitalDays" Margin="0,0,12,12" />
+          </ScrollViewer>
+          <TextBlock Grid.Row="1" x:Name="DigitalEmpty" Classes="Hint" TextWrapping="Wrap" IsVisible="False"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" MaxWidth="260" />
+        </Grid>
+        <Grid Grid.Column="1" RowDefinitions="Auto,*">
+          <TextBlock x:Name="AnalogHeading" Text="Analog" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,6" />
+          <ScrollViewer Grid.Row="1">
+            <StackPanel x:Name="AnalogDays" Margin="0,0,12,12" />
+          </ScrollViewer>
+          <TextBlock Grid.Row="1" x:Name="AnalogEmpty" Classes="Hint" TextWrapping="Wrap" IsVisible="False"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" MaxWidth="260" />
+        </Grid>
+      </Grid>
       <TextBlock Grid.Column="0" x:Name="EmptyText" Classes="Hint" TextWrapping="Wrap" IsVisible="False"
                  HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" MaxWidth="420" />
 

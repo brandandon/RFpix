@@ -24,6 +24,9 @@ namespace RFpix.Views;
 
 public partial class RadioPage : UserControl, IDisposable
 {
+    /// <summary>Under the Test PTT note: the Settings page puts the sound devices here.</summary>
+    public Panel Below => BelowPanel;
+
     private static RadioConnection? Connection => RadioService.Current;
     private readonly DispatcherTimer _pollTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private bool _busy;       // a radio command is running in the background

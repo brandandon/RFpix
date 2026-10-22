@@ -239,4 +239,94 @@ public class SstvTests
                         $"pixel {x}: ({got.Bgra[i + 2]}, {got.Bgra[i + 1]}, {got.Bgra[i]})");
         }
     }
+
+    // ---- MMSSTV's preamble, and the FSK ID ----
+
+    private static float[] Tones(IEnumerable<(double Hz, double Ms)> tones, double noise = 0, int seed = 1)
+    {
+        var rnd = new Random(seed);
+        var audio = new List<float>();
+        double phase = 0;
+        foreach (var (hz, ms) in tones)
+            for (int i = 0; i < (int)Math.Round(ms * 48); i++)
+            {
+                phase += 2 * Math.PI * hz / 48000;
+                audio.Add((float)(0.25 * Math.Sin(phase) + noise * (rnd.NextDouble() * 2 - 1)));
+            }
+        return audio.ToArray();
+    }
+
+    private static List<string> Ids(float[] audio)
+    {
+        var rx = new SstvReceiver();
+        var ids = new List<string>();
+        rx.IdReceived += ids.Add;
+        var padded = new float[audio.Length + 48000];
+        audio.CopyTo(padded, 24000);
+        for (int at = 0; at < padded.Length; at += 4800)
+            rx.AddSamples(padded.AsSpan(at, Math.Min(4800, padded.Length - at)));
+        return ids;
+    }
+
+    [Fact]
+    public void The_FSK_ID_is_coded_as_MMSSTV_and_QSSTV_send_it()
+    {
+        // Header 0x2A, the characters less 0x20, the end 0x01, then the characters XORed.
+        Assert.Equal(new[] { 0x2A, 0x21, 0x22, 0x01, 0x21 ^ 0x22 }, FskId.Symbols("ab"));
+        Assert.Equal("N0CALL/P", FskId.Clean(" n0call/p "));
+        Assert.Empty(FskId.Tones(""));
+        var tones = FskId.Tones("AB");
+        Assert.Equal((1500.0, 300.0), tones[0]);
+        Assert.Equal((2100.0, 100.0), tones[1]);
+        Assert.Equal(3 + 5 * 6 + 1, tones.Count);
+        Assert.Equal(300 + 100 + 22 + 30 * 22 + 100, FskId.Duration("AB").TotalMilliseconds, 3);
+    }
+
+    [Fact]
+    public void A_picture_goes_out_with_the_preamble_first_and_the_FSK_ID_after()
+    {
+        var m = SstvModes.Get(SstvMode.Robot36);
+        var picture = SstvEncoder.Fit(Pattern(320, 240), m);
+        var audio = SstvEncoder.Audio(picture, m, preamble: true, fskId: "N0CALL");
+        Assert.Equal(SstvEncoder.Duration(m, preamble: true, fskId: "N0CALL").TotalSeconds * 48000, audio.Length, 0);
+        double[] expected = { 1900, 1500, 1900, 1500, 2300, 1500, 2300, 1500 };
+        for (int i = 0; i < 8; i++) Near(expected[i], FrequencyAt(audio, 100 * i + 20, 60), 5);
+        Near(1900, FrequencyAt(audio, 820, 250), 5);   // then the VIS leader
+
+        var rx = new SstvReceiver();
+        SstvPicture? got = null;
+        var ids = new List<string>();
+        rx.Finished += p => got = p;
+        rx.IdReceived += ids.Add;
+        var padded = new float[audio.Length + 96000];
+        audio.CopyTo(padded, 48000);
+        for (int at = 0; at < padded.Length; at += 4800) rx.AddSamples(padded.AsSpan(at, Math.Min(4800, padded.Length - at)));
+        rx.End();
+        Assert.NotNull(got);
+        Assert.True(Psnr(picture, got!.Picture) > 26);
+        Assert.Equal(new[] { "N0CALL" }, ids);
+    }
+
+    [Theory]
+    [InlineData(0.0, 0.0)]
+    [InlineData(0.15, 0.0)]       // noisy
+    [InlineData(0.3, 0.0)]        // very noisy (as loud as the signal)
+    [InlineData(0.0, 500e-6)]     // the sender's sound card 500 ppm slow
+    [InlineData(0.05, -500e-6)]
+    public void The_FSK_ID_is_read(double noise, double ppm)
+    {
+        var audio = Tones(FskId.Tones("N0CALL/P"), noise);
+        if (ppm != 0) audio = RFpix.Audio.ClockCorrector.Resample(audio, 1 + ppm);
+        Assert.Equal(new[] { "N0CALL/P" }, Ids(audio));
+    }
+
+    [Fact]
+    public void An_FSK_ID_with_the_wrong_check_is_ignored()
+    {
+        var tones = FskId.Tones("N0CALL").ToList();
+        int lastCheckBit = tones.Count - 2;   // before the closing 100 ms of 1900 Hz
+        tones[lastCheckBit] = (tones[lastCheckBit].Hz == FskId.OneHz ? FskId.ZeroHz : FskId.OneHz, FskId.BitMs);
+        Assert.Empty(Ids(Tones(tones)));
+        Assert.Empty(Ids(Tones(new[] { (1500.0, 2000.0), (2100.0, 500.0), (1900.0, 500.0) })));   // just tones
+    }
 }

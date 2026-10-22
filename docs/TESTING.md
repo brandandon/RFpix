@@ -42,7 +42,7 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
    DTR or VOX), then **Connect** and **Test PTT**. (Use a dummy load or low power for the PTT test.)
    On the **Misc** tab, type your callsign: it's sent with every transmission.
 2. **Alpha Testing** page: pick a test and click **Send**. (The sound output is the one picked
-   on the Settings page's Audio tab.) RFpix goes on listening on the TX/RX page's
+   on the Settings page's Radio tab, at the bottom.) RFpix goes on listening on the TX/RX page's
    Receive tab while you send.
 3. **Level:** leave the radio's Windows volume where your other programs need it and set the
    level with RFpix's slider. Start around **−30 dB** and raise it until the radio's ALC
@@ -80,6 +80,33 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
    **Net repeater (70 cm)** is built in; **Save as profile…** keeps your own.
 6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
+
+## Analog like MMSSTV, and the other changes in v0.5.0
+
+- **Analog SSTV sending**: pictures now go out as MMSSTV sends them: a short preamble (eight quick
+  tones, 0.8 second) before the VIS code, and your callsign as an **FSK ID** (a short warble) after
+  the picture. MMSSTV and QSSTV show the FSK ID as who sent it: please check they do.
+  Under the analog mode, **Send my callsign in CW after the picture** adds your callsign in Morse
+  code half a second later (the same tone and speed as the CW button).
+- **Fill the frame / Whole picture**: the picture as sent now changes both ways.
+- **Previews**: the two pictures on the Send tab are 10% smaller.
+- **Receive** tab: while listening, the digital boxes always show (Offset, Clock, Strength,
+  Quality, Mode, Bandwidth, QAM, Interleave, Protection, Reed-Solomon, From), empty unless a
+  digital picture is arriving. While an analog picture arrives they're replaced by analog boxes:
+  Mode, Line ___ of ___, and From (the sender's FSK ID). They stay 10 seconds after the picture
+  ends, then go back to the digital boxes. A picture whose FSK ID is read gets that callsign in the
+  Gallery.
+- **Waterfall**: with the Send tab set to Analog (or while an analog picture arrives), the marks
+  change to SSTV's tones: S 1200 Hz (sync), B 1500 Hz (black), V 1900 Hz (VIS leader) and
+  W 2300 Hz (white). Point at a mark to see what it is.
+- **Gallery**: the Received tab shows Digital pictures on the left and Analog on the right; the
+  Sent tab says Analog or Digital beside each picture's time.
+- **Settings > FTP server**: **Pictures shown Digital** and **Pictures shown Analog** set how many
+  of each the website keeps (for example 3 digital and 12 analog). Click **Save**.
+- **Settings > Radio**: the sound devices (receive input and send output) are now at the bottom
+  of this tab; the Audio tab is gone.
+- **Settings > Misc**: **Your grid square (QTH)**, 4 or 6 characters. Templates can show it with
+  the **%qth** code.
 
 ## Digital and analog kept apart, signal boxes (new in v0.4.5)
 

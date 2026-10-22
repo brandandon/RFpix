@@ -7,6 +7,10 @@
 // key frequencies: 725, 1475 and 1850 Hz, where every HamDRM signal (any mode) has a
 // steady tone, its "frequency pilots". Those show as three bright lines in the signal;
 // when they sit on the marks, the signal is where RFpix expects it.
+// For analog SSTV (Analog = true) the marks move to SSTV's own tones, as MMSSTV shows them:
+// 1200 Hz (sync), 1500 Hz (black), 1900 Hz (the VIS leader) and 2300 Hz (white), each with a
+// letter at the top. An SSTV picture is one tone sweeping between black and white, with the
+// sync pulse at the start of every line.
 
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -33,7 +37,34 @@ public sealed class WaterfallControl : Control
     /// <summary>HamDRM's frequency pilots, the same in every mode (350 Hz + carrier x spacing).</summary>
     public static readonly double[] KeyFrequencies = { 725, 1475, 1850 };
 
+    /// <summary>Analog SSTV's key tones, with a letter for each and what it is.</summary>
+    public static readonly (double Hz, string Letter, string Name)[] AnalogMarks =
+        { (1200, "S", "sync"), (1500, "B", "black"), (1900, "V", "VIS leader"), (2300, "W", "white") };
+
     private static readonly IPen KeyPen = new Pen(new SolidColorBrush(Color.FromArgb(150, 255, 211, 77)), 1);
+    private static readonly IBrush AnalogBrush = new SolidColorBrush(Color.FromArgb(190, 120, 255, 140));
+    private static readonly IPen AnalogPen = new Pen(new SolidColorBrush(Color.FromArgb(150, 120, 255, 140)), 1, new DashStyle(new double[] { 3, 2 }, 0));
+
+    private bool _analog;
+
+    /// <summary>Marks for analog SSTV (true) or HamDRM (false).</summary>
+    public bool Analog
+    {
+        get => _analog;
+        set
+        {
+            if (_analog == value) return;
+            _analog = value;
+            InvalidateVisual();
+        }
+    }
+
+    /// <summary>What a frequency near one of the marks is ("sync", "pilot"), or null.</summary>
+    public string? MarkName(double hz, double within)
+    {
+        if (_analog) return AnalogMarks.Where(m => Math.Abs(m.Hz - hz) <= within).Select(m => m.Name).FirstOrDefault();
+        return KeyFrequencies.Any(f => Math.Abs(f - hz) <= within) ? "HamDRM pilot" : null;
+    }
 
     /// <summary>The frequency at the right-hand edge, in Hz (set from the incoming lines).</summary>
     public double DisplayMaxFrequency { get; private set; } = 3000;
@@ -94,10 +125,23 @@ public sealed class WaterfallControl : Control
         }
 
         // The key frequency marks, top to bottom of the picture.
-        foreach (double hz in KeyFrequencies)
+        if (_analog)
         {
-            double x = Math.Round(hz / DisplayMaxFrequency * Bounds.Width) + 0.5;   // on a whole pixel: crisp
-            context.DrawLine(KeyPen, new Point(x, picture.Top), new Point(x, picture.Bottom));
+            foreach (var (hz, letter, _) in AnalogMarks)
+            {
+                double x = Math.Round(hz / DisplayMaxFrequency * Bounds.Width) + 0.5;
+                var text = new FormattedText(letter, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Typeface.Default, 10, AnalogBrush);
+                context.DrawText(text, new Point(x - text.Width / 2, picture.Top + 1));
+                context.DrawLine(AnalogPen, new Point(x, picture.Top + text.Height + 1), new Point(x, picture.Bottom));
+            }
+        }
+        else
+        {
+            foreach (double hz in KeyFrequencies)
+            {
+                double x = Math.Round(hz / DisplayMaxFrequency * Bounds.Width) + 0.5;   // on a whole pixel: crisp
+                context.DrawLine(KeyPen, new Point(x, picture.Top), new Point(x, picture.Bottom));
+            }
         }
 
         // Frequency scale: a tick and a label every 500 Hz.

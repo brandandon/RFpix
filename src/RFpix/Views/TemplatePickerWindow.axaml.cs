@@ -23,7 +23,7 @@ public partial class TemplatePickerWindow : Window
     private readonly TemplateFields _fields;
     private int _generation;
 
-    public TemplatePickerWindow() : this(null, null, new TemplateFields("KD9DD", "W9ABC", "Bob", "595", DateTime.Now)) { }
+    public TemplatePickerWindow() : this(null, null, TemplateFields.Sample(null, null)) { }
 
     /// <param name="picture">The picture to show the templates on (null: a sample).</param>
     /// <param name="current">The template in use (shown highlighted).</param>

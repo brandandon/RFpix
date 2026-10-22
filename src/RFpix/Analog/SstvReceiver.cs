@@ -14,6 +14,9 @@
 //      with the best timing.
 //   4. Colour: back from green/blue/red, or from brightness and colour differences.
 //
+// After a picture MMSSTV and QSSTV usually send the sender's callsign as an FSK ID; it's read
+// from the same frequency track (FskIdDecoder) and reported by IdReceived.
+//
 // It stops when the picture is complete, when the syncs have been missing for a while (the
 // signal has gone), or when a new VIS code starts another picture.
 
@@ -44,6 +47,9 @@ public sealed class SstvReceiver
     private double _level = 1e-3;   // running signal strength, to tell sound from silence
 
     private readonly List<float> _track = new();   // Hz, or 0 where there's no signal
+    private readonly FskIdDecoder _fskId = new(TrackRate);
+
+    public SstvReceiver() => _fskId.Received += call => IdReceived?.Invoke(call);
     private long _trackStart;                      // track samples dropped from the front
 
     /// <summary>Sound to receive: 48 kHz, -1 to 1.</summary>
@@ -67,7 +73,9 @@ public sealed class SstvReceiver
             _pairSum += magnitude > 0.1 * _level && magnitude > 1e-4 ? hz : 0;
             if (++_pairCount == 2)
             {
-                _track.Add((float)(_pairSum / 2));
+                float trackHz = (float)(_pairSum / 2);
+                _track.Add(trackHz);
+                _fskId.Add(trackHz);
                 _pairSum = 0;
                 _pairCount = 0;
                 OnTrack();
@@ -88,6 +96,9 @@ public sealed class SstvReceiver
 
     /// <summary>A picture has ended (complete, or cut short).</summary>
     public event Action<SstvPicture>? Finished;
+
+    /// <summary>A sender's callsign, from the FSK ID MMSSTV and QSSTV send after a picture.</summary>
+    public event Action<string>? IdReceived;
 
     /// <summary>The mode being received, or null between pictures.</summary>
     public SstvModeInfo? Receiving => _image?.Mode;

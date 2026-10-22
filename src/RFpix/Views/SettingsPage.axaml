@@ -1,7 +1,7 @@
 <!--
   SettingsPage.axaml - the Settings page, in three tabs:
-    Audio - the radio's sound devices (receive input and send output)
-    Radio - how RFpix reaches and keys the radio (the RadioPage control)
+    Radio - how RFpix reaches and keys the radio (the RadioPage control), and below that the
+            radio's sound devices (receive input and send output)
     Misc  - your callsign, waterfall text, the colour theme, and sound-card calibration
     FTP server - copies of pictures for a website, and uploading them (the FtpPage control)
 -->
@@ -12,36 +12,6 @@
   <Grid RowDefinitions="Auto,*" RowSpacing="6">
     <TextBlock Grid.Row="0" Classes="PageTitle" Text="Settings" />
     <TabControl Grid.Row="1" x:Name="Tabs" Padding="0,12,0,0">
-
-      <!-- Audio: the sound devices -->
-      <TabItem Header="Audio" FontSize="16">
-        <ScrollViewer FontSize="14">
-          <StackPanel Spacing="14" MaxWidth="820" HorizontalAlignment="Left">
-            <StackPanel Spacing="6">
-              <TextBlock Text="Receive: the radio's sound input" FontWeight="SemiBold" />
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <ComboBox x:Name="InputBox" Width="440" PlaceholderText="Pick the radio's USB audio device"
-                          SelectionChanged="OnInputChanged" />
-                <Button Content="Refresh" Click="OnRefreshClick" />
-              </StackPanel>
-            </StackPanel>
-
-            <StackPanel Spacing="6">
-              <TextBlock Text="Send: the radio's sound output" FontWeight="SemiBold" />
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <ComboBox x:Name="OutputBox" Width="440" PlaceholderText="Pick the radio's USB audio device"
-                          SelectionChanged="OnOutputChanged" />
-                <Button Content="Refresh" Click="OnRefreshClick" />
-              </StackPanel>
-            </StackPanel>
-
-            <TextBlock x:Name="DeviceProblemText" TextWrapping="Wrap" Foreground="OrangeRed" IsVisible="False" />
-            <TextBlock Classes="Hint" TextWrapping="Wrap"
-                       Text="Radios usually appear as &quot;USB Audio CODEC&quot;. Renaming them in Windows Sound settings (for example &quot;FT-991A&quot;) makes them easy to tell apart. Not your computer's own speakers or microphone." />
-          </StackPanel>
-        </ScrollViewer>
-      </TabItem>
-
       <!-- Radio: what was the Radio page -->
       <TabItem Header="Radio" FontSize="16">
         <views:RadioPage x:Name="RadioTab" FontSize="14" />
@@ -53,10 +23,21 @@
           <StackPanel Spacing="22" MaxWidth="820" HorizontalAlignment="Left">
             <StackPanel Spacing="6">
               <TextBlock Text="Your callsign" FontWeight="SemiBold" />
-              <TextBox x:Name="CallsignBox" Width="160" MaxLength="9" Watermark="e.g. KD9DD"
+              <TextBox x:Name="CallsignBox" Width="160" MaxLength="9" Watermark="e.g. N0CALL"
                        TextChanged="OnCallsignChanged" LostFocus="OnCallsignLostFocus" />
               <TextBlock Classes="Hint" TextWrapping="Wrap"
                          Text="Sent with every transmission (your pictures and the tests); receivers show it. Up to 9 characters." />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="Your grid square (QTH)" FontWeight="SemiBold" />
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBox x:Name="GridBox" Width="160" MaxLength="6" Watermark="e.g. AA00aa"
+                         TextChanged="OnGridChanged" LostFocus="OnGridLostFocus" />
+                <TextBlock x:Name="GridProblem" Foreground="OrangeRed" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock Classes="Hint" TextWrapping="Wrap"
+                         Text="4 or 6 characters (such as AA00 or AA00aa). Templates can show it with %qth." />
             </StackPanel>
 
             <StackPanel Spacing="6">
@@ -69,7 +50,7 @@
                          Watermark="e.g. CQ SSTV NET" TextChanged="OnWaterfallTextChanged" />
                 <TextBlock Grid.Row="1" Text="After the picture" VerticalAlignment="Center" />
                 <TextBox Grid.Row="1" Grid.Column="1" x:Name="WaterfallAfterBox" Width="360" HorizontalAlignment="Left"
-                         Watermark="e.g. 73 de KD9DD" TextChanged="OnWaterfallTextChanged" />
+                         Watermark="e.g. 73 de N0CALL" TextChanged="OnWaterfallTextChanged" />
               </Grid>
             </StackPanel>
 
@@ -111,5 +92,32 @@
         <views:FtpPage x:Name="FtpTab" />
       </TabItem>
     </TabControl>
+
+    <!-- The radio's sound devices. Shown on the Radio tab, under the Test PTT note (moved there
+         when the page opens: RadioPage.Below). -->
+            <StackPanel x:Name="AudioPanel" Grid.Row="1" IsVisible="False" Spacing="14">
+              <TextBlock Text="Sound devices" FontWeight="SemiBold" FontSize="16" Margin="0,6,0,0" />
+              <StackPanel Spacing="6">
+                <TextBlock Text="Receive: the radio's sound input" FontWeight="SemiBold" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <ComboBox x:Name="InputBox" Width="440" PlaceholderText="Pick the radio's USB audio device"
+                            SelectionChanged="OnInputChanged" />
+                  <Button Content="Refresh" Click="OnRefreshClick" />
+                </StackPanel>
+              </StackPanel>
+
+              <StackPanel Spacing="6">
+                <TextBlock Text="Send: the radio's sound output" FontWeight="SemiBold" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <ComboBox x:Name="OutputBox" Width="440" PlaceholderText="Pick the radio's USB audio device"
+                            SelectionChanged="OnOutputChanged" />
+                  <Button Content="Refresh" Click="OnRefreshClick" />
+                </StackPanel>
+              </StackPanel>
+
+              <TextBlock x:Name="DeviceProblemText" TextWrapping="Wrap" Foreground="OrangeRed" IsVisible="False" />
+              <TextBlock Classes="Hint" TextWrapping="Wrap"
+                         Text="Radios usually appear as &quot;USB Audio CODEC&quot;. Renaming them in Windows Sound settings (for example &quot;FT-991A&quot;) makes them easy to tell apart. Not your computer's own speakers or microphone." />
+            </StackPanel>
   </Grid>
 </UserControl>

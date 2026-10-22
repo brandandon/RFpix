@@ -112,6 +112,7 @@ public partial class SendPage : UserControl, IDisposable
         AnalogModeBox.ItemsSource = SstvModes.All.Select(m => $"{m.Name}  ({m.Width} × {m.Height}, {Clock((int)Math.Ceiling(SstvEncoder.Duration(m).TotalSeconds))})").ToList();
         AnalogModeBox.SelectedIndex = Math.Max(0, SstvModes.All.ToList().FindIndex(m => m.Mode == settings.AnalogMode));
         (settings.AnalogWhole ? WholeButton : FillButton).IsChecked = true;
+        AnalogCwBox.IsChecked = settings.AnalogCw;
         _analog = settings.SendAnalog;
         (_analog ? AnalogButton : DigitalButton).IsChecked = true;
         ShowSendAs();
@@ -129,7 +130,10 @@ public partial class SendPage : UserControl, IDisposable
         DigitalButton.IsCheckedChanged += (_, _) => { if (DigitalButton.IsChecked == true) OnSendAsChanged(analog: false); };
         AnalogButton.IsCheckedChanged += (_, _) => { if (AnalogButton.IsChecked == true) OnSendAsChanged(analog: true); };
         AnalogModeBox.SelectionChanged += (_, _) => OnAnalogChanged();
-        FillButton.IsCheckedChanged += (_, _) => OnAnalogChanged();
+        // Fill and Whole: each acts only when it's the one switched on (as for Digital and Analog).
+        FillButton.IsCheckedChanged += (_, _) => { if (FillButton.IsChecked == true) OnAnalogChanged(); };
+        WholeButton.IsCheckedChanged += (_, _) => { if (WholeButton.IsChecked == true) OnAnalogChanged(); };
+        AnalogCwBox.IsCheckedChanged += (_, _) => OnAnalogChanged();
 
         _refitTimer.Tick += (_, _) => { _refitTimer.Stop(); Refit(auto: false); };
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
@@ -145,7 +149,8 @@ public partial class SendPage : UserControl, IDisposable
     // ---- the overlay template ----
 
     private TemplateFields Fields() => new(SendSupport.Callsign, (ToBox.Text ?? "").Trim().ToUpperInvariant(),
-                                           (NameBox.Text ?? "").Trim(), (RstBox.Text ?? "").Trim(), DateTime.Now);
+                                           (NameBox.Text ?? "").Trim(), (RstBox.Text ?? "").Trim(), DateTime.Now,
+                                           AppSettings.Current.GridSquare ?? "");
 
     /// <summary>Draws the template on a picture (null if there's no template).</summary>
     private Func<DecodedPicture, DecodedPicture>? Decorator()
@@ -222,6 +227,7 @@ public partial class SendPage : UserControl, IDisposable
         if (_updating) return;
         AppSettings.Current.AnalogMode = AnalogMode.Mode;
         AppSettings.Current.AnalogWhole = WholeButton.IsChecked == true;
+        AppSettings.Current.AnalogCw = AnalogCwBox.IsChecked == true;
         AppSettings.Current.Save();
         if (_analog) ShowAnalog();
     }
@@ -248,7 +254,7 @@ public partial class SendPage : UserControl, IDisposable
 
         var profile = CurrentSettings();
         var onAir = AnalogOnAir(mode);
-        int seconds = (int)Math.Ceiling(SstvEncoder.Duration(mode).TotalSeconds);
+        int seconds = (int)Math.Ceiling(AnalogTime(mode).TotalSeconds);
         EstimateText.Text = $"{Clock(seconds)} on the air";
         bool fits = profile.FitsTimeout(onAir);
         EstimateBorder.Background = fits ? FitsBrush : OverBrush;
@@ -261,11 +267,39 @@ public partial class SendPage : UserControl, IDisposable
     }
 
     /// <summary>How long an analog picture keeps the transmitter on: lead-in, VIS and picture, tail.</summary>
-    private TimeSpan AnalogOnAir(SstvModeInfo mode) => SstvEncoder.Duration(mode) + CurrentSettings().Overhead(TimeSpan.Zero);
+    private TimeSpan AnalogOnAir(SstvModeInfo mode) => AnalogTime(mode) + CurrentSettings().Overhead(TimeSpan.Zero);
 
-    /// <summary>The analog picture's sound (no waterfall text: that's for Digital only).</summary>
-    private static Func<float[]> AnalogSound(DecodedPicture picture, SstvModeInfo mode) =>
-        () => SstvEncoder.Audio(picture, mode);
+    /// <summary>How long the analog sound lasts: preamble, VIS, picture, FSK ID, and CW if ticked.</summary>
+    private TimeSpan AnalogTime(SstvModeInfo mode)
+    {
+        string call = SendSupport.Callsign;
+        var time = SstvEncoder.Duration(mode, preamble: true, fskId: call);
+        if (AnalogCwBox.IsChecked == true && call.Length > 0) time += CwGap + MorseCode.Duration(call);
+        return time;
+    }
+
+    /// <summary>The pause between the end of the picture (its FSK ID) and the CW callsign.</summary>
+    private static readonly TimeSpan CwGap = TimeSpan.FromSeconds(0.5);
+
+    /// <summary>The analog picture's sound, as MMSSTV sends it: a short preamble, the VIS code, the
+    /// picture, and the callsign as an FSK ID; then, if ticked, half a second's pause and the callsign
+    /// in CW (the CW button's tone and speed). No waterfall text: that's for Digital only.</summary>
+    private Func<float[]> AnalogSound(DecodedPicture picture, SstvModeInfo mode)
+    {
+        string call = SendSupport.Callsign;
+        bool cw = AnalogCwBox.IsChecked == true && call.Length > 0;
+        return () =>
+        {
+            var sound = SstvEncoder.Audio(picture, mode, preamble: true, fskId: call);
+            if (!cw) return sound;
+            var morse = MorseCode.Audio(call);
+            int gap = (int)(CwGap.TotalSeconds * SstvEncoder.SampleRate);
+            var all = new float[sound.Length + gap + morse.Length];
+            sound.CopyTo(all, 0);
+            morse.CopyTo(all, sound.Length + gap);
+            return all;
+        };
+    }
 
     // ---- the send settings and profiles ----
 

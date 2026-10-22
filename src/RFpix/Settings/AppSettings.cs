@@ -34,6 +34,9 @@ public sealed class AppSettings
     /// <summary>The operator's callsign, sent with every transmission (Settings, Misc tab).</summary>
     public string? Callsign { get; set; }
 
+    /// <summary>The operator's Maidenhead grid square, 4 or 6 characters (Settings, Misc tab; %qth in templates).</summary>
+    public string? GridSquare { get; set; }
+
     // ---- the Send tab ----
 
     /// <summary>The send settings in use (Send tab), whether or not they're a saved profile.</summary>
@@ -57,6 +60,8 @@ public sealed class AppSettings
     public bool SendAnalog { get; set; }
     public RFpix.Analog.SstvMode AnalogMode { get; set; } = RFpix.Analog.SstvMode.Martin1;
     public bool AnalogWhole { get; set; }
+    /// <summary>Analog SSTV: send your callsign in CW after the picture (and its FSK ID), half a second later.</summary>
+    public bool AnalogCw { get; set; }
 
     /// <summary>The overlay template in use on the Send tab (null: none), and its fill-in boxes.</summary>
     public string? TemplateName { get; set; }

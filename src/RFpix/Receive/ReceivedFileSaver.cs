@@ -5,7 +5,7 @@
 // name part is kept, with any characters Windows doesn't allow replaced.
 // Many stations send pictures called "img001.jpg" or similar, so each saved
 // file gets the date, time and sender's callsign in front, e.g.
-//   2026-10-11 1432 KD9DD img04.jpg
+//   2026-10-11 1432 N0CALL img04.jpg
 // and a number is added if that name is already taken.
 
 using RFpix.HamDrm;

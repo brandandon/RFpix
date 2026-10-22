@@ -9,6 +9,10 @@
 // Colour: Martin and Scottie send green, blue and red as they are. Robot and PD send
 // brightness (Y) and two colour differences (R-Y and B-Y, "Cr" and "Cb"), in the full
 // 0-255 range JPEG uses, which is what MMSSTV and QSSTV expect.
+//
+// When sending, the picture goes out as MMSSTV sends it: a short preamble of eight 100 ms tones
+// (1900, 1500, 1900, 1500, 2300, 1500, 2300, 1500 Hz) before the VIS code, and the sender's
+// callsign as an FSK ID after the picture (FskId.cs).
 
 using RFpix.Imaging;
 
@@ -24,11 +28,14 @@ public static class SstvEncoder
 
     /// <summary>The picture's sound with its VIS code first: 48 kHz, -1 to 1. The picture must
     /// already be the mode's size (see <see cref="Fit"/>).</summary>
-    public static float[] Audio(DecodedPicture picture, SstvModeInfo mode, bool vis = true)
+    /// <param name="preamble">MMSSTV's tone preamble before the VIS code.</param>
+    /// <param name="fskId">A callsign to send as an FSK ID after the picture (null: none).</param>
+    public static float[] Audio(DecodedPicture picture, SstvModeInfo mode, bool vis = true, bool preamble = false, string? fskId = null)
     {
         if (picture.Width != mode.Width || picture.Height != mode.Height)
             throw new ArgumentException($"{mode.Name} pictures are {mode.Width} × {mode.Height}; fit the picture first.");
         var tones = new ToneWriter();
+        if (preamble) foreach (var (hz, ms) in Preamble) tones.Tone(hz, ms);
         if (vis) WriteVis(tones, mode.Vis);
         var channels = new Channels(picture);
         switch (mode.Color)
@@ -37,12 +44,19 @@ public static class SstvEncoder
             case SstvColor.Robot: WriteRobot(tones, mode, channels); break;
             default: WritePD(tones, mode, channels); break;
         }
+        foreach (var (hz, ms) in FskId.Tones(fskId)) tones.Tone(hz, ms);
         return tones.ToArray();
     }
 
-    /// <summary>How long the whole transmission takes (VIS code and picture).</summary>
-    public static TimeSpan Duration(SstvModeInfo mode, bool vis = true) =>
-        mode.PictureTime + (vis ? SstvModes.VisTime : TimeSpan.Zero);
+    /// <summary>MMSSTV's preamble: eight 100 ms tones before the VIS code.</summary>
+    public static readonly (double Hz, double Ms)[] Preamble =
+        { (1900, 100), (1500, 100), (1900, 100), (1500, 100), (2300, 100), (1500, 100), (2300, 100), (1500, 100) };
+
+    public static TimeSpan PreambleTime => TimeSpan.FromMilliseconds(Preamble.Sum(t => t.Ms));
+
+    /// <summary>How long the whole transmission takes (preamble, VIS code, picture and FSK ID, as asked for).</summary>
+    public static TimeSpan Duration(SstvModeInfo mode, bool vis = true, bool preamble = false, string? fskId = null) =>
+        mode.PictureTime + (vis ? SstvModes.VisTime : TimeSpan.Zero) + (preamble ? PreambleTime : TimeSpan.Zero) + FskId.Duration(fskId);
 
     /// <summary>The picture made the mode's size: enlarged or reduced to fill it, the middle kept
     /// (the edges that don't fit are cut off, as most SSTV programs do); or, with

@@ -48,9 +48,9 @@
         <TextBlock x:Name="FormatText" Classes="Hint" FontSize="12" />
         <!-- While recording: how long and how big; afterwards: where it was saved -->
         <TextBlock x:Name="RecordText" FontSize="12" IsVisible="False" />
-        <!-- A problem, or the analog SSTV picture arriving (otherwise hidden). Then the HamDRM signal's
-             offset, clock, strength and quality, one fixed-size box each, always showing (empty with
-             no signal); quality green when good enough for the settings, red when not -->
+        <!-- A problem (otherwise hidden). Then the HamDRM signal's offset, clock, strength and quality,
+             one fixed-size box each, always showing (empty with no signal); quality green when good
+             enough for the settings, red when not -->
         <TextBlock x:Name="SignalText" FontWeight="SemiBold" IsVisible="False" />
         <WrapPanel x:Name="SignalPanel">
           <Border Classes="Setting" Width="104"><StackPanel><TextBlock Classes="SettingLabel" Text="Offset" /><TextBlock x:Name="SignalOffset" Classes="SettingValue" /></StackPanel></Border>
@@ -61,16 +61,27 @@
             <StackPanel><TextBlock x:Name="QualityLabel" Classes="SettingLabel" Text="Quality" /><TextBlock x:Name="SignalQuality" Classes="SettingValue" /></StackPanel>
           </Border>
         </WrapPanel>
-        <!-- The transmission's settings and callsign (from its FAC and the file's name), one box each.
-             They stay showing, dimmed, after the transmission ends. -->
-        <WrapPanel x:Name="HeardPanel" IsVisible="False">
-          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Mode" /><TextBlock x:Name="HeardMode" Classes="SettingValue" /></StackPanel></Border>
-          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Bandwidth" /><TextBlock x:Name="HeardBandwidth" Classes="SettingValue" /></StackPanel></Border>
-          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="QAM" /><TextBlock x:Name="HeardQam" Classes="SettingValue" /></StackPanel></Border>
-          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Interleave" /><TextBlock x:Name="HeardInterleave" Classes="SettingValue" /></StackPanel></Border>
-          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Protection" /><TextBlock x:Name="HeardProtection" Classes="SettingValue" /></StackPanel></Border>
-          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="Reed-Solomon" /><TextBlock x:Name="HeardReedSolomon" Classes="SettingValue" /></StackPanel></Border>
-          <Border Classes="Setting"><StackPanel><TextBlock Classes="SettingLabel" Text="From" /><TextBlock x:Name="HeardCallsign" Classes="SettingValue" /></StackPanel></Border>
+        <!-- The transmission's settings and callsign (from its FAC and the file's name), one fixed-size
+             box each. Like the signal boxes above they always show, empty unless a digital picture
+             is arriving. While an analog picture arrives, both rows are hidden and AnalogBoxes show. -->
+        <WrapPanel x:Name="HeardPanel">
+          <Border Classes="Setting" Width="64"><StackPanel><TextBlock Classes="SettingLabel" Text="Mode" /><TextBlock x:Name="HeardMode" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting" Width="84"><StackPanel><TextBlock Classes="SettingLabel" Text="Bandwidth" /><TextBlock x:Name="HeardBandwidth" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting" Width="76"><StackPanel><TextBlock Classes="SettingLabel" Text="QAM" /><TextBlock x:Name="HeardQam" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting" Width="84"><StackPanel><TextBlock Classes="SettingLabel" Text="Interleave" /><TextBlock x:Name="HeardInterleave" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting" Width="84"><StackPanel><TextBlock Classes="SettingLabel" Text="Protection" /><TextBlock x:Name="HeardProtection" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting" Width="96"><StackPanel><TextBlock Classes="SettingLabel" Text="Reed-Solomon" /><TextBlock x:Name="HeardReedSolomon" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting" Width="110"><StackPanel><TextBlock Classes="SettingLabel" Text="From" /><TextBlock x:Name="HeardCallsign" Classes="SettingValue" /></StackPanel></Border>
+        </WrapPanel>
+        <!-- Analog SSTV: the mode, "Line 123 of 256", and the sender's callsign from its FSK ID -->
+        <WrapPanel x:Name="AnalogBoxes" IsVisible="False">
+          <Border Classes="Setting" Width="110"><StackPanel><TextBlock Classes="SettingLabel" Text="Mode" /><TextBlock x:Name="AnalogMode" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting" Width="64"><StackPanel><TextBlock Classes="SettingLabel" Text="Line" /><TextBlock x:Name="AnalogLine" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting" Width="64"><StackPanel><TextBlock Classes="SettingLabel" Text="of" /><TextBlock x:Name="AnalogOf" Classes="SettingValue" /></StackPanel></Border>
+          <Border Classes="Setting" Width="110"
+                  ToolTip.Tip="The sender's callsign, from the FSK ID that MMSSTV and QSSTV send after a picture.">
+            <StackPanel><TextBlock Classes="SettingLabel" Text="From" /><TextBlock x:Name="AnalogFrom" Classes="SettingValue" /></StackPanel>
+          </Border>
         </WrapPanel>
         <!-- How well the settings are being read ("FAC 25/25 ok"), or "Reading the settings…" -->
         <TextBlock x:Name="TransmissionText" Classes="Hint" FontSize="12" />

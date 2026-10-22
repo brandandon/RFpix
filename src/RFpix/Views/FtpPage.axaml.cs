@@ -44,6 +44,7 @@ public partial class FtpPage : UserControl, IDisposable
         RemoteFolderBox.Text = s.RemoteFolder;
         RemoteFolderAnalogBox.Text = s.RemoteFolderAnalog;
         CountBox.Text = s.ImageCount.ToString();
+        CountAnalogBox.Text = s.ImageCountAnalog.ToString();
         PrefixBox.Text = s.RemotePrefix;
         ExtensionBox.Text = s.RemoteExtension;
         ArchiveBox.Text = s.ArchiveName;
@@ -62,7 +63,8 @@ public partial class FtpPage : UserControl, IDisposable
     {
         var old = AppSettings.Current.Upload;
         if (!int.TryParse(PortBox.Text?.Trim(), out int port)) return (null, "The port must be a number (usually 21, or 22 for SFTP).");
-        if (!int.TryParse(CountBox.Text?.Trim(), out int count) || count < 1) return (null, "Pictures shown must be a whole number, 1 or more.");
+        if (!int.TryParse(CountBox.Text?.Trim(), out int count) || count < 1) return (null, "Pictures shown (digital) must be a whole number, 1 or more.");
+        if (!int.TryParse(CountAnalogBox.Text?.Trim(), out int countAnalog) || countAnalog < 1) return (null, "Pictures shown (analog) must be a whole number, 1 or more.");
         if (!double.TryParse(StableBox.Text?.Trim(), out double stable) || stable < 0) return (null, "The wait must be a number of seconds (0 or more).");
         string ext = (ExtensionBox.Text ?? "").Trim();
         if (ext.Length > 0 && !ext.StartsWith('.')) ext = "." + ext;
@@ -88,6 +90,7 @@ public partial class FtpPage : UserControl, IDisposable
             RemoteFolderAnalog = (RemoteFolderAnalogBox.Text ?? "").Trim(),
             StableSeconds = stable,
             ImageCount = count,
+            ImageCountAnalog = countAnalog,
             RemotePrefix = (PrefixBox.Text ?? "").Trim(),
             RemoteExtension = ext,
         };

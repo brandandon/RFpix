@@ -25,6 +25,7 @@ running EasyPal or QSSTV.
 | Oct 20 | Analog SSTV: send and receive Martin, Scottie, Robot and PD (14 modes); JPEG copies stamped with the time, and uploading them to a website by FTP, FTPS or SFTP (v0.4.0) |
 | Oct 20 | Overlay templates: callsign bars, CQ and reply cards, logos and borders drawn on pictures as they go out, at any size; a picker and an editor (v0.4.2 to v0.4.4) |
 | Oct 21 | Digital and analog pictures kept apart: separate Received folders, website copy folders and server folders; signal boxes always showing on the Receive tab (v0.4.5) |
+| Oct 21 | Analog SSTV sent as MMSSTV does (tone preamble, FSK ID callsign, optional CW after); FSK ID read on receive; analog waterfall marks; Receive tab boxes for digital or analog; Gallery split into Digital and Analog; separate website picture counts; grid square and %qth; sound devices moved to the Radio tab (v0.5.0) |
 | Oct 18 | Waterfall text before and after each picture; CW and ID buttons; Settings in Audio, Radio and Misc tabs; Send tab laid out to fit any window size (v0.3.4) |
 | Oct 18 | Sending your own pictures (v0.3.3): image optimizer fits a picture to the transmit time (Auto or Manual), original and as-sent side by side with zoom, JPEG 2000, JPEG or AVIF (RFpix-only, smaller), settings drop-downs and saved profiles; test transmissions on their own Alpha Testing page; transparent logo; key frequency marks on the waterfall |
 | Oct 17 | TX/RX page with Receive and Send tabs; sound devices on the Settings page; wider picture area; logo above the menu (v0.3.0) |

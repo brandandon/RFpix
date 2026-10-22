@@ -6,7 +6,7 @@
 // settings it came with, the signal quality, and whether a fix (BSR) completed it.
 // A picture with no entry there (copied in by hand, or saved before the Gallery existed)
 // still shows: its date, time and callsign are read from its name where RFpix gave it
-// one ("2026-10-20 1942 W9ABC tower.jp2"), or else the file's own date is used.
+// one ("2026-10-20 1942 N0ABC tower.jp2"), or else the file's own date is used.
 
 using System.Globalization;
 using System.Text.Json;
@@ -32,6 +32,14 @@ public sealed record GalleryEntry(string File, DateTime When, string? Name = nul
 
     /// <summary>Where the picture is.</summary>
     public string FullPath => System.IO.Path.Combine(Folder ?? "", File);
+
+    /// <summary>An analog SSTV picture (else HamDRM): it's in an Analog folder, or was noted as analog
+    /// (the pictures from before they were kept apart), or has the name RFpix gives analog pictures.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsAnalog =>
+        System.IO.Path.GetFileName((Folder ?? "").TrimEnd('/', '\\')).Equals(RFpix.Receive.ReceivedFileSaver.AnalogSubfolder, StringComparison.OrdinalIgnoreCase)
+        || Settings?.StartsWith("Analog SSTV", StringComparison.Ordinal) == true
+        || Settings is null && Name is { } n && n.StartsWith("SSTV ", StringComparison.Ordinal) && n.EndsWith(".png", StringComparison.OrdinalIgnoreCase);
 }
 
 public static class GalleryIndex
@@ -93,7 +101,7 @@ public static class GalleryIndex
     public static List<GalleryEntry> List(IEnumerable<string> folders) =>
         folders.SelectMany(List).OrderByDescending(e => e.When).ThenByDescending(e => e.File, StringComparer.Ordinal).ToList();
 
-    // RFpix's own names: "2026-10-20 1942 W9ABC tower.jp2", "2026-10-20 1942 tower.jp2", maybe " (2)".
+    // RFpix's own names: "2026-10-20 1942 N0ABC tower.jp2", "2026-10-20 1942 tower.jp2", maybe " (2)".
     private static readonly Regex SavedName =
         new(@"^(?<date>\d{4}-\d{2}-\d{2}) (?<time>\d{4}) (?:(?<call>[A-Z0-9/_]{3,12}) )?(?<name>.+?)(?: \(\d+\))?(?<ext>\.[^.]+)$");
 

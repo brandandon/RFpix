@@ -63,10 +63,14 @@ public sealed class UploadSettings
         var copy = (UploadSettings)MemberwiseClone();
         copy.Folder = CopyFolder(analog);
         copy.RemoteFolder = analog ? RemoteFolderAnalog : RemoteFolder;
+        copy.ImageCount = analog ? ImageCountAnalog : ImageCount;
         return copy;
     }
     public double StableSeconds { get; set; } = 3;
+    /// <summary>How many digital pictures the website shows (image1 to imageN).</summary>
     public int ImageCount { get; set; } = 12;
+    /// <summary>How many analog pictures the website shows.</summary>
+    public int ImageCountAnalog { get; set; } = 12;
     public string RemotePrefix { get; set; } = "image";
     public string RemoteExtension { get; set; } = ".jpg";
 
@@ -78,7 +82,7 @@ public sealed class UploadSettings
         if (string.IsNullOrWhiteSpace(Host)) return "Enter the server address.";
         if (string.IsNullOrWhiteSpace(Username)) return "Enter the user name.";
         if (Port is < 1 or > 65535) return "The port must be a number from 1 to 65535 (usually 21 for FTP and FTPS, 22 for SFTP).";
-        if (ImageCount < 1) return "The number of pictures on the website must be 1 or more.";
+        if (ImageCount < 1 || ImageCountAnalog < 1) return "The number of pictures on the website must be 1 or more.";
         if (string.IsNullOrWhiteSpace(RemotePrefix) || !RemoteExtension.StartsWith('.')) return "Fill in the website file name (such as image and .jpg).";
         return null;
     }

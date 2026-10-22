@@ -64,7 +64,7 @@
           <Grid x:Name="PreviewGrid" ColumnDefinitions="*,*" ColumnSpacing="12">
             <StackPanel Grid.Column="0" Spacing="4">
               <TextBlock Classes="Hint" FontSize="13" Text="Original" />
-              <controls:SquareBox x:Name="OriginalBox" BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+              <controls:SquareBox x:Name="OriginalBox" Scale="0.9" HorizontalAlignment="Left" BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
                 <Panel>
                   <Image x:Name="OriginalImage" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />
                   <ScrollViewer x:Name="OriginalScroll" IsVisible="False" Cursor="SizeAll"
@@ -157,7 +157,7 @@
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="4">
               <TextBlock x:Name="SentLabel" Classes="Hint" FontSize="13" Text="As sent" />
-              <controls:SquareBox x:Name="SentBox" BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+              <controls:SquareBox x:Name="SentBox" Scale="0.9" HorizontalAlignment="Left" BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
                 <Panel>
                   <Image x:Name="SentImage" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />
                   <ScrollViewer x:Name="SentScroll" IsVisible="False" Cursor="SizeAll"
@@ -204,8 +204,10 @@
             <StackPanel x:Name="AnalogPanel" Spacing="6" IsVisible="False">
               <TextBlock Text="Mode" FontWeight="SemiBold" />
               <ComboBox x:Name="AnalogModeBox" HorizontalAlignment="Stretch" />
+              <CheckBox x:Name="AnalogCwBox" Content="Send my callsign in CW after the picture"
+                        ToolTip.Tip="Half a second after the picture ends, your callsign in Morse code: the same 750 Hz tone at 15 words per minute as the CW button." />
               <TextBlock Classes="Hint" FontSize="13" TextWrapping="Wrap"
-                         Text="Analog SSTV has a fixed size and time for each mode; the picture is made to fit. MMSSTV, QSSTV and most SSTV programs receive all of these." />
+                         Text="Analog SSTV has a fixed size and time for each mode; the picture is made to fit. MMSSTV, QSSTV and most SSTV programs receive all of these. As MMSSTV does, the picture goes out with a short tone preamble first and your callsign as an FSK ID after it." />
             </StackPanel>
             <Grid x:Name="TargetRow" ColumnDefinitions="*,Auto">
               <TextBlock Text="Transmit time" FontWeight="SemiBold" VerticalAlignment="Center" />

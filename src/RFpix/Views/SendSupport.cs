@@ -33,8 +33,8 @@ internal static class SendSupport
         if (callsign.Length == 0) return "Set your callsign in Settings (Misc tab) first: it's sent with every transmission.";
         if (ChosenOutput(output) is null)
             return AppSettings.Current.OutputDeviceId is null
-                ? "Pick the radio's sound output in Settings (Audio tab) first."
-                : "The sound output chosen in Settings (Audio tab) isn't connected. Switch on or plug in the radio, or pick another there.";
+                ? "Pick the radio's sound output in Settings (Radio tab) first."
+                : "The sound output chosen in Settings (Radio tab) isn't connected. Switch on or plug in the radio, or pick another there.";
         return null;
     }
 
@@ -76,7 +76,7 @@ internal static class SendSupport
                                                  Func<double> level, Action<string> status, IProgress<double> progress,
                                                  CancellationToken cancel, TimeSpan? leadIn)
     {
-        var device = ChosenOutput(output) ?? throw new AudioException("The sound output chosen in Settings (Audio tab) isn't connected.");
+        var device = ChosenOutput(output) ?? throw new AudioException("The sound output chosen in Settings (Radio tab) isn't connected.");
         var radioSettings = AppSettings.Current.Radio;
         bool hasControl = RadioChoices.Find(radioSettings.Choice).Connection != "none";
         bool keyed = radioSettings.Keying() != PttMethod.Vox;

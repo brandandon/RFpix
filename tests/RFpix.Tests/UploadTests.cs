@@ -134,7 +134,7 @@ public class UploadTests
     public void Settings_problems_are_explained()
     {
         Assert.NotNull(new UploadSettings().Problem());   // no server yet
-        Assert.Null(new UploadSettings { Host = "ftp.kd9dd.com", Username = "kd9dd" }.Problem());
+        Assert.Null(new UploadSettings { Host = "ftp.example.com", Username = "n0call" }.Problem());
         Assert.Equal("image12.jpg", new UploadSettings().RemoteName(12));
         Assert.Equal(@"C:\FTPIMAGE", new UploadSettings().Folder);
     }
@@ -159,11 +159,13 @@ public class UploadTests
     [Fact]
     public void Digital_and_analog_copies_go_to_their_own_folders_here_and_on_the_server()
     {
-        var s = new UploadSettings { Folder = @"E:\RXpiximg", RemoteFolder = "/sstv/digital", RemoteFolderAnalog = "/sstv/analog" };
-        Assert.Equal(Path.Combine(@"E:\RXpiximg", "Digital"), s.CopyFolder(analog: false));
-        Assert.Equal(Path.Combine(@"E:\RXpiximg", "Analog"), s.For(analog: true).Folder);
+        var s = new UploadSettings { Folder = @"D:\Copies", RemoteFolder = "/sstv/digital", RemoteFolderAnalog = "/sstv/analog", ImageCount = 3, ImageCountAnalog = 12 };
+        Assert.Equal(Path.Combine(@"D:\Copies", "Digital"), s.CopyFolder(analog: false));
+        Assert.Equal(Path.Combine(@"D:\Copies", "Analog"), s.For(analog: true).Folder);
+        Assert.Equal(3, s.For(analog: false).ImageCount);
+        Assert.Equal(12, s.For(analog: true).ImageCount);
         Assert.Equal("/sstv/digital", s.For(analog: false).RemoteFolder);
         Assert.Equal("/sstv/analog", s.For(analog: true).RemoteFolder);
-        Assert.Equal(@"E:\RXpiximg", s.Folder);   // the settings themselves are unchanged
+        Assert.Equal(@"D:\Copies", s.Folder);   // the settings themselves are unchanged
     }
 }

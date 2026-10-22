@@ -21,6 +21,21 @@ public class TemplateTests
     }
 
     [Fact]
+    public void The_grid_square_code_is_filled_in_and_checked()
+    {
+        Assert.Equal("QTH EM10dc", (Fields with { Qth = "EM10dc" }).Fill("QTH %qth"));
+        Assert.Equal("QTH", Fields.Fill("QTH %QTH"));                 // none set
+        Assert.Equal("EN52", GridSquare.Normalise(" en52 "));
+        Assert.Equal("EN52wd", GridSquare.Normalise("EN52WD"));
+        Assert.Null(GridSquare.Normalise("EN5"));                     // too short
+        Assert.Null(GridSquare.Normalise("EN52w"));                   // 5 isn't a grid square
+        Assert.Null(GridSquare.Normalise("ZZ52"));                    // fields go A to R
+        Assert.Null(GridSquare.Normalise("EN52zz"));                  // subsquares a to x
+        Assert.Equal("N0CALL", TemplateFields.Sample(null, null).MyCall);
+        Assert.Equal("W1XYZ", TemplateFields.Sample("w1xyz", null).MyCall);
+    }
+
+    [Fact]
     public void Codes_left_empty_leave_no_gaps_or_blank_lines()
     {
         var noTo = Fields with { To = "" };

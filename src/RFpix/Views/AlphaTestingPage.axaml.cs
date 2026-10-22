@@ -4,7 +4,7 @@
 //   1. The test transmissions are listed, each with how long it takes; picking one
 //      shows its picture.
 //   2. The level is remembered between runs; the callsign is set in Settings (Misc tab). The sound output is the one
-//      chosen in Settings (Audio tab), the keying on its Radio tab; a line beside Send says which.
+//      chosen in Settings (Radio tab), the keying on its Radio tab; a line beside Send says which.
 //   3. Send: make the HamDRM sound (in the background, about a second), connect to
 //      the radio if Settings hasn't already (and keying needs it), then key,
 //      play and un-key (Transmission.SendAsync). Send becomes Stop meanwhile, and the

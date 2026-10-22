@@ -57,7 +57,7 @@
 
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
       <TextBlock Grid.Column="0" x:Name="StatusText" TextWrapping="Wrap" VerticalAlignment="Center"
-                 Text="Click an item to choose it, drag it to move it, drag the corner square to resize it. Codes in text: %me %to %name %rst %date %time %utc." />
+                 Text="Click an item to choose it, drag it to move it, drag the corner square to resize it. Codes in text: %me %to %name %rst %date %time %utc %qth." />
       <Button Grid.Column="1" Content="Close" MinWidth="90" Click="OnCloseClick" IsCancel="True" />
     </Grid>
   </Grid>

@@ -1,6 +1,7 @@
 <!--
   RadioPage.axaml - the Radio tab of the Settings page: how RFpix reaches the radio (through Hamlib),
-  how the transmitter is keyed, and a test. Once connected, the radio's frequency
+  how the transmitter is keyed, and a test; then (put there by the Settings page) the radio's sound
+  devices. Once connected, the radio's frequency
   and mode are shown, updated every second.
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
@@ -79,6 +80,9 @@
         <TextBlock Classes="Hint" TextWrapping="Wrap"
                    Text="Test PTT puts the radio on the air for 2 seconds (with no audio). Use a dummy load, or low power on a clear frequency. RFpix never leaves the transmitter keyed: a time limit always releases it." />
       </StackPanel>
+
+      <!-- Filled by the Settings page: the radio's sound devices -->
+      <StackPanel x:Name="BelowPanel" Spacing="14" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

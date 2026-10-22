@@ -29,7 +29,7 @@
         <TextBlock Text="Upload" FontWeight="SemiBold" />
         <CheckBox x:Name="UploadBox" Content="Upload new pictures from that folder to my website" />
         <TextBlock Classes="Hint" TextWrapping="Wrap" Margin="26,0,0,0"
-                   Text="As the SSTV Auto Uploader does: the newest picture becomes image1.jpg and the others move up (image1 to image2...), so the website shows the latest ones. Digital and analog pictures go to their own folders on the server below, each with its own image1 to image12. Each file is then moved into its folder's Archives subfolder. Don't run both at once." />
+                   Text="As the SSTV Auto Uploader does: the newest picture becomes image1.jpg and the others move up (image1 to image2...), so the website shows the latest ones. Digital and analog pictures go to their own folders on the server below, each with its own image1, image2 and so on (as many as Pictures shown, below). Each file is then moved into its folder's Archives subfolder. Don't run both at once." />
       </StackPanel>
 
       <!-- Server -->
@@ -42,7 +42,7 @@
           </StackPanel>
           <StackPanel Spacing="4" Margin="0,0,14,8">
             <TextBlock Text="Server address" FontSize="13" />
-            <TextBox x:Name="HostBox" Width="260" Watermark="e.g. ftp.kd9dd.com" />
+            <TextBox x:Name="HostBox" Width="260" Watermark="e.g. ftp.example.com" />
           </StackPanel>
           <StackPanel Spacing="4" Margin="0,0,14,8">
             <TextBlock Text="Port" FontSize="13" />
@@ -77,11 +77,15 @@
       <StackPanel Spacing="8">
         <TextBlock Text="On the website" FontWeight="SemiBold" />
         <WrapPanel>
-          <StackPanel Spacing="4" Margin="0,0,14,8">
-            <TextBlock Text="Pictures shown" FontSize="13" />
-            <TextBox x:Name="CountBox" Width="80" />
+          <StackPanel Spacing="4" Margin="0,0,14,8" VerticalAlignment="Bottom">
+            <TextBlock Text="Pictures shown&#10;Digital" FontSize="13" TextAlignment="Center" />
+            <TextBox x:Name="CountBox" Width="100" />
           </StackPanel>
-          <StackPanel Spacing="4" Margin="0,0,14,8">
+          <StackPanel Spacing="4" Margin="0,0,14,8" VerticalAlignment="Bottom">
+            <TextBlock Text="Pictures shown&#10;Analog" FontSize="13" TextAlignment="Center" />
+            <TextBox x:Name="CountAnalogBox" Width="100" />
+          </StackPanel>
+          <StackPanel Spacing="4" Margin="0,0,14,8" VerticalAlignment="Bottom">
             <TextBlock Text="File name (start, number, end)" FontSize="13" />
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBox x:Name="PrefixBox" Width="110" />
@@ -89,11 +93,11 @@
               <TextBox x:Name="ExtensionBox" Width="80" />
             </StackPanel>
           </StackPanel>
-          <StackPanel Spacing="4" Margin="0,0,14,8">
+          <StackPanel Spacing="4" Margin="0,0,14,8" VerticalAlignment="Bottom">
             <TextBlock Text="Archive subfolder" FontSize="13" />
             <TextBox x:Name="ArchiveBox" Width="140" />
           </StackPanel>
-          <StackPanel Spacing="4" Margin="0,0,14,8">
+          <StackPanel Spacing="4" Margin="0,0,14,8" VerticalAlignment="Bottom">
             <TextBlock Text="Wait until a file stops changing (s)" FontSize="13" />
             <TextBox x:Name="StableBox" Width="80" />
           </StackPanel>

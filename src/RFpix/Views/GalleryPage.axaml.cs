@@ -3,7 +3,9 @@
 // What happens here:
 //   1. Each time the page is shown (or a picture is received or sent while it shows), the
 //      chosen folder is listed (GalleryIndex): the newest first, grouped by day, filtered
-//      by the Find box.
+//      by the Find box. Received pictures are shown in two halves side by side, digital
+//      (HamDRM) on the left and analog SSTV on the right; sent ones in one list, each saying
+//      which it went out as.
 //   2. A tile is made for each picture, and the thumbnails are drawn one by one in the
 //      background (a big JPEG 2000 or AVIF takes a moment to decode). They're kept, so
 //      coming back to the page is quick.
@@ -97,6 +99,7 @@ public partial class GalleryPage : UserControl
         var folders = Folders;
         string find = (FindBox.Text ?? "").Trim();
         List<GalleryEntry> entries;
+        string? problem = null;
         try
         {
             entries = await Task.Run(() => GalleryIndex.List(folders));
@@ -104,19 +107,47 @@ public partial class GalleryPage : UserControl
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             entries = new();
-            EmptyText.Text = $"Couldn't read {folder}: {ex.Message}";
+            problem = $"Couldn't read {folder}: {ex.Message}";
         }
         if (generation != _generation) return;
 
         int total = entries.Count;
         if (find.Length > 0)
             entries = entries.Where(e => Contains(e.Callsign, find) || Contains(e.Name, find) || Contains(e.File, find)).ToList();
-        int matching = entries.Count;
-        _entries = entries.Take(MaxShown).ToList();
 
         ReceivedTab.Content = ShowingSent ? "Received" : $"Received ({total})";
         SentTab.Content = ShowingSent ? $"Sent ({total})" : "Sent";
-        BuildTiles(matching);
+        TilesScroll.IsVisible = ShowingSent;
+        SplitPanel.IsVisible = !ShowingSent;
+        DaysPanel.Children.Clear();
+        DigitalDays.Children.Clear();
+        AnalogDays.Children.Clear();
+        _tiles.Clear();
+        EmptyText.IsVisible = false;
+        if (ShowingSent)
+        {
+            _entries = entries.Take(MaxShown).ToList();
+            BuildDays(DaysPanel, EmptyText, _entries, entries.Count, "Pictures you send are kept here.");
+        }
+        else
+        {
+            // Each half shows its newest pictures.
+            var digital = entries.Where(e => !e.IsAnalog).ToList();
+            var analog = entries.Where(e => e.IsAnalog).ToList();
+            DigitalHeading.Text = $"Digital ({digital.Count})";
+            AnalogHeading.Text = $"Analog ({analog.Count})";
+            var shownDigital = digital.Take(MaxShown).ToList();
+            var shownAnalog = analog.Take(MaxShown).ToList();
+            BuildDays(DigitalDays, DigitalEmpty, shownDigital, digital.Count, "Digital (HamDRM) pictures you receive are kept here.");
+            BuildDays(AnalogDays, AnalogEmpty, shownAnalog, analog.Count, "Analog SSTV pictures you receive are kept here.");
+            _entries = shownDigital.Concat(shownAnalog).OrderByDescending(e => e.When).ToList();
+        }
+        if (problem is not null)
+        {
+            DigitalEmpty.IsVisible = AnalogEmpty.IsVisible = false;
+            EmptyText.Text = problem;
+            EmptyText.IsVisible = true;
+        }
         if (_selected is not null && _entries.FirstOrDefault(e => e.FullPath == _selected.FullPath) is { } still) Select(still);
         else ShowDetails(null);
         await LoadThumbnailsAsync(generation, folder);
@@ -125,30 +156,27 @@ public partial class GalleryPage : UserControl
     private static bool Contains(string? text, string find) =>
         text is not null && text.Contains(find, StringComparison.OrdinalIgnoreCase);
 
-    private void BuildTiles(int matching)
+    /// <summary>The tiles for some pictures, by day, into <paramref name="days"/> (or a note if there are none).</summary>
+    private void BuildDays(Panel days, TextBlock empty, List<GalleryEntry> shown, int matching, string emptyMessage)
     {
-        DaysPanel.Children.Clear();
-        _tiles.Clear();
-        EmptyText.IsVisible = _entries.Count == 0;
-        if (_entries.Count == 0)
+        empty.IsVisible = shown.Count == 0;
+        if (shown.Count == 0)
         {
-            EmptyText.Text = FindBox.Text?.Trim().Length > 0 ? "No pictures match."
-                : ShowingSent ? "Pictures you send are kept here."
-                : "Pictures you receive are kept here.";
+            empty.Text = FindBox.Text?.Trim().Length > 0 ? "No pictures match." : emptyMessage;
             return;
         }
-        foreach (var day in _entries.GroupBy(e => e.When.Date))
+        foreach (var day in shown.GroupBy(e => e.When.Date))
         {
-            DaysPanel.Children.Add(new TextBlock { Classes = { "DayHeading" }, Text = DayName(day.Key) });
+            days.Children.Add(new TextBlock { Classes = { "DayHeading" }, Text = DayName(day.Key) });
             var wrap = new WrapPanel();
             foreach (var entry in day) wrap.Children.Add(MakeTile(entry));
-            DaysPanel.Children.Add(wrap);
+            days.Children.Add(wrap);
         }
-        if (matching > _entries.Count)
-            DaysPanel.Children.Add(new TextBlock
+        if (matching > shown.Count)
+            days.Children.Add(new TextBlock
             {
-                Classes = { "Hint" }, Margin = new Thickness(0, 6, 0, 0),
-                Text = $"Showing the newest {_entries.Count} of {matching}. Type in Find to look for older ones.",
+                Classes = { "Hint" }, Margin = new Thickness(0, 6, 0, 0), TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                Text = $"Showing the newest {shown.Count} of {matching}. Type in Find to look for older ones.",
             });
     }
 
@@ -164,6 +192,7 @@ public partial class GalleryPage : UserControl
         RenderOptions.SetBitmapInterpolationMode(image, BitmapInterpolationMode.HighQuality);
         if (_thumbnails.TryGetValue(Key(entry), out var t)) image.Source = t.Bitmap;
         string who = ShowingSent ? "" : entry.Callsign is { Length: > 0 } c ? $"{c}  ·  " : "";
+        string kind = ShowingSent ? (entry.IsAnalog ? "  ·  Analog" : "  ·  Digital") : "";
         var tile = new Button
         {
             Classes = { "Tile" },
@@ -174,7 +203,7 @@ public partial class GalleryPage : UserControl
                 {
                     new Border { CornerRadius = new CornerRadius(3), ClipToBounds = true, Height = 108,
                                  Background = Avalonia.Media.Brushes.Transparent, Child = image },
-                    new TextBlock { Text = $"{who}{entry.When:HH:mm}", FontWeight = Avalonia.Media.FontWeight.SemiBold, FontSize = 13 },
+                    new TextBlock { Text = $"{who}{entry.When:HH:mm}{kind}", FontWeight = Avalonia.Media.FontWeight.SemiBold, FontSize = 13 },
                     new TextBlock { Text = entry.Name ?? entry.File, FontSize = 12, Opacity = 0.75,
                                     TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis },
                 },
