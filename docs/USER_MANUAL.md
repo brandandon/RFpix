@@ -466,12 +466,171 @@ The **Beta Testing** page sends ten fixed test transmissions. Each sends its own
 
 Nothing to set up: just listen on the Receive tab. When a test ends, RFpix shows how it came through, for example **"Test 2 from N0CALL: perfect · quality 24 dB (needs about 11)"**, or how many of its pieces arrived. Every test received is added to **Documents\RFpix\Test results.csv**, which opens in Excel (**Open test results** on the Receive tab). Email that file to the sender so they can see how each test did.
 
-## Still to come
+## Part 3: Reference
 
-Part 3 will be written once Part 2 has been checked.
+### 11. Settings, tab by tab
 
-**Part 3: Reference**
+The **Settings** page has three tabs: **Radio**, **Misc** and **FTP server**. Everything on the Radio and Misc tabs is saved as you change it; the FTP server tab has its own **Save** button.
 
-11. Settings, tab by tab
-12. Troubleshooting
-13. Glossary and file locations
+#### Radio tab
+
+| Box | What it's for |
+| --- | --- |
+| **Radio** | Your radio, or how RFpix reaches it: Yaesu FT-991A, Icom IC-9700, Other radio, Shared through rigctld, Shared through flrig, Shared through Ham Radio Deluxe, or No radio control (VOX only). Picking one fills in the settings that usually suit it; the note underneath says what to check. |
+| **Radio model** | Only for **Other radio**: type part of the make or model (such as 991 or 7300) and pick it from the list. Hamlib's model number can be typed instead. |
+| **Control port** | The radio's COM port (its USB cable's CAT port). **Refresh** looks for ports again after plugging the radio in. |
+| **Baud rate** | The speed of the control port. It must match the radio's own menu setting. |
+| **CI-V address (hex)** | Icom radios only: the radio's address, A2 for an IC-9700 unless changed in its menu. |
+| **Address** | Only for a radio shared through another program: where to reach it. Usually localhost:4532 for rigctld, localhost:12345 for flrig, localhost:7809 for Ham Radio Deluxe. |
+| **Transmit keying (PTT)** | How RFpix keys the transmitter: **CAT command** (a command over the cable), **RTS line** or **DTR line** (a line on the COM port), or **VOX** (the radio keys itself when it hears RFpix's sound; RFpix sends no key command). RTS and DTR need a COM port; with no radio control only VOX is possible. |
+| **Switch to data mode while transmitting** | IC-9700, or a radio shared through Ham Radio Deluxe: RFpix turns the radio's DATA setting on just before keying (USB to USB-D, FM to FM-D) and back off after. A radio already in data mode is left alone. This box counts at once, connected or not. |
+| **Connect / Disconnect** | Opens the connection to the radio. Once connected, the radio's frequency and mode are shown and updated every second. The radio settings above can't be changed while connected. |
+| **Test PTT (2 seconds)** | Keys the transmitter for 2 seconds with no audio, then always releases it. Use a dummy load, or low power on a clear frequency. |
+| **Sound devices** | **Receive** is the radio's sound input (what RFpix listens to); **Send** is the radio's sound output (what RFpix plays into). **Refresh** looks for devices again. A change takes effect at once, even while listening. |
+
+#### Misc tab
+
+| Box | What it's for |
+| --- | --- |
+| **Your callsign** | Sent with every transmission (your pictures, the FSK ID and the tests); receivers show it. Up to 9 characters, kept in capitals. RFpix won't send without it. |
+| **Your grid square (QTH)** | Your Maidenhead locator, 4 or 6 characters (such as AA00 or AA00aa). Templates show it with %qth. |
+| **Waterfall text** | Text written on everyone's waterfall **Before the picture** and **After the picture**, for digital pictures (not the tests). Leave a box empty for none. A short text is drawn big; a longer one wraps onto more lines, about 2 seconds each. |
+| **Theme** | **Follow Windows**, **Light** or **Dark**. |
+| **Sound-card calibration** | Shows how fast or slow each sound device's clock runs, and when it was measured. **Measure (2 minutes)** measures both against the computer's clock while the radio stays receiving (RFpix doesn't key it); set Windows' clock right first. **Set back to none** forgets the measurements. A measurement belongs to one device: pick a different device and it needs measuring again. |
+
+#### FTP server tab
+
+Section 9 explains setting it up and how the upload works. In short:
+
+| Box | What it's for |
+| --- | --- |
+| **Save a JPEG copy of each picture received** | Turns the website copies on. **Write the date and time on the copy** stamps them as MMSSTV does; **Copy the pictures I send too** adds yours. |
+| **Folder** | Where the copies go, in its Digital and Analog folders. **Browse…** picks it. |
+| **Upload new pictures from that folder to my website** | Turns uploading on. |
+| **Connection**, **Server address**, **Port** | FTP (plain), FTPS (FTP with encryption) or SFTP (over SSH); the server's name; usually port 21, or 22 for SFTP. |
+| **User name**, **Password** | Your web host's login. The password is kept encrypted for your Windows account. |
+| **Folder on the server for digital / analog pictures** | Where each kind goes on the site; blank for the folder you log in to. |
+| **Pictures shown Digital / Analog** | How many of each the site keeps (image1 to imageN). |
+| **File name (start, number, end)** | The names on the site: image, then the number, then .jpg. |
+| **Archive subfolder** | Where uploaded files are moved to, inside the Digital and Analog folders (Archives). |
+| **Wait until a file stops changing (s)** | How long a new file must stay the same before it's uploaded (3 seconds). |
+| **Save**, **Test the connection** | Save keeps the settings and starts (or stops) uploading. Test logs in and lists both server folders. |
+| **Upload log** | What happened to each picture, and any problem. |
+
+### 12. Troubleshooting
+
+RFpix says what went wrong in plain words, in orange, near what you were doing. This section lists those messages and the most common problems, grouped by what you were trying to do.
+
+#### Receiving
+
+| What you see | What to do |
+| --- | --- |
+| *Pick the radio's sound input in Settings (Radio tab) first.* | Choose the radio's sound input at the bottom of **Settings > Radio**. |
+| *The sound input chosen in Settings (Radio tab) isn't connected.* | Switch on or plug in the radio, then click **Refresh** beside the device list. |
+| *Windows is blocking access to recording devices.* | In Windows, open **Settings > Privacy & security > Microphone** and turn on both **Microphone access** and **Let desktop apps access your microphone**. Then click **Start listening** again. |
+| *Another program has taken over this sound device.* | Close other radio or sound programs (WSJT-X, fldigi, MMSSTV and so on) and try again. |
+| *The sound device disappeared.* | The radio may have been switched off or its USB cable unplugged. Check it, then click **Refresh**. |
+| *Windows refused the sound format for this device.* or *HamDRM decoding needs 48000 Hz sound.* | In Windows **Sound settings**, open the radio's device, then its properties, and set the default format to **16 bit, 48000 Hz**. |
+| The **Level** bar is orange | The radio's sound is too loud: turn down the radio's USB audio output level (in the radio's menu). |
+| A signal shows on the waterfall but nothing decodes | Check the radio is on USB (on HF) with a filter at least 2.5 kHz wide, and that the signal's three bright lines sit on the marks. If the **Quality** box is red, the signal is too weak for those settings; wait for the end and use **Ask for them (BSR)**. |
+| Analog pictures come out slanted | Your sound card's clock is off: run **Sound-card calibration** on the Misc tab (section 3, step 6). A slant in only one station's pictures is their sound card. |
+| *Couldn't add a test to the test log. Is the file open in Excel?* | Close Test results.csv in Excel; RFpix can't add to it while it's open. |
+| *No sound has come from the radio yet.* (after clicking Record) | Wait a moment after **Start listening**, then click **Record** again. |
+
+#### Sending
+
+| What you see | What to do |
+| --- | --- |
+| *Set your callsign in Settings (Misc tab) first.* | Type your callsign on **Settings > Misc**. RFpix won't transmit without it. |
+| *Pick the radio's sound output in Settings (Radio tab) first.* or *The sound output chosen isn't connected.* | Choose the radio's sound output at the bottom of **Settings > Radio**; switch on or plug in the radio and click **Refresh**. |
+| *RFpix is already transmitting.* | Only one transmission at a time: wait for it to finish, or click **Stop**. |
+| The time box is red and says it's over the repeater's time-out | Pick a shorter **Transmit time** (or a shorter analog mode), or check the **Repeater time-out** setting. |
+| The radio doesn't key | Click **Test PTT** on the Radio tab. With VOX, check VOX is on in the radio and its level is high enough for RFpix's sound to trip it. |
+| The start of your pictures is lost on the repeater | Raise **Lead-in** so the repeater has time to open before the picture starts. |
+| Pictures don't decode at the other end, though their settings do | The transmit level is too high: lower the **Transmit level** until the radio's ALC barely moves. |
+| *The transmit time limit was reached, so RFpix released the transmitter.* | A safety limit stopped a transmission that ran too long. If it happens again, please report it. |
+
+#### The radio connection
+
+| What you see | What to do |
+| --- | --- |
+| *...the radio didn't answer.* | Check the radio is switched on, the COM port is right, the baud rate matches the radio's menu, and (for an Icom) the CI-V address. |
+| *...the COM port couldn't be opened.* or *...the COM port is in use by another program.* | Another program (WSJT-X, flrig, QSSTV) has the radio. Close it, or share the radio through rigctld, flrig or Ham Radio Deluxe (section 3, step 2). |
+| *The IC-9700 stayed in FM: it didn't switch to FM-D.* | Check the CI-V address and baud rate, or untick data mode and switch it by hand. |
+| *Couldn't reach Ham Radio Deluxe.* | Start HRD Rig Control and connect it to the radio first, then click **Connect** in RFpix. Check the address (usually localhost:7809). |
+| *Ham Radio Deluxe isn't connected to a radio.* | Connect HRD to the radio first. |
+| *Ham Radio Deluxe has no TX button for this radio.* | HRD can't key this radio for RFpix: choose **VOX** under Transmit keying. |
+| *Lost contact with the radio.* | The cable was unplugged, the radio switched off, or the sharing program closed. Fix that, then click **Connect** again. |
+
+#### Website upload
+
+| What you see | What to do |
+| --- | --- |
+| Nothing is uploaded | Check both **Save a JPEG copy of each picture received** and **Upload new pictures** are ticked, and that you clicked **Save**. The **Upload log** says what RFpix is doing. |
+| *Couldn't upload ...: ... Trying again in 30 seconds.* | The server couldn't be reached or refused the login. Click **Test the connection** to check the address, user name and password. RFpix keeps trying by itself. |
+| *The server has ... bytes of the ...; the pictures on the site are left as they were.* | The upload was cut short. RFpix tries again; nothing on the site was spoiled. |
+| Pictures on the site are mixed up or missing | Make sure only one uploader is working on the folder (close the SSTV Auto Uploader). |
+
+#### Installing
+
+| What you see | What to do |
+| --- | --- |
+| *Windows protected your PC* | Click **More info**, then **Run anyway** (section 2). |
+
+If something else goes wrong, click **Record** on the Receive tab before the next try: the recording (in Documents\RFpix\Recordings) shows exactly what your radio heard, and helps find the cause.
+
+### 13. Glossary and file locations
+
+#### Glossary
+
+| Word | Meaning |
+| --- | --- |
+| **ALC** | Automatic level control: the radio's meter that shows when its audio input is overdriven. Set RFpix's transmit level so it barely moves. |
+| **Analog SSTV** | Slow-scan television: a picture sent as one tone whose pitch follows the brightness, line by line. Modes include Martin, Scottie, Robot and PD. |
+| **AVIF** | A modern picture format that looks better than JPEG at the same size. Only RFpix shows it. |
+| **Bandwidth** | How wide a digital signal is: 2.2 or 2.5 kHz. |
+| **BSR** | Bad segment report: a request for the pieces of a digital picture that didn't arrive, so only those are sent again. EasyPal, QSSTV and RFpix all use it. |
+| **CAT** | Computer control of the radio over its cable (frequency, mode, PTT). |
+| **CI-V** | Icom's own name for CAT; each Icom radio has a CI-V address (A2 for the IC-9700). |
+| **Clock (ppm)** | How fast or slow a sound card runs, in parts per million. RFpix measures and corrects it. |
+| **CW** | Morse code. |
+| **Data mode** | A radio setting (USB-D, FM-D) that takes the transmit audio from the USB sound card and sets the audio for data. |
+| **dB** | Decibels: a way of measuring loudness or signal quality. Each 6 dB is double (or half). |
+| **FAC** | The part of a digital signal that carries its settings (mode, QAM, interleave and so on), so the receiver knows how to read the rest. "Settings read from 3 of 3 frames" counts these. |
+| **FSK ID** | A short warble after an analog picture carrying the sender's callsign. MMSSTV, QSSTV and RFpix send and read it. |
+| **FTP, FTPS, SFTP** | Ways of sending files to a web server: plain, with encryption, or over SSH. |
+| **Grid square (QTH)** | Your Maidenhead locator, such as AA00aa: a short code for where you are. |
+| **Hamlib** | The free radio-control library RFpix uses to talk to hundreds of radios. |
+| **HamDRM** | Digital SSTV: the picture sent as a file, error-corrected, over a 2.5 kHz signal. EasyPal and QSSTV use it. |
+| **Interleave** | How the data is spread over time: Long rides out fades better than Short. |
+| **JPEG 2000** | The picture format EasyPal sends; sharper than JPEG at the same size. |
+| **Lead-in** | A short quiet after keying, before the picture, while a repeater opens. |
+| **Mode (digital)** | A, B or E: how the digital signal is built. B is the usual choice; E suits fast-changing paths. |
+| **Pilots** | Steady tones inside a HamDRM signal (at 725, 1475 and 1850 Hz) that receivers lock on to. |
+| **Profile** | A saved set of send settings and transmit time. |
+| **Protection** | High or Low: how much error correction is added. |
+| **PTT** | Push to talk: keying the transmitter. |
+| **QAM** | 4, 16 or 64: how much data each part of the signal carries. Higher is faster but needs a cleaner signal. |
+| **Reed-Solomon (RS)** | Extra repair data across a whole picture, so missing pieces can be rebuilt without asking (RS1 to RS4). |
+| **rigctld, flrig** | Programs that control the radio and let others share it. |
+| **Sync pulse** | The short 1200 Hz tone at the start of each analog line, which keeps the picture straight. |
+| **Template** | Text, boxes, a logo or a border drawn on a picture as it goes out. |
+| **Time-out** | The longest a repeater stays on the air for one transmission. |
+| **VIS code** | The start code of an analog picture, which says its mode. |
+| **VOX** | Voice-operated transmit: the radio keys itself when it hears sound. |
+| **Waterfall** | A scrolling picture of the sounds the radio hears, low pitches on the left. |
+
+#### File locations
+
+| What | Where |
+| --- | --- |
+| Digital pictures received | Documents\RFpix\Received\Digital |
+| Analog pictures received | Documents\RFpix\Received\Analog |
+| Pictures sent | Documents\RFpix\Sent |
+| Recordings | Documents\RFpix\Recordings |
+| Templates | Documents\RFpix\Templates |
+| Test results | Documents\RFpix\Test results.csv |
+| What the Gallery knows about each picture | RFpix gallery.json, in each pictures folder |
+| Copies for the website | C:\FTPIMAGE\Digital and C:\FTPIMAGE\Analog (or the folder you chose), with their Archives folders |
+| Settings (radio, sound devices, callsign, profiles...) | %AppData%\RFpix\settings.json. To open the folder, press Windows key + R, type %AppData%\RFpix and press Enter. |
+| The program (installed) | The folder chosen when installing; normally your own programs folder (%LocalAppData%\Programs\RFpix) |

@@ -13,7 +13,7 @@ running EasyPal or QSSTV.
 
 > **Status:** beta, for on-air testing (Windows only). Download the newest test release from
 > [Releases](https://github.com/brandandon/RFpix/releases/latest); how to test it is in
-> [docs/TESTING.md](docs/TESTING.md). The user manual (being written) is in
+> [docs/TESTING.md](docs/TESTING.md). The user manual is in
 > [docs/USER_MANUAL.md](docs/USER_MANUAL.md).
 
 ## Progress
