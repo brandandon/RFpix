@@ -96,8 +96,9 @@ sed -e "s/@VERSION@/$VERSION/g" -e "s/@NUMERIC@/$NUMERIC/g" -e "s/@MIN_MACOS@/$M
   tools/mac/Info.plist > "$APP/Contents/Info.plist"
 plutil -lint "$APP/Contents/Info.plist"
 
-# ---- 4. sign (ad hoc): each library first, then the app ----
-find "$APP/Contents/MacOS" -name "*.dylib" -exec codesign --force --sign - {} \;
+# ---- 4. sign (ad hoc): every file beside the program first (.NET's .dll files too: macOS
+# counts everything in Contents/MacOS as part of the program), then the program, then the app ----
+find "$APP/Contents/MacOS" -type f ! -name RFpix -print0 | xargs -0 -n 50 codesign --force --sign - 2>&1 | grep -v "replacing existing signature" || true
 codesign --force --sign - --entitlements tools/mac/RFpix.entitlements "$APP/Contents/MacOS/RFpix"
 codesign --force --sign - --entitlements tools/mac/RFpix.entitlements "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
@@ -109,7 +110,8 @@ pkgbuild --analyze --root "$WORK/root" "$COMPONENTS"
 plutil -replace 0.BundleIsRelocatable -bool NO "$COMPONENTS"
 plutil -replace 0.BundleOverwriteAction -string upgrade "$COMPONENTS"
 chmod +x tools/mac/scripts/preinstall
-pkgbuild --root "$WORK/root" --component-plist "$COMPONENTS" --install-location /Applications \
+# --preserve-xattr: the signatures of the non-program files are kept in their extended attributes.
+pkgbuild --root "$WORK/root" --component-plist "$COMPONENTS" --install-location /Applications --preserve-xattr \
   --scripts tools/mac/scripts --identifier io.github.brandandon.rfpix --version "$NUMERIC" \
   "$WORK/RFpix-component.pkg"
 
