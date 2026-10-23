@@ -31,14 +31,17 @@
   </UserControl.Styles>
   <Grid x:Name="PageGrid" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="14">
 
-    <!-- Row 0: start/stop, record, play a recording, format, and level meter on one line -->
-    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="16">
+    <!-- Row 0: start/stop, record, play a recording on the left; the level meter, format and the
+         signal boxes beside them, wrapping in a narrow window -->
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="16">
+     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
       <Button x:Name="StartButton" Content="Start listening" Click="OnStartStopClick" MinWidth="130" />
       <Button x:Name="RecordButton" Content="Record" Click="OnRecordClick" MinWidth="130" IsEnabled="False"
               ToolTip.Tip="Save what the radio hears as a WAV file in Documents\RFpix\Recordings, starting 30 seconds before you press it. Handy for a transmission that didn't decode: it can be played back and studied." />
       <Button x:Name="PlayButton" Content="Play recording…" Click="OnPlayClick" MinWidth="140"
               ToolTip.Tip="Play a WAV recording into the waterfall instead of the radio. Handy for testing, or for recordings other stations send you." />
-      <StackPanel Spacing="2" VerticalAlignment="Center">
+     </StackPanel>
+      <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
         <StackPanel Orientation="Horizontal" Spacing="8">
           <TextBlock Text="Level" VerticalAlignment="Center" />
           <ProgressBar x:Name="LevelMeter" Minimum="0" Maximum="100" Width="220" Height="14"
@@ -49,9 +52,11 @@
         <!-- While recording: how long and how big; afterwards: where it was saved -->
         <TextBlock x:Name="RecordText" FontSize="12" IsVisible="False" />
         <!-- A problem (otherwise hidden). Then the HamDRM signal's offset, clock, strength and quality,
-             one fixed-size box each, always showing (empty with no signal); quality green when good
-             enough for the settings, red when not -->
+             one fixed-size box each; quality green when good enough for the settings, red when not.
+             The boxes show only while a picture is arriving; their space stays, empty, otherwise. -->
         <TextBlock x:Name="SignalText" FontWeight="SemiBold" IsVisible="False" />
+        <Panel x:Name="BoxesArea">
+        <StackPanel x:Name="DigitalBoxes" Opacity="0" IsHitTestVisible="False">
         <WrapPanel x:Name="SignalPanel">
           <Border Classes="Setting" Width="104"><StackPanel><TextBlock Classes="SettingLabel" Text="Offset" /><TextBlock x:Name="SignalOffset" Classes="SettingValue" /></StackPanel></Border>
           <Border Classes="Setting" Width="92"><StackPanel><TextBlock Classes="SettingLabel" Text="Clock" /><TextBlock x:Name="SignalClock" Classes="SettingValue" /></StackPanel></Border>
@@ -62,8 +67,7 @@
           </Border>
         </WrapPanel>
         <!-- The transmission's settings and callsign (from its FAC and the file's name), one fixed-size
-             box each. Like the signal boxes above they always show, empty unless a digital picture
-             is arriving. While an analog picture arrives, both rows are hidden and AnalogBoxes show. -->
+             box each. While an analog picture arrives, AnalogBoxes show in the same place instead. -->
         <WrapPanel x:Name="HeardPanel">
           <Border Classes="Setting" Width="64"><StackPanel><TextBlock Classes="SettingLabel" Text="Mode" /><TextBlock x:Name="HeardMode" Classes="SettingValue" /></StackPanel></Border>
           <Border Classes="Setting" Width="84"><StackPanel><TextBlock Classes="SettingLabel" Text="Bandwidth" /><TextBlock x:Name="HeardBandwidth" Classes="SettingValue" /></StackPanel></Border>
@@ -74,7 +78,8 @@
           <Border Classes="Setting" Width="110"><StackPanel><TextBlock Classes="SettingLabel" Text="From" /><TextBlock x:Name="HeardCallsign" Classes="SettingValue" /></StackPanel></Border>
         </WrapPanel>
         <!-- Analog SSTV: the mode, "Line 123 of 256", and the sender's callsign from its FSK ID -->
-        <WrapPanel x:Name="AnalogBoxes" IsVisible="False">
+        </StackPanel>
+        <WrapPanel x:Name="AnalogBoxes" Opacity="0" IsHitTestVisible="False" VerticalAlignment="Top">
           <Border Classes="Setting" Width="110"><StackPanel><TextBlock Classes="SettingLabel" Text="Mode" /><TextBlock x:Name="AnalogMode" Classes="SettingValue" /></StackPanel></Border>
           <Border Classes="Setting" Width="64"><StackPanel><TextBlock Classes="SettingLabel" Text="Line" /><TextBlock x:Name="AnalogLine" Classes="SettingValue" /></StackPanel></Border>
           <Border Classes="Setting" Width="64"><StackPanel><TextBlock Classes="SettingLabel" Text="of" /><TextBlock x:Name="AnalogOf" Classes="SettingValue" /></StackPanel></Border>
@@ -83,6 +88,7 @@
             <StackPanel><TextBlock Classes="SettingLabel" Text="From" /><TextBlock x:Name="AnalogFrom" Classes="SettingValue" /></StackPanel>
           </Border>
         </WrapPanel>
+        </Panel>
         <!-- How well the settings are being read ("FAC 25/25 ok"), or "Reading the settings…" -->
         <TextBlock x:Name="TransmissionText" Classes="Hint" FontSize="12" />
         <!-- The file arriving: name, size and how far along -->
@@ -94,7 +100,7 @@
                   ToolTip.Tip="Every test transmission received, one line each (Documents\RFpix\Test results.csv; opens in Excel)." />
         </StackPanel>
       </StackPanel>
-    </StackPanel>
+    </Grid>
 
     <!-- Row 1: the waterfall (from the left edge to the Record button's right edge, set in the
          code) and the last picture received (the rest of the width) -->
@@ -107,7 +113,9 @@
       </Border>
 
       <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto,Auto" RowSpacing="6">
-        <Border Grid.Row="0" CornerRadius="6" ClipToBounds="True"
+        <!-- Flex: the picture takes the room there is, rather than asking for its full size -->
+        <controls:Flex Grid.Row="0" Min="120">
+        <Border CornerRadius="6" ClipToBounds="True"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
           <Panel>
             <TextBlock x:Name="PicturePlaceholder" Classes="Hint" TextWrapping="Wrap" TextAlignment="Center"
@@ -116,6 +124,7 @@
             <Image x:Name="PictureImage" Stretch="Uniform" />
           </Panel>
         </Border>
+        </controls:Flex>
         <TextBlock Grid.Row="1" x:Name="PictureCaption" TextWrapping="Wrap" />
         <!-- While a picture is incomplete: ask its sender for the missing pieces (BSR) -->
         <Border Grid.Row="2" x:Name="MissingPanel" IsVisible="False" CornerRadius="6" Padding="12,10"

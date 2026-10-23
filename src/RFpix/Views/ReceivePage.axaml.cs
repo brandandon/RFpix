@@ -458,9 +458,11 @@ public partial class ReceivePage : UserControl, IDisposable
         SignalText.IsVisible = line.Length > 0;
 
         // An analog picture arriving (or just ended): only its boxes. Otherwise the digital ones.
+        // The boxes show only while a picture is arriving; their space stays, empty, otherwise.
         bool analog = ShowingAnalog;
-        SignalPanel.IsVisible = HeardPanel.IsVisible = !analog;
-        AnalogBoxes.IsVisible = analog;
+        bool digital = !analog && (_receiver.Signal is not null || _receiver.Heard is not null);
+        Show(DigitalBoxes, digital);
+        Show(AnalogBoxes, analog);
         Waterfall.Analog = analog || AppSettings.Current.SendAnalog;   // the marks follow Send as
         if (analog)
         {
@@ -496,6 +498,13 @@ public partial class ReceivePage : UserControl, IDisposable
     }
 
     // ---- the received transmission's settings, in boxes ----
+
+    /// <summary>Shows or hides boxes, keeping their space either way (so nothing below them moves).</summary>
+    private static void Show(Control boxes, bool show)
+    {
+        boxes.Opacity = show ? 1 : 0;
+        boxes.IsHitTestVisible = show;
+    }
 
     /// <summary>An empty box's text: a no-break space, so the box keeps its height.</summary>
     private const string Empty = "\u00A0";

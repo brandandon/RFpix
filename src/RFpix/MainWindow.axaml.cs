@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     // Each page is created the first time it is opened, then kept in place (hidden when another
     // is showing), so switching back to a page is instant and doesn't lose what was on it.
     private readonly Dictionary<string, Control> _pages = new();
+    private readonly Dictionary<string, RFpix.Controls.FitToWindow> _fits = new();
 
     // The window's last normal (not maximized or minimized) size and position, kept up to date
     // so it can be saved even if RFpix is closed while maximized.
@@ -127,7 +128,11 @@ public partial class MainWindow : Window
         {
             // Show this page and hide the others (they keep everything, ready to show again).
             var shown = GetPage(pageName);
-            foreach (var page in _pages.Values) page.IsVisible = page == shown;
+            foreach (var (name, page) in _pages)
+            {
+                page.IsVisible = page == shown;
+                _fits[name].IsVisible = page == shown;
+            }
         }
     }
 
@@ -145,7 +150,10 @@ public partial class MainWindow : Window
                 _ => new TextBlock { Text = $"Unknown page: {pageName}" }
             };
             _pages[pageName] = page;
-            PageHost.Children.Add(page);
+            // Each page shrinks to fit the window when it's too small for it (FitToWindow).
+            var fit = new RFpix.Controls.FitToWindow(page);
+            _fits[pageName] = fit;
+            PageHost.Children.Add(fit);
         }
         return page;
     }

@@ -698,7 +698,7 @@ public partial class SendPage : UserControl, IDisposable
         }
         var extra = TextTime;
         if (extra > TimeSpan.Zero)
-            EstimateDetail.Text += $"\nPlus {extra.TotalSeconds:0} s of waterfall text (set in Settings, Misc tab).";
+            EstimateDetail.Text += $"\nPlus {extra.TotalSeconds:0} s of waterfall text.";
 
         // A repeater's time-out: the whole transmission must stay inside it.
         var p = fitted.Profile;

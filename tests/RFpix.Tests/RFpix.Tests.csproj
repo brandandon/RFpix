@@ -18,6 +18,8 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.1" />
+    <!-- Lets a few tests lay out RFpix's own screen parts without a window on screen. -->
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="11.3.0" />
   </ItemGroup>
 
   <ItemGroup>

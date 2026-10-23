@@ -6,6 +6,7 @@
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:RFpix.Controls"
              x:Class="RFpix.Views.GalleryPage">
   <UserControl.Styles>
     <Style Selector="Button.Tile">
@@ -50,24 +51,31 @@
 
     <Grid Grid.Row="2" ColumnDefinitions="*,340" ColumnSpacing="20" Margin="0,12,0,0">
       <!-- Sent: the pictures, by day -->
-      <ScrollViewer Grid.Column="0" x:Name="TilesScroll">
-        <StackPanel x:Name="DaysPanel" Margin="0,0,12,12" />
-      </ScrollViewer>
+      <!-- (Flex: the lists scroll in the room there is, rather than asking for all their height) -->
+      <controls:Flex Grid.Column="0" Min="200">
+        <ScrollViewer x:Name="TilesScroll">
+          <StackPanel x:Name="DaysPanel" Margin="0,0,12,12" />
+        </ScrollViewer>
+      </controls:Flex>
       <!-- Received: digital pictures on the left, analog on the right, each by day -->
       <Grid Grid.Column="0" x:Name="SplitPanel" ColumnDefinitions="*,*" ColumnSpacing="16" IsVisible="False">
         <Grid Grid.Column="0" RowDefinitions="Auto,*">
           <TextBlock x:Name="DigitalHeading" Text="Digital" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,6" />
-          <ScrollViewer Grid.Row="1">
-            <StackPanel x:Name="DigitalDays" Margin="0,0,12,12" />
-          </ScrollViewer>
+          <controls:Flex Grid.Row="1" Min="200">
+            <ScrollViewer>
+              <StackPanel x:Name="DigitalDays" Margin="0,0,12,12" />
+            </ScrollViewer>
+          </controls:Flex>
           <TextBlock Grid.Row="1" x:Name="DigitalEmpty" Classes="Hint" TextWrapping="Wrap" IsVisible="False"
                      HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" MaxWidth="260" />
         </Grid>
         <Grid Grid.Column="1" RowDefinitions="Auto,*">
           <TextBlock x:Name="AnalogHeading" Text="Analog" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,6" />
-          <ScrollViewer Grid.Row="1">
-            <StackPanel x:Name="AnalogDays" Margin="0,0,12,12" />
-          </ScrollViewer>
+          <controls:Flex Grid.Row="1" Min="200">
+            <ScrollViewer>
+              <StackPanel x:Name="AnalogDays" Margin="0,0,12,12" />
+            </ScrollViewer>
+          </controls:Flex>
           <TextBlock Grid.Row="1" x:Name="AnalogEmpty" Classes="Hint" TextWrapping="Wrap" IsVisible="False"
                      HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" MaxWidth="260" />
         </Grid>

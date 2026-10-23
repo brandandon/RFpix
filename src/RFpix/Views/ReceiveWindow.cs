@@ -23,7 +23,7 @@ public sealed class ReceiveWindow : Window
         MinWidth = 700;
         MinHeight = 500;
         Padding = new Thickness(24, 16);
-        Content = receiveTab;
+        Content = new RFpix.Controls.FitToWindow(receiveTab);   // shrinks to fit a small window
         if (Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime { MainWindow: { } main })
             Icon = main.Icon;
         RestorePlacement();
@@ -38,7 +38,7 @@ public sealed class ReceiveWindow : Window
     /// <summary>Gives the Receive tab back (the window closes empty).</summary>
     public Control? TakeBack()
     {
-        var tab = Content as Control;
+        var tab = (Content as RFpix.Controls.FitToWindow)?.Release();
         Content = null;
         return tab;
     }

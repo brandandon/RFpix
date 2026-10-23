@@ -81,6 +81,18 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
 
+## Screens that fit the window (new in v0.5.1)
+
+- Every page (and the pop-out Receive window) now **shrinks to fit** when the window is too small
+  for it, so the buttons stay in view without scrolling. It never grows bigger than normal, and
+  never shrinks below 60%; in a window smaller than that, the page scrolls. Please try making the
+  window small and large, on each page, and say where anything looks wrong or gets cut off.
+- **Send** tab: in a short window the two pictures get smaller first, so everything else keeps its
+  normal size for longer.
+- **Receive** tab: the signal and settings boxes now show only while a picture is arriving; their
+  space stays, empty, the rest of the time. In a narrow window the boxes wrap onto more lines.
+- **Send** tab, time on the air: the note about waterfall text no longer says where it's set.
+
 ## Analog like MMSSTV, and the other changes in v0.5.0
 
 - **Analog SSTV sending**: pictures now go out as MMSSTV sends them: a short preamble (eight quick
