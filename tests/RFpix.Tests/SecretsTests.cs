@@ -29,8 +29,8 @@ public class SecretsTests
         {
             string stored = Secrets.Protect("secret")!;
             Assert.StartsWith("aes:", stored);
-            var mode = File.GetUnixFileMode(Path.Combine(folder, "password.key"));
-            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, mode);
+            if (!OperatingSystem.IsWindows())
+                Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(Path.Combine(folder, "password.key")));
             // The same password twice is stored differently (a fresh random start each time).
             Assert.False(stored == Secrets.Protect("secret"));
         });
