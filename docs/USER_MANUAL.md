@@ -111,6 +111,10 @@ Work through these steps in order the first time you run RFpix. Everything is sa
 
 *Settings, Radio tab, set up for a Yaesu FT-991A: the Enhanced COM Port at 38400 baud, CAT keying, and the radio's USB sound devices at the bottom.*
 
+![Settings, Radio tab, with No radio control (VOX only) chosen and the sound devices still to pick](images/settings-radio-vox.png)
+
+*With **No radio control (VOX only)**, only VOX can be picked and Connect isn't needed: the radio keys itself when RFpix's sound starts. The sound devices still have to be chosen.*
+
 When all nine boxes are ticked, RFpix is ready. Part 2 explains receiving and sending in detail.
 
 ## Part 2: Using it
