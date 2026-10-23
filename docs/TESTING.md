@@ -1,13 +1,13 @@
 # Testing RFpix on the air
 
-Thanks for helping test RFpix (now in beta), a HamDRM (digital SSTV) program for Windows by KD9DD.
+Thanks for helping test RFpix (now in beta), a HamDRM (digital SSTV) program for Windows and the Mac by KD9DD.
 RFpix has ten built-in **test transmissions**: fixed pictures sent with fixed settings,
 and each picture says what its settings are. When you receive one, RFpix checks it against
 its own copy of the original and writes down how it came through.
 
 ## Getting it
 
-Download one of these (below, under *Assets*):
+Download one of these (below, under *Assets*). For a Mac, see **On a Mac** below.
 
 - **RFpix-Setup-x.y.z.exe** (recommended) installs RFpix. You choose the folder (no administrator
   rights needed), and it adds RFpix to the Start menu. Uninstall it from Windows' Settings > Apps
@@ -20,6 +20,40 @@ signed. Click **More info**, then **Run anyway**.
 
 Your settings live in %AppData%\RFpix, and your received pictures, recordings and test results
 in Documents\RFpix. Uninstalling asks whether to remove the settings, and never removes your files.
+
+## On a Mac (new in v0.5.2 beta)
+
+This is the first Mac version, and it hasn't been tried with a radio yet: please tell us how it goes.
+It needs macOS 14 (Sonoma) or newer. Download the installer for your kind of Mac
+(Apple menu > **About This Mac**: *Chip: Apple M…* is Apple Silicon, *Processor: Intel* is Intel):
+
+- **RFpix-x.y.z-mac-apple-silicon.pkg** for Apple Silicon Macs (M1 and newer)
+- **RFpix-x.y.z-mac-intel.pkg** for Intel Macs
+
+1. Open the .pkg. Because RFpix isn't yet signed by Apple, macOS says it *"Not Opened"*: click **Done**.
+2. Open **System Settings > Privacy & Security**, scroll down to the message about the RFpix
+   installer, click **Open Anyway** and type your Mac password. The installer opens.
+3. Click **Continue** and **Install**. RFpix goes in your **Applications** folder.
+4. The first time you click **Start listening**, macOS asks whether RFpix may use the
+   microphone: click **Allow** (the radio's sound input counts as a microphone). If you clicked
+   Don't Allow, turn RFpix on in **System Settings > Privacy & Security > Microphone**.
+   (macOS may ask again after each update, until RFpix is signed by Apple.)
+
+**Updating:** when a newer version is out, RFpix says so at the bottom left when it starts, with a
+**Download** button. Quit RFpix, open the downloaded installer (steps 1 and 2 again) and install:
+it replaces the old RFpix, and your settings and pictures stay. (You can turn this check off in
+**Settings > Misc**.)
+
+On the Mac:
+- The radio's sound devices are usually called **USB Audio CODEC**. Renaming them in **Audio MIDI
+  Setup** (in Applications > Utilities) makes them easier to tell apart.
+- The radio's port is named like **/dev/cu.usbserial-…** or **/dev/cu.SLAB_USBtoUART**.
+- Your pictures are in **Documents/RFpix** as on Windows, and the settings in the hidden folder
+  **~/Library/Application Support/RFpix**. Website copies go to **Documents/RFpix/Website copies** unless you choose another folder.
+- Deleting a picture in the Gallery moves it to the Trash, and **Show in folder** opens Finder.
+- Ham Radio Deluxe is Windows-only, so on the Mac use Hamlib (CAT) or VOX.
+
+Please try receiving first, then **Test PTT**, then sending, and report anything odd.
 
 ## Receiving tests (the most useful help)
 

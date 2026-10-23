@@ -8,7 +8,14 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="RFpix.App"
+             Name="RFpix"
              RequestedThemeVariant="Default">
+
+  <!-- The Mac's menu bar: "RFpix" with macOS's own Hide and Quit items, and nothing else
+       (instead of Avalonia's "About Avalonia"). Windows has no menu bar, so it ignores this. -->
+  <NativeMenu.Menu>
+    <NativeMenu />
+  </NativeMenu.Menu>
 
   <Application.Styles>
     <!-- The overall look of buttons, lists, menus and so on. -->

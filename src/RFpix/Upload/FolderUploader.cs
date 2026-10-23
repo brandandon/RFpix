@@ -1,6 +1,6 @@
 // FolderUploader.cs - uploads new pictures from a folder to a website, the way Dan's
 // SSTV Auto Uploader does (so the website needs no change):
-//   1. Watch the folder (C:\FTPIMAGE to start with) for new .jpg files, and wait until a
+//   1. Watch the folder (C:\FTPIMAGE to start with, on the Mac Documents/RFpix/Website copies) for new .jpg files, and wait until a
 //      file has stopped changing for a few seconds (it may still be being written).
 //   2. Upload it under a temporary name, and check the server got all of it, so a failed
 //      upload never disturbs the pictures already on the site.
@@ -37,7 +37,12 @@ public sealed class UploadSettings
     public bool StampCopies { get; set; } = true;
     /// <summary>Copies of the pictures you send too.</summary>
     public bool CopySent { get; set; }
-    public string Folder { get; set; } = @"C:\FTPIMAGE";
+    public string Folder { get; set; } = DefaultFolder;
+
+    /// <summary>C:\FTPIMAGE on Windows (as MMSSTV); on the Mac, Documents/RFpix/Website copies.</summary>
+    public static string DefaultFolder => OperatingSystem.IsWindows()
+        ? @"C:\FTPIMAGE"
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "RFpix", "Website copies");
 
     /// <summary>Upload the pictures that arrive in <see cref="Folder"/>.</summary>
     public bool Upload { get; set; }

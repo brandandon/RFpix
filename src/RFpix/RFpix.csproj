@@ -23,7 +23,11 @@
     <Description>Digital SSTV (HamDRM) for ham radio</Description>
     <!-- The icon Windows shows for RFpix.exe (in File Explorer and when pinned). -->
     <ApplicationIcon>Assets\RFpix.ico</ApplicationIcon>
-    <!-- 64-bit only, like the Magick.NET picture library it uses. -->
+  </PropertyGroup>
+
+  <!-- Windows: 64-bit only, like the Magick.NET picture library it uses there. The Mac build
+       is made for both kinds of Mac (Intel and Apple Silicon), so it isn't tied to one. -->
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
@@ -31,8 +35,8 @@
     Hamlib, the radio-control library (LGPL licence), for Windows.
     The first build downloads Hamlib's official Windows package from GitHub, checks it's
     exactly the expected file (its SHA-256 fingerprint), and unpacks it under obj\.
-    Its DLLs are then copied next to RFpix.exe. On Linux and Mac, RFpix uses the
-    system's hamlib package instead.
+    Its DLLs are then copied next to RFpix.exe. The Mac package carries its own copy, built
+    from Hamlib's source by tools/mac/package.sh. On Linux, RFpix uses the system's hamlib.
   -->
   <PropertyGroup>
     <HamlibVersion>4.7.2</HamlibVersion>
@@ -82,15 +86,17 @@
     <!-- Avalonia uses this for Linux's D-Bus. Its version 0.21.2 has a security
          problem (GHSA-xrw6-gwf8-vvr9), so we ask for the fixed 0.21.3. -->
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
-    <!-- NAudio talks to Windows' own sound system (WASAPI). Windows only;
-         Linux and Mac will get their own audio backend later. -->
+    <!-- NAudio talks to Windows' own sound system (WASAPI). On the Mac, RFpix talks to
+         Core Audio itself (Audio/CoreAudio), so nothing extra is needed there. -->
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
     <!-- CoreJ2K reads JPEG 2000 pictures, which EasyPal sends by default. Written in C#,
          so it works on Windows, Linux and Mac alike (BSD licence). -->
     <PackageReference Include="CoreJ2K" Version="2.3.3.91" />
     <!-- Magick.NET (ImageMagick for .NET, Apache licence) opens pictures of nearly any kind
          for sending, and makes and reads JPEG and AVIF (the RFpix-only, smaller format). -->
-    <PackageReference Include="Magick.NET-Q8-x64" Version="14.17.2" />
+    <PackageReference Include="Magick.NET-Q8-x64" Version="14.17.2" Condition="'$(OS)' == 'Windows_NT'" />
+    <!-- On the Mac (and Linux) the "AnyCPU" package, which carries the library for Intel and Apple Silicon. -->
+    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.17.2" Condition="'$(OS)' != 'Windows_NT'" />
     <!-- Uploading pictures to a website: FTP and FTPS (FluentFTP, MIT), SFTP (SSH.NET, MIT),
          and keeping the password encrypted on Windows (ProtectedData, MIT). -->
     <PackageReference Include="FluentFTP" Version="52.1.0" />

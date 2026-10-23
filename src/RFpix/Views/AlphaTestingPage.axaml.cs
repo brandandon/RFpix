@@ -37,6 +37,8 @@ public partial class AlphaTestingPage : UserControl, IDisposable
     public AlphaTestingPage()
     {
         InitializeComponent();
+        if (OperatingSystem.IsMacOS() && LevelHint.Text is { } level)
+            LevelHint.Text = level.Replace("the radio's Windows volume", "the radio's volume in the Mac's Sound settings");
         _loading = true;
         TestList.ItemsSource = TestTransmissions.All.Select(t => new TestListItem(t,
             $"Test {t.Number}: {t.Purpose}", $"{t.SettingsText}  ·  {Duration(t)}")).ToList();

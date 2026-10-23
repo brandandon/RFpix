@@ -1,0 +1,8 @@
+#!/bin/bash
+# Runs (as the installer, before copying) when RFpix is installed or updated:
+# closes a running RFpix, then removes the old RFpix.app, so no files from an older version
+# are left behind. Settings and pictures aren't in RFpix.app, so they stay.
+pkill -x RFpix 2>/dev/null && sleep 2
+pkill -9 -x RFpix 2>/dev/null
+rm -rf "/Applications/RFpix.app"
+exit 0

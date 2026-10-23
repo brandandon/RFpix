@@ -28,6 +28,7 @@ public partial class SettingsPage : UserControl, IDisposable
     public SettingsPage()
     {
         InitializeComponent();
+        if (OperatingSystem.IsMacOS()) UseMacWords();
 
         // The sound devices go on the Radio tab, under the Test PTT note.
         ((Panel)AudioPanel.Parent!).Children.Remove(AudioPanel);
@@ -331,5 +332,22 @@ public partial class SettingsPage : UserControl, IDisposable
         FtpTab.Dispose();
         _input.Dispose();
         _output.Dispose();
+    }
+
+    // The hints name Windows' settings; on the Mac, the Mac's own.
+    private void UseMacWords()
+    {
+        FollowSystemItem.Content = "Follow the Mac";
+        UpdatesPanel.IsVisible = true;
+        CheckForUpdatesBox.IsChecked = AppSettings.Current.CheckForUpdates;
+        CheckForUpdatesBox.IsCheckedChanged += (_, _) =>
+        {
+            AppSettings.Current.CheckForUpdates = CheckForUpdatesBox.IsChecked == true;
+            AppSettings.Current.Save();
+        };
+        CalibrationHint.Text = CalibrationHint.Text?.Replace(
+            "first make sure Windows' clock is set right (Settings > Time & language > Date & time > Sync now)",
+            "first make sure the Mac's clock is set right (System Settings > General > Date & Time > Set time and date automatically)");
+        DeviceHint.Text = DeviceHint.Text?.Replace("Renaming them in Windows Sound settings", "Renaming them in Audio MIDI Setup");
     }
 }

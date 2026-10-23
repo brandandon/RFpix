@@ -69,7 +69,7 @@
             <TextBox x:Name="RemoteFolderAnalogBox" Width="300" Watermark="blank: the folder you log in to" />
           </StackPanel>
         </WrapPanel>
-        <TextBlock Classes="Hint" TextWrapping="Wrap"
+        <TextBlock x:Name="PasswordHint" Classes="Hint" TextWrapping="Wrap"
                    Text="The password is kept encrypted for your Windows account. FTPS is FTP with encryption (explicit TLS); SFTP is file transfer over SSH (usually port 22)." />
       </StackPanel>
 

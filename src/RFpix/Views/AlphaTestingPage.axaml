@@ -42,7 +42,7 @@
                   IsSnapToTickEnabled="True" ValueChanged="OnLevelChanged" />
           <TextBlock x:Name="LevelText" VerticalAlignment="Center" Width="60" />
         </StackPanel>
-        <TextBlock Classes="Hint" TextWrapping="Wrap"
+        <TextBlock x:Name="LevelHint" Classes="Hint" TextWrapping="Wrap"
                    Text="RFpix sets its own level, so leave the radio's Windows volume where your other programs (WSJT-X, EasyPal) need it, and adjust here. 0 dB is QSSTV's level; each 6 dB down halves it. HamDRM needs far less than FT8: its peaks are about 10 dB above its average, and the radio must pass them unclipped. Start low (around -30 dB) and raise it until the radio's ALC barely moves: the slider works while sending, so you can adjust it on the air. Too much level distorts the signal: the settings still decode but the picture doesn't." />
       </StackPanel>
 

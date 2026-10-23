@@ -373,6 +373,7 @@ public partial class GalleryPage : UserControl
         {
             string path = entry.FullPath;
             if (OperatingSystem.IsWindows()) Process.Start("explorer.exe", $"/select,\"{path}\"");
+            else if (OperatingSystem.IsMacOS()) RFpix.Platform.MacFiles.ShowInFinder(path);
             else OnOpenFolderClick(sender, e);
         }
         catch (Exception ex)
@@ -396,7 +397,7 @@ public partial class GalleryPage : UserControl
         }
     }
 
-    // Delete: the first click asks, the second moves it to the Recycle Bin.
+    // Delete: the first click asks, the second moves it to the Recycle Bin (the Trash on the Mac).
     private void OnDeleteClick(object? sender, RoutedEventArgs e)
     {
         if (_selected is not { } entry) return;
@@ -412,6 +413,7 @@ public partial class GalleryPage : UserControl
             if (OperatingSystem.IsWindows())
                 Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(path, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
                                                                     Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+            else if (OperatingSystem.IsMacOS()) RFpix.Platform.MacFiles.MoveToTrash(path);
             else File.Delete(path);
             GalleryIndex.Remove(folder, entry.File);
             if (_thumbnails.Remove(path, out var t))

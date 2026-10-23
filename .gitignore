@@ -35,3 +35,7 @@ Thumbs.db
 !tests/recordings/offair/*.wav
 installer-output/
 publish-folder/
+
+# Mac packaging (tools/mac/package.sh)
+/build/
+/dist/

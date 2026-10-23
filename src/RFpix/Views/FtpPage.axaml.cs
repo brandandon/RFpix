@@ -19,6 +19,10 @@ public partial class FtpPage : UserControl, IDisposable
     public FtpPage()
     {
         InitializeComponent();
+        FolderBox.Watermark = UploadSettings.DefaultFolder;
+        if (OperatingSystem.IsMacOS())
+            PasswordHint.Text = "The password is kept encrypted, with a key only your Mac account can read. FTPS is FTP with encryption " +
+                                "(explicit TLS); SFTP is file transfer over SSH (usually port 22).";
         ProtocolBox.ItemsSource = new[] { "FTP (plain)", "FTPS (FTP with encryption)", "SFTP (over SSH)" };
         ProtocolBox.SelectionChanged += (_, _) => OnProtocolChanged();
         SaveCopiesBox.IsCheckedChanged += (_, _) => StampBox.IsEnabled = CopySentBox.IsEnabled = SaveCopiesBox.IsChecked == true;

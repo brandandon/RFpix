@@ -6,7 +6,8 @@
 //   Windows: libhamlib-4.dll (with libgcc_s_seh-1.dll, libwinpthread-1.dll and
 //            libusb-1.0.dll), downloaded by the build and placed next to RFpix.exe
 //   Linux:   libhamlib.so.4 (the hamlib package)
-//   Mac:     libhamlib.4.dylib (Homebrew's hamlib)
+//   Mac:     libhamlib.4.dylib, carried inside RFpix.app (Contents/MacOS, next to RFpix);
+//            Homebrew's hamlib is used if it isn't there (as when running from source)
 //
 // RFpix only ever holds a pointer to Hamlib's RIG record and never looks inside
 // it, so changes to that record between Hamlib versions can't upset RFpix.
@@ -105,7 +106,7 @@ internal static class HamlibNative
 
         string[] candidates =
             OperatingSystem.IsWindows() ? new[] { Path.Combine(AppContext.BaseDirectory, "libhamlib-4.dll"), "libhamlib-4.dll" }
-            : OperatingSystem.IsMacOS() ? new[] { "libhamlib.4.dylib", "/opt/homebrew/lib/libhamlib.4.dylib", "/usr/local/lib/libhamlib.4.dylib" }
+            : OperatingSystem.IsMacOS() ? new[] { Path.Combine(AppContext.BaseDirectory, "libhamlib.4.dylib"), "libhamlib.4.dylib", "/opt/homebrew/lib/libhamlib.4.dylib", "/usr/local/lib/libhamlib.4.dylib" }
             : new[] { "libhamlib.so.4", "libhamlib.so" };
         foreach (var candidate in candidates)
             if (NativeLibrary.TryLoad(candidate, out var handle)) return handle;

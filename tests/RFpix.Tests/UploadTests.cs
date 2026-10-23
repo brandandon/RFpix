@@ -136,7 +136,8 @@ public class UploadTests
         Assert.NotNull(new UploadSettings().Problem());   // no server yet
         Assert.Null(new UploadSettings { Host = "ftp.example.com", Username = "n0call" }.Problem());
         Assert.Equal("image12.jpg", new UploadSettings().RemoteName(12));
-        Assert.Equal(@"C:\FTPIMAGE", new UploadSettings().Folder);
+        if (OperatingSystem.IsWindows()) Assert.Equal(@"C:\FTPIMAGE", new UploadSettings().Folder);
+        else Assert.EndsWith(Path.Combine("RFpix", "Website copies"), new UploadSettings().Folder);
     }
 
     [Fact]

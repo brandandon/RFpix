@@ -2,6 +2,7 @@
 //
 // Settings are saved as a small text file (JSON) at
 //   C:\Users\<you>\AppData\Roaming\RFpix\settings.json
+// (on the Mac, ~/Library/Application Support/RFpix/settings.json)
 // If the file is missing or damaged, RFpix just starts with the defaults.
 
 using System.Text.Json;
@@ -62,6 +63,9 @@ public sealed class AppSettings
     public bool AnalogWhole { get; set; }
     /// <summary>Analog SSTV: send your callsign in CW after the picture (and its FSK ID), half a second later.</summary>
     public bool AnalogCw { get; set; }
+
+    /// <summary>When RFpix starts, ask GitHub whether there's a newer version (Mac only for now).</summary>
+    public bool CheckForUpdates { get; set; } = true;
 
     /// <summary>The overlay template in use on the Send tab (null: none), and its fill-in boxes.</summary>
     public string? TemplateName { get; set; }

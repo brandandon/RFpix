@@ -1,5 +1,6 @@
 // AudioSystem.cs - picks the right audio backend for the computer RFpix is running on.
 
+using RFpix.Audio.CoreAudio;
 using RFpix.Audio.Wasapi;
 
 namespace RFpix.Audio;
@@ -12,6 +13,10 @@ public static class AudioSystem
         {
             return new WasapiAudioInput();
         }
+        if (OperatingSystem.IsMacOS())
+        {
+            return new CoreAudioInput();
+        }
         return new UnsupportedAudioInput();
     }
 
@@ -21,14 +26,18 @@ public static class AudioSystem
         {
             return new WasapiAudioOutput();
         }
+        if (OperatingSystem.IsMacOS())
+        {
+            return new CoreAudioOutput();
+        }
         return new UnsupportedAudioOutput();
     }
 }
 
-/// <summary>Stand-in used on Linux and Mac until their audio backend is written.</summary>
+/// <summary>Stand-in used on Linux until its audio backend is written.</summary>
 internal sealed class UnsupportedAudioInput : IAudioInput
 {
-    private const string Message = "Sound input is Windows-only for now. Linux and Mac support is planned.";
+    private const string Message = "Sound input works on Windows and Mac for now. Linux support is planned.";
 
     public bool IsRunning => false;
     public string FormatDescription => "";

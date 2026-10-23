@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- distribution.xml - the installer's steps and checks. package.sh fills in the @...@ parts. -->
+<installer-gui-script minSpecVersion="2">
+  <title>RFpix @VERSION@ (@KIND@ Macs)</title>
+  <welcome file="welcome.html" mime-type="text/html" />
+  <!-- The Apple Silicon installer won't install on an Intel Mac. -->
+  <options customize="never" require-scripts="false" hostArchitectures="@HOST_ARCHS@" />
+  <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true" />
+  <volume-check>
+    <allowed-os-versions><os-version min="@MIN_MACOS@" /></allowed-os-versions>
+  </volume-check>
+  <choices-outline>
+    <line choice="rfpix" />
+  </choices-outline>
+  <choice id="rfpix" title="RFpix">
+    <pkg-ref id="io.github.brandandon.rfpix" />
+  </choice>
+  <pkg-ref id="io.github.brandandon.rfpix" version="@NUMERIC@" onConclusion="none">RFpix-component.pkg</pkg-ref>
+</installer-gui-script>

@@ -1,7 +1,7 @@
 // IAudioOutput.cs - RFpix's audio layer for sound going OUT to the radio.
 //
 // Like IAudioInput, the rest of RFpix only talks to this interface. On Windows the
-// backend is WasapiAudioOutput; Linux and Mac get theirs later.
+// backend is WasapiAudioOutput, on the Mac CoreAudioOutput; Linux gets its own later.
 
 namespace RFpix.Audio;
 
@@ -26,10 +26,10 @@ public interface IAudioOutput : IDisposable
         throw new AudioException("Measuring the sound card's clock isn't possible on this computer.");
 }
 
-/// <summary>Stand-in used on Linux and Mac until their audio backend is written.</summary>
+/// <summary>Stand-in used on Linux until its audio backend is written.</summary>
 internal sealed class UnsupportedAudioOutput : IAudioOutput
 {
-    private const string Message = "Sound output is Windows-only for now. Linux and Mac support is planned.";
+    private const string Message = "Sound output works on Windows and Mac for now. Linux support is planned.";
 
     public IReadOnlyList<AudioDeviceInfo> GetDevices() => throw new AudioException(Message);
     public Task PlayAsync(string deviceId, float[] samples, int sampleRate, Func<double>? level, IProgress<double>? progress,

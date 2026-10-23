@@ -58,16 +58,22 @@
               <TextBlock Text="Theme" FontWeight="SemiBold" />
               <!-- Picking an item runs OnThemeChanged in SettingsPage.axaml.cs. -->
               <ComboBox x:Name="ThemeBox" Width="220" SelectionChanged="OnThemeChanged">
-                <ComboBoxItem Content="Follow Windows" />
+                <ComboBoxItem x:Name="FollowSystemItem" Content="Follow Windows" />
                 <ComboBoxItem Content="Light" />
                 <ComboBoxItem Content="Dark" />
               </ComboBox>
             </StackPanel>
 
+            <!-- New versions (Mac only for now: shown by UseMacWords). -->
+            <StackPanel x:Name="UpdatesPanel" Spacing="6" IsVisible="False">
+              <TextBlock Text="New versions" FontWeight="SemiBold" />
+              <CheckBox x:Name="CheckForUpdatesBox" Content="Check for new versions of RFpix when it starts" />
+            </StackPanel>
+
             <!-- Sound-card calibration -->
             <StackPanel Spacing="8">
               <TextBlock Text="Sound-card calibration" FontWeight="SemiBold" />
-              <TextBlock Classes="Hint" TextWrapping="Wrap"
+              <TextBlock x:Name="CalibrationHint" Classes="Hint" TextWrapping="Wrap"
                          Text="Every sound card's clock is a little fast or slow. RFpix measures the radio's sound input and output against the computer's clock for 2 minutes, then corrects for them when receiving and sending. The radio stays receiving: RFpix plays silence and doesn't key it. For the best result, first make sure Windows' clock is set right (Settings > Time &amp; language > Date &amp; time > Sync now)." />
               <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="4">
                 <TextBlock Grid.Row="0" Text="Receive (input):" />
@@ -116,7 +122,7 @@
               </StackPanel>
 
               <TextBlock x:Name="DeviceProblemText" TextWrapping="Wrap" Foreground="OrangeRed" IsVisible="False" />
-              <TextBlock Classes="Hint" TextWrapping="Wrap"
+              <TextBlock x:Name="DeviceHint" Classes="Hint" TextWrapping="Wrap"
                          Text="Radios usually appear as &quot;USB Audio CODEC&quot;. Renaming them in Windows Sound settings (for example &quot;FT-991A&quot;) makes them easy to tell apart. Not your computer's own speakers or microphone." />
             </StackPanel>
   </Grid>

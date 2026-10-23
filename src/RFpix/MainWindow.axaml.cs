@@ -36,7 +36,34 @@ public partial class MainWindow : Window
         RestorePlacement();
         GalleryPage.SendRequested += OnGallerySend;
         RFpix.Upload.UploadService.Restart();   // uploading pictures to a website, if that's set up
+        _ = CheckForUpdateAsync(version);
     }
+
+    // ---- is there a newer RFpix? (Mac only for now) ----
+
+    private RFpix.Update.UpdateInfo? _update;
+
+    private async Task CheckForUpdateAsync(string version)
+    {
+        string? ending = RFpix.Update.UpdateCheck.InstallerEnding(OperatingSystem.IsMacOS(),
+                                                                  System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture);
+        if (ending is null || !AppSettings.Current.CheckForUpdates || RFpix.Update.AppVersion.Parse(version) is not { } running) return;
+        await Task.Delay(TimeSpan.FromSeconds(5));   // let RFpix finish starting first
+        _update = await RFpix.Update.UpdateCheck.CheckAsync(running, ending);
+        if (_update is null) return;
+        UpdateText.Text = $"RFpix {_update.Version} is out (you have {running}).";
+        UpdateNotice.IsVisible = true;
+    }
+
+    private async void OnUpdateDownloadClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_update is null) return;
+        try { await Launcher.LaunchUriAsync(new Uri(_update.DownloadUrl)); }
+        catch (Exception) { /* no browser: the notice stays, so it can be tried again */ }
+    }
+
+    // Hidden until RFpix is next started.
+    private void OnUpdateNotNowClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => UpdateNotice.IsVisible = false;
 
     // The Gallery's "Send this picture": over to TX/RX, Send tab, with the picture open.
     private void OnGallerySend(string path)

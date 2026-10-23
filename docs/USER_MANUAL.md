@@ -46,7 +46,7 @@ A few things RFpix does for you:
 
 ### 2. Installing
 
-RFpix is free to download from its [releases page on GitHub](https://github.com/brandandon/RFpix/releases/latest). It needs a 64-bit Windows 10 or 11 computer. Each release offers two files under **Assets**:
+RFpix is free to download from its [releases page on GitHub](https://github.com/brandandon/RFpix/releases/latest). It needs a 64-bit Windows 10 or 11 computer, or a Mac with macOS 14 (Sonoma) or newer (see [On a Mac](#on-a-mac) below). For Windows, each release offers two files under **Assets**:
 
 | File | What it is | Choose it if |
 | --- | --- | --- |
@@ -73,6 +73,33 @@ Put **RFpix.exe** in any folder and double-click it. The first time each new ver
 
 Download the newer installer and run it. It closes RFpix if it's running and replaces the old version. Your settings and pictures stay as they are.
 
+#### On a Mac
+
+The Mac version is new in 0.5.2 beta, and hasn't yet been tried with a radio. Each release offers an installer for each kind of Mac. To see which kind you have, open the Apple menu and choose **About This Mac**: *Chip: Apple M1* (or M2, M3 and so on) is Apple Silicon; *Processor: Intel* is Intel.
+
+| File | For |
+| --- | --- |
+| **RFpix-0.5.2-beta-mac-apple-silicon.pkg** | Apple Silicon Macs (M1 and newer) |
+| **RFpix-0.5.2-beta-mac-intel.pkg** | Intel Macs |
+
+1. Download the installer for your Mac and open it.
+2. macOS says the installer was *"Not Opened"*, because RFpix isn't yet signed by Apple. Click **Done**. This doesn't mean anything is wrong.
+3. Open **System Settings > Privacy & Security** and scroll down. Next to the message about the RFpix installer, click **Open Anyway**, then type your Mac password. The installer opens.
+4. Click **Continue**, then **Install**. RFpix goes in your **Applications** folder; open it from there or from Launchpad.
+5. The first time you click **Start listening**, macOS asks whether RFpix may use the microphone. Click **Allow**: the radio's sound input counts as a microphone. If you clicked **Don't Allow**, turn RFpix on in **System Settings > Privacy & Security > Microphone**. macOS may ask again after an update, until RFpix is signed by Apple.
+
+**Updating on a Mac:** when a newer version is out, a notice appears at the bottom left of RFpix's window when it starts, with a **Download** button. Quit RFpix, open the downloaded installer (steps 2 and 3 again), and install. It replaces the old RFpix; your settings and pictures stay. To stop RFpix checking, untick **Check for new versions of RFpix when it starts** in **Settings > Misc**.
+
+**Uninstalling on a Mac:** drag **RFpix** from Applications to the Trash. Your pictures in **Documents/RFpix** stay, as do your settings (in **~/Library/Application Support/RFpix**, a hidden folder you can delete too: in Finder, choose **Go > Go to Folder** and type that).
+
+A few things differ on the Mac:
+
+- The radio's port is named like **/dev/cu.usbserial-…** or **/dev/cu.SLAB_USBtoUART**, not COM.
+- Sound devices can be renamed in **Audio MIDI Setup** (Applications > Utilities).
+- Website copies go to **Documents/RFpix/Website copies** unless you choose another folder.
+- Deleting a picture in the Gallery moves it to the Trash, and **Show in folder** opens it in Finder.
+- Ham Radio Deluxe runs only on Windows, so on the Mac connect the radio with Hamlib (CAT) or use VOX.
+
 #### Uninstalling
 
 In Windows, open **Settings > Apps**, find **RFpix**, and choose **Uninstall**. RFpix asks whether to remove your settings too (radio, sound devices, callsign). Your pictures, recordings and test results in **Documents\RFpix** are always kept.
@@ -87,6 +114,8 @@ In Windows, open **Settings > Apps**, find **RFpix**, and choose **Uninstall**. 
 | Templates | Documents\RFpix\Templates |
 | Test results | Documents\RFpix\Test results.csv |
 | Settings | %AppData%\RFpix\settings.json |
+
+On a Mac the same folders are in **Documents/RFpix**, and the settings are in **~/Library/Application Support/RFpix/settings.json** (in Finder: **Go > Go to Folder**).
 
 ### 3. First-time setup checklist
 
