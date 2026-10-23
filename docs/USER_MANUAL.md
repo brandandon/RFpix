@@ -365,7 +365,9 @@ A code left empty leaves no gap: "%to de %me" with no To callsign becomes "de N0
 
 In the template window, click **New template…** to start from a sample, or **Edit…** under one of yours. (RFpix's own templates offer **Copy and edit…**, so the originals stay as they are.)
 
-*\[Screenshot: the template editor with an item chosen\]*
+![The template editor with a text item chosen](images/template-editor.png)
+
+*The template editor with a text item chosen: "Grid %QTH" shows as "Grid EM48" on the analog-sized preview, with its dashed outline and corner square, and its settings (text, font, size, colour, outline) on the right.*
 
 In the editor:
 
