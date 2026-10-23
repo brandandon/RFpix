@@ -34,6 +34,18 @@ jobs:
       - name: Run the tests (uses the recordings in tests/recordings)
         run: dotnet test tests/RFpix.Tests/RFpix.Tests.csproj -c Release --logger "trx;LogFileName=results.trx" --results-directory test-results
 
+      # How many tests ran and passed, at the top of the run's page.
+      - name: Count the tests
+        if: always()
+        shell: pwsh
+        run: |
+          foreach ($file in Get-ChildItem test-results -Filter *.trx -Recurse) {
+            [xml]$trx = Get-Content $file.FullName
+            $c = $trx.TestRun.ResultSummary.Counters
+            $layout = @($trx.TestRun.Results.UnitTestResult | Where-Object { $_.testName -like '*FitToWindowTests*' -and $_.outcome -eq 'Passed' }).Count
+            Write-Output "::notice title=Tests::$($c.passed) of $($c.total) passed ($layout screen-layout tests)"
+          }
+
       # If a test failed, list it (with its message) at the top of the run's page.
       - name: Show failed tests
         if: failure()
