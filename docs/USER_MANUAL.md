@@ -40,9 +40,9 @@ A few things RFpix does for you:
 - **Saves everything.** Every picture received is saved on its own, and can be put on your website automatically.
 - **Adds your callsign.** Templates draw your callsign, a CQ card or a reply on the picture as it goes out.
 
-![The Receive tab (popped out into its own window), with a digital picture just received](images/receive-tab.png)
+![The Receive tab, popped out into its own window, while a digital picture arrives](images/receive-tab.png)
 
-*The Receive tab, popped out into its own window: the waterfall on the left, the signal and settings boxes at the top, and the last picture received.*
+*The Receive tab, popped out into its own window, while a digital picture arrives: the waterfall on the left, the signal and settings boxes at the top, and the picture area on the right.*
 
 ### 2. Installing
 
@@ -119,7 +119,9 @@ When all nine boxes are ticked, RFpix is ready. Part 2 explains receiving and se
 
 Open **TX/RX**, then the **Receive** tab, and click **Start listening**. RFpix listens for digital and analog pictures at the same time, and saves every picture it receives without being asked.
 
-*\[Screenshot: the Receive tab while a digital picture arrives, with the boxes filled in\]*
+![The Receive tab while a digital picture arrives, with the boxes filled in](images/receive-tab.png)
+
+*A digital picture arriving: Mode E, 2.5 kHz, 4-QAM; quality 19 dB where 6 is needed, so the Quality box is green. The waterfall shows the sender's waterfall text ("Pic 2 Follow") above the picture's signal, with its three pilot lines on the marks.*
 
 #### What's on the Receive tab
 
@@ -181,7 +183,9 @@ Click **Pop out Receive** at the top right of the TX/RX page to move the Receive
 
 On the **Send** tab, choose **Digital (HamDRM)**, open a picture, pick how long it should take, and click **Send**. RFpix works out the size and quality that fit that time, and shows the picture exactly as it will go out.
 
-*\[Screenshot: the Send tab in Digital, with a picture open and the green time box\]*
+![The Send tab in Digital, with a picture open and the green time box](images/send-digital.png)
+
+*A 2515 × 1778 photo fitted to 2:00 with the Net repeater profile: sent as 862 × 609 in AVIF, 28.6 kB, 1:59 on the air.*
 
 #### Step by step
 
@@ -265,7 +269,9 @@ The **Template…** button above the pictures draws your callsign, a CQ card or 
 
 On the **Send** tab, choose **Analog SSTV**, open a picture, pick a **Mode**, and click **Send**. Each analog mode has its own picture size and time, so there's no transmit time to choose: RFpix makes the picture fit the mode.
 
-*\[Screenshot: the Send tab in Analog, with the mode list and Fit the picture\]*
+![The Send tab in Analog, with the mode list and Fit the picture](images/send-analog.png)
+
+*The same photo in Scottie 2: filled to the mode's 320 × 256 frame, 1:13 on the air, inside the repeater's 3:00 time-out.*
 
 In analog, the digital-only parts of the tab are hidden (the send settings apart from Repeater time-out and Lead-in, profiles, transmit time, size, quality and format, and the ID, WF TXT and WF PIC buttons). They come back, as you left them, when you switch to **Digital (HamDRM)**.
 
@@ -371,7 +377,9 @@ Templates are kept as files in **Documents\RFpix\Templates**, logos included, so
 
 The **Gallery** page shows every picture you've received and sent, newest first, grouped by day.
 
-*\[Screenshot: the Gallery, Received tab, with Digital and Analog side by side\]*
+![The Gallery, Received tab, with Digital and Analog side by side](images/gallery.png)
+
+*The Received tab: digital pictures on the left, analog on the right, each grouped by day.*
 
 - **Received** shows digital pictures on the left and analog pictures on the right, each with its own count and scroll bar.
 - **Sent** shows the pictures you've sent, each marked **Digital** or **Analog** beside its time.
@@ -393,7 +401,9 @@ Click a picture to see it larger on the right, with what's known about it: who i
 
 RFpix can keep your website showing the latest pictures you've received. It works in two steps, both on **Settings > FTP server**: RFpix saves a JPEG copy of each picture in a folder, and then uploads new pictures from that folder to your web server. It uploads them the same way as the SSTV Auto Uploader, so a website set up for that needs no change.
 
-*\[Screenshot: Settings, FTP server tab\]*
+![Settings, FTP server tab](images/settings-ftp.png)
+
+*Settings, FTP server tab, before anything is filled in.*
 
 #### Setting it up
 
