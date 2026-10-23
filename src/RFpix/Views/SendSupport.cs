@@ -1,4 +1,4 @@
-// SendSupport.cs - what the Send tab and the Alpha Testing page share about sending:
+// SendSupport.cs - what the Send tab and the Beta Testing page share about sending:
 // the sound output in use, the checks before keying the radio, and the send itself
 // (connect to the radio if needed, key, play, un-key).
 

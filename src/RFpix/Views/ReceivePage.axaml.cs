@@ -732,7 +732,8 @@ public partial class ReceivePage : UserControl, IDisposable
         _analogFrom = "";
         _lastAnalog = null;
         _analogBoxesUntil = DateTime.MaxValue;
-        PictureCaption.Text = $"Receiving analog SSTV: {mode.Name} ({mode.Width} × {mode.Height})";
+        PictureCaption.Text = $"Receiving analog SSTV: {mode.Name} ({mode.Width} × {mode.Height})" +
+                              (_sstv.ReceivingLate ? ", joined partway (its VIS code was missed)" : "");
     }
 
     private void ShowAnalogProgress(DecodedPicture picture, int lines)
@@ -748,13 +749,14 @@ public partial class ReceivePage : UserControl, IDisposable
         ShowAnalogProgress(got.Picture, got.Lines);
         _analogBoxesUntil = DateTime.Now + AnalogBoxesLinger;
         var when = got.Ended;
-        string status = got.Complete ? "" : $"  ·  cut short: {got.Lines} of {got.Mode.Height} lines";
+        string status = got.JoinedLate ? "  ·  joined partway (no VIS code)"
+                      : got.Complete ? "" : $"  ·  cut short: {got.Lines} of {got.Mode.Height} lines";
         try
         {
             var png = await Task.Run(() => Pictures.EncodePng(got.Picture));
             string name = $"SSTV {got.Mode.Name}.png";
             string savedAs = Path.GetFileName(ReceivedFileSaver.Save(new ReceivedFile(name, png, 0), AnalogFolder, null, when));
-            var entry = new GalleryEntry(savedAs, when, name, null, $"Analog SSTV  ·  {got.Mode.Name}");
+            var entry = new GalleryEntry(savedAs, when, name, null, $"Analog SSTV  ·  {got.Mode.Name}" + (got.JoinedLate ? "  ·  joined partway" : ""));
             GalleryIndex.Add(AnalogFolder, entry);
             _lastAnalog = (AnalogFolder, entry, DateTime.Now);
             SendSupport.RaiseGalleryChanged();

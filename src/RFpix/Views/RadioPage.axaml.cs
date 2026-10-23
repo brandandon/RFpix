@@ -98,7 +98,7 @@ public partial class RadioPage : UserControl, IDisposable
                 : PttRts.IsChecked == true ? PttMethod.Rts
                 : PttDtr.IsChecked == true ? PttMethod.Dtr
                 : PttMethod.Cat,
-            DataModeForTransmit = DataModeBox.IsChecked == true && choice.Id == "ic9700",
+            DataModeForTransmit = DataModeBox.IsChecked == true && RadioChoices.CanSwitchDataMode(choice.Id),
         };
     }
 
@@ -119,7 +119,7 @@ public partial class RadioPage : UserControl, IDisposable
         ShowPtt(choice.Ptt);
         DataModeBox.IsChecked = choice.DataMode;
         if (choice.Connection == "network")
-            AddressBox.Text = choice.Id == "flrig" ? "localhost:12345" : "localhost:4532";
+            AddressBox.Text = choice.Id switch { "flrig" => "localhost:12345", RadioChoices.HrdId => "localhost:7809", _ => "localhost:4532" };
         UpdateVisibility();
         SaveSettings();
     }
@@ -149,7 +149,11 @@ public partial class RadioPage : UserControl, IDisposable
         // RTS and DTR are lines on a COM port; without radio control only VOX is possible.
         PttRts.IsEnabled = PttDtr.IsEnabled = choice.Connection == "serial";
         PttCat.IsEnabled = choice.Connection != "none";
-        DataModeBox.IsVisible = choice.Id == "ic9700";   // data mode switching is for the IC-9700 only
+        // Data mode switching: the IC-9700 by its own commands, or any radio HRD has a data button for.
+        DataModeBox.IsVisible = RadioChoices.CanSwitchDataMode(choice.Id);
+        DataModeBox.Content = choice.Id == RadioChoices.HrdId
+            ? "Switch the radio to data mode while transmitting (through HRD: USB → USB-D, FM → FM-D), and back afterwards"
+            : "Switch the IC-9700 to data mode while transmitting (FM → FM-D, USB → USB-D), and back afterwards";
         ConnectButton.IsEnabled = choice.Connection != "none" || Connection is not null;
         if (choice.Connection == "none") { ShowPtt(PttMethod.Vox); DataModeBox.IsChecked = false; }
     }
@@ -190,7 +194,9 @@ public partial class RadioPage : UserControl, IDisposable
         try
         {
             await RadioService.ConnectAsync(settings);
-            ShowStatus($"Connected to the {RadioChoices.Find(settings.Choice).Name}.", problem: false);
+            ShowStatus(RadioService.Current?.HrdRadio is { } hrdRadio
+                ? $"Connected to Ham Radio Deluxe, which is controlling the {hrdRadio}."
+                : $"Connected to the {RadioChoices.Find(settings.Choice).Name}.", problem: false);
         }
         catch (RadioException ex)
         {
@@ -276,7 +282,7 @@ public partial class RadioPage : UserControl, IDisposable
         try
         {
             ShowStatus(settings.Keying() == PttMethod.Vox
-                ? "VOX: RFpix sends no key command" + (radio.DataModeForTransmit ? ", only switching data mode for 2 seconds…" : ". To check VOX trips, send a test from the Alpha Testing page.")
+                ? "VOX: RFpix sends no key command" + (radio.DataModeForTransmit ? ", only switching data mode for 2 seconds…" : ". To check VOX trips, send a test from the Beta Testing page.")
                 : "Transmitting for 2 seconds…", problem: false);
 
             // Key with a 5-second limit: even if something below went wrong, the radio is released.

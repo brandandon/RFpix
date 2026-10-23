@@ -1,6 +1,6 @@
 # Testing RFpix on the air
 
-Thanks for helping test RFpix, a HamDRM (digital SSTV) program for Windows by KD9DD.
+Thanks for helping test RFpix (now in beta), a HamDRM (digital SSTV) program for Windows by KD9DD.
 RFpix has ten built-in **test transmissions**: fixed pictures sent with fixed settings,
 and each picture says what its settings are. When you receive one, RFpix checks it against
 its own copy of the original and writes down how it came through.
@@ -41,7 +41,7 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 1. **Settings** page, **Radio** tab: pick your radio, its COM port and how it's keyed (CAT, RTS,
    DTR or VOX), then **Connect** and **Test PTT**. (Use a dummy load or low power for the PTT test.)
    On the **Misc** tab, type your callsign: it's sent with every transmission.
-2. **Alpha Testing** page: pick a test and click **Send**. (The sound output is the one picked
+2. **Beta Testing** page: pick a test and click **Send**. (The sound output is the one picked
    on the Settings page's Radio tab, at the bottom.) RFpix goes on listening on the TX/RX page's
    Receive tab while you send.
 3. **Level:** leave the radio's Windows volume where your other programs need it and set the
@@ -80,6 +80,20 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
    **Net repeater (70 cm)** is built in; **Save as profile…** keeps your own.
 6. The level and **Send** are under the As sent picture and work as for the tests. Please report how the pictures arrived,
    and anything on the Send tab that's confusing or doesn't work.
+
+## Beta: Ham Radio Deluxe, and analog pictures without VIS (new in v0.5.2 beta)
+
+- **Settings > Radio**: pick **Shared through Ham Radio Deluxe** when HRD's Rig Control has the
+  radio. Start HRD and connect it to the radio first, then click **Connect** in RFpix (the address is
+  usually localhost:7809). RFpix keys the radio with HRD's TX button (or use VOX), shows the frequency
+  and mode, and can switch data mode while transmitting (tick the box; on an IC-9700 it's HRD's Data
+  button). Please try **Test PTT**, and say what the status line reports about data mode.
+- **Receive** tab: an analog picture whose VIS code was missed (you started listening partway
+  through, or the code was lost in noise) is now found from its sync pulses, after about five lines.
+  It starts at the top of the frame with the line it was found on, and is saved and uploaded like
+  the others, marked "joined partway". Please try starting to listen in the middle of a picture.
+- **Settings > Misc**: the callsign box now sits under its label.
+- The **Alpha Testing** page is now **Beta Testing**.
 
 ## Screens that fit the window (new in v0.5.1)
 

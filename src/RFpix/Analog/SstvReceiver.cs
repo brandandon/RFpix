@@ -6,6 +6,11 @@
 //      fast its phase turns, sample by sample. Kept as a "frequency track", 24 000 a second.
 //   2. VIS: the start code (1900 Hz leader, 1200 Hz break, leader, then 10 bits of 30 ms)
 //      says which mode follows. It's found by checking the track millisecond by millisecond.
+//      A picture whose VIS code was missed (listening started partway through, or the code was
+//      lost in noise) is found from its sync pulses instead, as MMSSTV does: each mode family has
+//      its own line time and sync length, so five syncs in a row the right distance apart, and of
+//      the right length, say which mode it is. That picture starts at the top of the frame from the
+//      line where it was found (where it really was in the picture can't be known).
 //   3. The picture: from the end of the VIS code the mode's timing says where every line
 //      and every pixel is. Each line's 1200 Hz sync pulse is looked for near where it should
 //      be; a straight line through the syncs found gives the true line length, so a sender
@@ -27,7 +32,9 @@ namespace RFpix.Analog;
 
 /// <summary>A picture received (or as much of it as arrived).</summary>
 /// <param name="Lines">How many lines arrived (all of them if complete).</param>
-public sealed record SstvPicture(SstvModeInfo Mode, DecodedPicture Picture, int Lines, bool Complete, DateTime Ended);
+/// <param name="JoinedLate">Found from its sync pulses, its VIS code missed: it starts partway through.</param>
+public sealed record SstvPicture(SstvModeInfo Mode, DecodedPicture Picture, int Lines, bool Complete, DateTime Ended,
+                                 bool JoinedLate = false);
 
 public sealed class SstvReceiver
 {
@@ -103,6 +110,9 @@ public sealed class SstvReceiver
     /// <summary>The mode being received, or null between pictures.</summary>
     public SstvModeInfo? Receiving => _image?.Mode;
 
+    /// <summary>The picture being received was found without its VIS code (it joined partway through).</summary>
+    public bool ReceivingLate => _image?.JoinedLate == true;
+
     // ---- step 2: VIS ----
 
     private long _nextVisCheck;
@@ -116,14 +126,82 @@ public sealed class SstvReceiver
             if (FindVis(end) is (var mode, long pictureStart)) Begin(mode, pictureStart);
         }
         if (_image is not null) _image.Advance(end);
-        else if (_track.Count > TrackRate * 4)
+        else
         {
-            // Between pictures only the last few seconds are needed (for the VIS code).
-            int drop = _track.Count - TrackRate * 2;
-            _track.RemoveRange(0, drop);
-            _trackStart += drop;
+            if (FindBySyncs(end - 1) is (var lateMode, long lateStart)) Begin(lateMode, lateStart, joinedLate: true);
+            else if (_track.Count > TrackRate * 12)
+            {
+                // Between pictures only the last few seconds are needed (for the VIS code, and the
+                // syncs of a picture whose VIS code was missed: six lines of the slowest mode).
+                int drop = _track.Count - TrackRate * 8;
+                _track.RemoveRange(0, drop);
+                _trackStart += drop;
+            }
         }
     }
+
+    // ---- step 2b: a picture without its VIS code, found from its syncs ----
+
+    private readonly List<(long At, double Ms)> _pulses = new();   // 1200 Hz pulses heard between pictures
+    private long _pulseStart = -1, _pulseLast;
+    private long _lastEnd = long.MinValue;                          // where the last picture ended
+
+    /// <summary>How many line times in a row must match.</summary>
+    private const int SyncsInARow = 4;
+
+    /// <summary>Follows 1200 Hz pulses on the track (one sample at a time); when one ends, looks for a
+    /// mode whose line time and sync length fit it and the pulses before it.</summary>
+    private (SstvModeInfo, long)? FindBySyncs(long t)
+    {
+        float f = Track(t);
+        bool sync = f > 1050 && f < 1350;
+        if (sync)
+        {
+            if (_pulseStart < 0) _pulseStart = t;
+            _pulseLast = t;
+            return null;
+        }
+        if (_pulseStart < 0 || t - _pulseLast < TrackRate / 2000) return null;   // allow a gap of half a millisecond
+        double ms = (_pulseLast - _pulseStart + 1) * 1000.0 / TrackRate;
+        long at = _pulseStart;
+        _pulseStart = -1;
+        if (ms < 3 || ms > 25 || at <= _lastEnd) return null;   // not a sync (a VIS bit is 30 ms)
+        _pulses.Add((at, ms));
+        _pulses.RemoveAll(p => at - p.At > 8L * TrackRate);
+        return MatchSyncs();
+    }
+
+    private (SstvModeInfo, long)? MatchSyncs()
+    {
+        var (last, lastMs) = _pulses[^1];
+        // The shortest line time that fits (a chain of Robot 36 lines with every other sync lost
+        // would also look like Robot 72).
+        foreach (var mode in SstvModes.All.OrderBy(m => m.LineMs))
+        {
+            if (!SyncLength(lastMs, mode)) continue;
+            double line = mode.LineMs * TrackRate / 1000;
+            long first = last;
+            bool all = true;
+            for (int k = 1; k <= SyncsInARow && all; k++)
+            {
+                // A sound card is never more than 0.2% off; and a millisecond for finding the edge.
+                double expected = last - k * line, tolerance = 0.002 * k * line + TrackRate / 1000.0;
+                var match = _pulses.Where(p => Math.Abs(p.At - expected) <= tolerance && SyncLength(p.Ms, mode))
+                                   .Select(p => (long?)p.At).FirstOrDefault();
+                if (match is long m) first = m; else all = false;
+            }
+            if (!all) continue;
+            _pulses.Clear();
+            // The picture starts at the line of the first of those syncs. (For Scottie the sync is in
+            // the middle of the line, and Image adds one sync length for the extra one VIS starts with.)
+            bool scottie = mode.Mode is SstvMode.Scottie1 or SstvMode.Scottie2 or SstvMode.ScottieDX;
+            double offset = scottie ? (2 * (mode.GapMs + mode.ScanMs) + mode.SyncMs) * TrackRate / 1000 : 0;
+            return (mode, first - (long)Math.Round(offset));
+        }
+        return null;
+    }
+
+    private static bool SyncLength(double ms, SstvModeInfo mode) => ms >= 0.6 * mode.SyncMs && ms <= 1.4 * mode.SyncMs + 1;
 
     private double Mean(long from, double ms)
     {
@@ -180,15 +258,17 @@ public sealed class SstvReceiver
 
     private Image? _image;
 
-    private void Begin(SstvModeInfo mode, long start)
+    private void Begin(SstvModeInfo mode, long start, bool joinedLate = false)
     {
         if (_image is not null) End();   // a new picture cuts the last one short
+        _pulses.Clear();
+        _pulseStart = -1;
         // Drop the track before the picture.
         int drop = (int)Math.Max(0, start - TrackRate / 10 - _trackStart);
         drop = Math.Min(drop, _track.Count);
         _track.RemoveRange(0, drop);
         _trackStart += drop;
-        _image = new Image(this, mode, start);
+        _image = new Image(this, mode, start, joinedLate);
         Started?.Invoke(mode);
     }
 
@@ -197,6 +277,9 @@ public sealed class SstvReceiver
     {
         if (_image is not { } image) return;
         _image = null;
+        _lastEnd = TrackEnd;
+        _pulses.Clear();
+        _pulseStart = -1;
         var picture = image.Finish();
         if (picture is not null) Finished?.Invoke(picture);
     }
@@ -206,6 +289,7 @@ public sealed class SstvReceiver
     {
         private readonly SstvReceiver _rx;
         public readonly SstvModeInfo Mode;
+        public readonly bool JoinedLate;
         private readonly long _start;            // track sample where the first line's time begins
         private readonly double _lineSamples;    // nominal line length, in track samples
         private readonly double _syncOffset;     // where in a line its sync starts (ms)
@@ -214,10 +298,11 @@ public sealed class SstvReceiver
         private int _missedSyncs;
         private readonly byte[] _bgra;
 
-        public Image(SstvReceiver rx, SstvModeInfo mode, long start)
+        public Image(SstvReceiver rx, SstvModeInfo mode, long start, bool joinedLate = false)
         {
             _rx = rx;
             Mode = mode;
+            JoinedLate = joinedLate;
             bool scottie = mode.Mode is SstvMode.Scottie1 or SstvMode.Scottie2 or SstvMode.ScottieDX;
             // Scottie starts with one extra sync; its lines' own syncs come between blue and red.
             _start = start + (scottie ? (long)Math.Round(mode.SyncMs * TrackRate / 1000) : 0);
@@ -461,7 +546,7 @@ public sealed class SstvReceiver
             _cr = _cb = _lastY = null;
             for (int line = 0; line < lines; line++) DrawLine(line, LineStart(line));
             bool complete = lines == Mode.SoundLines;
-            return new SstvPicture(Mode, Snapshot(), Drawn, complete, DateTime.Now);
+            return new SstvPicture(Mode, Snapshot(), Drawn, complete, DateTime.Now, JoinedLate);
         }
     }
 

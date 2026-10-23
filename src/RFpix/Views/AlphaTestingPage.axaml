@@ -1,5 +1,5 @@
 <!--
-  AlphaTestingPage.axaml - the Alpha Testing page: the built-in test transmissions (fixed
+  AlphaTestingPage.axaml - the Beta Testing page: the built-in test transmissions (fixed
   pictures with fixed settings), the level, and Send / Stop. For testing
   RFpix on the air while it's young; sending your own pictures is on the TX/RX page.
   The callsign, sound output and keying are set in Settings (Misc, Audio and Radio tabs).
@@ -10,7 +10,7 @@
              x:Class="RFpix.Views.AlphaTestingPage">
   <ScrollViewer>
     <StackPanel Spacing="18" MaxWidth="900" HorizontalAlignment="Left">
-      <TextBlock Classes="PageTitle" Text="Alpha Testing" />
+      <TextBlock Classes="PageTitle" Text="Beta Testing" />
       <!-- The test transmissions -->
       <StackPanel Spacing="6">
         <TextBlock Text="Test transmissions" FontWeight="SemiBold" />

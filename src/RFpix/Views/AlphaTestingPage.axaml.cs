@@ -1,4 +1,4 @@
-// AlphaTestingPage.axaml.cs - the code half of the Alpha Testing page (the test transmissions).
+// AlphaTestingPage.axaml.cs - the code half of the Beta Testing page (the test transmissions).
 //
 // What happens here:
 //   1. The test transmissions are listed, each with how long it takes; picking one

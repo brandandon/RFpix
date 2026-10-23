@@ -4,7 +4,7 @@
 // devices: its input (what the TX/RX page listens to) and output (what it sends through). Each
 // is remembered by its permanent Windows ID; a change takes effect at once (the TX/RX page is
 // told through AppSettings.SoundDevicesChanged).
-// Misc tab: the callsign (used by the Send tab and the Alpha Testing page), the grid square
+// Misc tab: the callsign (used by the Send tab and the Beta Testing page), the grid square
 // (%qth in templates), the waterfall text
 // sent before and after each picture, the theme, and sound-card calibration: for 2 minutes the
 // radio's sound input is listened to and silence played to its output, both counted against

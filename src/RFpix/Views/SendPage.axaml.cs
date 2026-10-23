@@ -12,7 +12,7 @@
 //      what the receiver will get, with the time it takes: green (fits), yellow (up to 7 s
 //      over) or red. The automatic fit may use 3 s more than the target and still be green.
 //   4. The send settings can be saved as named profiles. Everything is remembered.
-//   5. Send, and Save as sound file, work as on the Alpha Testing page (SendSupport), with the
+//   5. Send, and Save as sound file, work as on the Beta Testing page (SendSupport), with the
 //      waterfall text from Settings (Misc tab) before and after the picture.
 //   6. CW sends the callsign in Morse code; ID writes it on the waterfall.
 //   8. An overlay template (Templates/) can be picked: it's drawn on the picture at the size
@@ -786,7 +786,7 @@ public partial class SendPage : UserControl, IDisposable
         e.Handled = true;
     }
 
-    // ---- level (shared with the Alpha Testing page) ----
+    // ---- level (shared with the Beta Testing page) ----
 
     private void ShowShared()
     {

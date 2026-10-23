@@ -15,6 +15,12 @@
 #ifndef AppVersion
   #define AppVersion "0.0.0"
 #endif
+; Windows' file version must be numbers only: "0.5.2-beta" gives 0.5.2.
+#if Pos("-", AppVersion) > 0
+  #define NumericVersion Copy(AppVersion, 1, Pos("-", AppVersion) - 1)
+#else
+  #define NumericVersion AppVersion
+#endif
 
 [Setup]
 ; The AppId identifies RFpix to Windows across versions: never change it.
@@ -22,6 +28,7 @@ AppId={{E9F900F9-71AC-491A-8283-D53EDF719FA6}
 AppName=RFpix
 AppVersion={#AppVersion}
 AppVerName=RFpix {#AppVersion}
+VersionInfoVersion={#NumericVersion}
 AppPublisher=Dan Brandon, KD9DD
 AppPublisherURL=https://github.com/brandandon/RFpix
 AppSupportURL=https://github.com/brandandon/RFpix

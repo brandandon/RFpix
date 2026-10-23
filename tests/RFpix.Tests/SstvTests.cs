@@ -329,4 +329,125 @@ public class SstvTests
         Assert.Empty(Ids(Tones(tones)));
         Assert.Empty(Ids(Tones(new[] { (1500.0, 2000.0), (2100.0, 500.0), (1900.0, 500.0) })));   // just tones
     }
+
+    // ---- pictures whose VIS code was missed ----
+
+    /// <summary>Quality of rows [from, to) of b against rows [from + shift, ...) of a.</summary>
+    private static double PsnrRows(DecodedPicture a, DecodedPicture b, int shift, int from, int to)
+    {
+        double mse = 0;
+        int n = 0;
+        for (int y = from; y < to; y++)
+            for (int x = 0; x < a.Width; x++)
+                for (int c = 0; c < 3; c++)
+                {
+                    double d = a.Bgra[4 * ((y + shift) * a.Width + x) + c] - b.Bgra[4 * (y * b.Width + x) + c];
+                    mse += d * d;
+                    n++;
+                }
+        return 10 * Math.Log10(255 * 255 / (mse / n));
+    }
+
+    [Theory]
+    [InlineData(SstvMode.Martin1, 40)]
+    [InlineData(SstvMode.Martin2, 100)]
+    [InlineData(SstvMode.Scottie1, 60)]
+    [InlineData(SstvMode.Robot36, 50)]
+    [InlineData(SstvMode.Robot72, 50)]
+    [InlineData(SstvMode.PD90, 30)]
+    [InlineData(SstvMode.PD120, 30)]
+    public void A_picture_whose_VIS_code_was_missed_is_found_from_its_syncs(SstvMode mode, int joinLine)
+    {
+        var m = SstvModes.Get(mode);
+        var picture = SstvEncoder.Fit(Pattern(400, 300), m);
+        var audio = SstvEncoder.Audio(picture, m);
+        bool scottie = mode is SstvMode.Scottie1 or SstvMode.Scottie2 or SstvMode.ScottieDX;
+        // Listening starts 30% of the way into line joinLine.
+        double cutMs = SstvModes.VisTime.TotalMilliseconds + (scottie ? m.SyncMs : 0) + (joinLine + 0.3) * m.LineMs;
+        var late = audio.AsSpan((int)(cutMs * 48)).ToArray();
+
+        var rx = new SstvReceiver();
+        var started = new List<SstvModeInfo>();
+        SstvPicture? got = null;
+        rx.Started += started.Add;
+        rx.Finished += p => got = p;
+        var padded = new float[late.Length + 48000 * 12];   // silence after it, for the end to be noticed
+        late.CopyTo(padded, 0);
+        for (int at = 0; at < padded.Length; at += 4800) rx.AddSamples(padded.AsSpan(at, Math.Min(4800, padded.Length - at)));
+        rx.End();
+
+        Assert.Equal(new[] { mode }, started.Select(s => s.Mode));
+        Assert.NotNull(got);
+        Assert.True(got!.JoinedLate);
+        Assert.False(got.Complete);
+        // It starts at the top with the first whole line heard (for Scottie, the line whose sync came
+        // first: its green and blue were cut, so it's skipped in the check).
+        int firstLine = scottie ? joinLine : joinLine + 1;
+        int rowsPerLine = m.Color == SstvColor.PD ? 2 : 1;
+        int shift = firstLine * rowsPerLine;
+        int rows = Math.Min(got.Lines, m.Height - shift);
+        Assert.True(Math.Abs(rows - (m.Height - shift)) <= 2 * rowsPerLine, $"{rows} rows of {m.Height - shift}");
+        double psnr = PsnrRows(picture, got.Picture, shift, 2, rows - 2);
+        Assert.True(psnr > 24, $"quality {psnr:0.0} dB");
+    }
+
+    [Fact]
+    public void A_picture_with_its_VIS_code_is_started_once_only()
+    {
+        foreach (var mode in new[] { SstvMode.Martin2, SstvMode.Robot36, SstvMode.Scottie2, SstvMode.PD50 })
+        {
+            var m = SstvModes.Get(mode);
+            var audio = SstvEncoder.Audio(SstvEncoder.Fit(Pattern(320, 256), m), m, preamble: true, fskId: "N0CALL");
+            var rx = new SstvReceiver();
+            int starts = 0;
+            rx.Started += _ => starts++;
+            var padded = new float[audio.Length + 48000 * 10];
+            audio.CopyTo(padded, 24000);
+            for (int at = 0; at < padded.Length; at += 4800) rx.AddSamples(padded.AsSpan(at, Math.Min(4800, padded.Length - at)));
+            rx.End();
+            Assert.Equal(1, starts);
+        }
+    }
+
+    [Fact]
+    public void Noise_and_odd_tones_dont_start_a_picture()
+    {
+        var rnd = new Random(7);
+        var noise = new float[48000 * 20];
+        for (int i = 0; i < noise.Length; i++) noise[i] = (float)(0.2 * (rnd.NextDouble() * 2 - 1));
+        // and 1200 Hz pulses at uneven spacing
+        var tones = new List<(double, double)>();
+        for (int k = 0; k < 30; k++) { tones.Add((1200, 9)); tones.Add((1700, 150 + 37 * (k % 5))); }
+        foreach (var audio in new[] { noise, Tones(tones) })
+        {
+            var rx = new SstvReceiver();
+            int starts = 0;
+            rx.Started += _ => starts++;
+            for (int at = 0; at < audio.Length; at += 4800) rx.AddSamples(audio.AsSpan(at, Math.Min(4800, audio.Length - at)));
+            Assert.Equal(0, starts);
+        }
+    }
+
+    [Fact]
+    public void A_late_picture_is_found_in_noise_from_a_sound_card_that_runs_slow()
+    {
+        var m = SstvModes.Get(SstvMode.Martin2);
+        var picture = SstvEncoder.Fit(Pattern(400, 300), m);
+        var audio = SstvEncoder.Audio(picture, m);
+        var late = audio.AsSpan((int)((SstvModes.VisTime.TotalMilliseconds + 60.3 * m.LineMs) * 48)).ToArray();
+        late = RFpix.Audio.ClockCorrector.Resample(late, 1 + 300e-6);
+        var rnd = new Random(3);
+        for (int i = 0; i < late.Length; i++) late[i] += (float)(0.08 * (rnd.NextDouble() * 2 - 1));
+        var rx = new SstvReceiver();
+        SstvPicture? got = null;
+        rx.Finished += p => got = p;
+        var padded = new float[late.Length + 48000 * 8];
+        late.CopyTo(padded, 0);
+        for (int at = 0; at < padded.Length; at += 4800) rx.AddSamples(padded.AsSpan(at, Math.Min(4800, padded.Length - at)));
+        rx.End();
+        Assert.NotNull(got);
+        Assert.Equal(SstvMode.Martin2, got!.Mode.Mode);
+        double psnr = PsnrRows(picture, got.Picture, 61, 2, Math.Min(got.Lines, m.Height - 61) - 2);
+        Assert.True(psnr > 22, $"quality {psnr:0.0} dB");
+    }
 }

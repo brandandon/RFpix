@@ -68,11 +68,21 @@ public static class RadioChoices
             "When another program already has the radio's port, run Hamlib's rigctld; RFpix connects to it (usually localhost:4532)."),
         new("flrig", "Shared through flrig", 4, "network", 0, null, PttMethod.Cat, false,
             "When flrig controls the radio, RFpix goes through it (usually localhost:12345)."),
+        new(HrdId, "Shared through Ham Radio Deluxe", 0, "network", 0, null, PttMethod.Cat, false,
+            "When Ham Radio Deluxe's Rig Control has the radio, RFpix goes through it (usually localhost:7809). " +
+            "Start HRD and connect it to the radio first. PTT is HRD's TX button (or VOX)."),
         new("none", "No radio control (VOX only)", 0, "none", 0, null, PttMethod.Vox, false,
             "RFpix sends no commands: the radio's VOX keys it when RFpix's audio starts."),
     };
 
     public static RadioChoice Find(string? id) => All.FirstOrDefault(c => c.Id == id) ?? All[^1];
+
+    /// <summary>Ham Radio Deluxe (not through Hamlib: HamRadioDeluxe.cs).</summary>
+    public const string HrdId = "hrd";
+
+    /// <summary>The choices RFpix can switch data mode for while transmitting: the IC-9700 (by CI-V),
+    /// and radios shared through HRD (by HRD's data-mode button).</summary>
+    public static bool CanSwitchDataMode(string? id) => id is "ic9700" or HrdId;
 
     /// <summary>Common baud rates for the drop-down.</summary>
     public static readonly int[] BaudRates = { 4800, 9600, 19200, 38400, 57600, 115200 };

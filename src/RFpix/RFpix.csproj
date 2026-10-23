@@ -16,7 +16,9 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <RootNamespace>RFpix</RootNamespace>
     <AssemblyName>RFpix</AssemblyName>
-    <Version>0.5.1</Version>
+    <!-- "-beta" shows as "0.5.2 beta" in the program; Windows' own file version stays 0.5.2. -->
+    <Version>0.5.2-beta</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>RFpix</Product>
     <Description>Digital SSTV (HamDRM) for ham radio</Description>
     <!-- The icon Windows shows for RFpix.exe (in File Explorer and when pinned). -->

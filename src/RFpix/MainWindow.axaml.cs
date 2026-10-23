@@ -26,8 +26,11 @@ public partial class MainWindow : Window
     {
         InitializeComponent();   // builds everything described in MainWindow.axaml
 
-        var version = Assembly.GetExecutingAssembly().GetName().Version;
-        VersionText.Text = $"Version {version?.ToString(3)}";
+        // "0.5.2-beta" is shown as "0.5.2 beta".
+        var assembly = Assembly.GetExecutingAssembly();
+        string version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
+                         ?? assembly.GetName().Version?.ToString(3) ?? "";
+        VersionText.Text = $"Version {version.Replace('-', ' ')}";
 
         NavList.SelectedIndex = 0;   // start on the first page (TX/RX, on its Receive tab)
         RestorePlacement();

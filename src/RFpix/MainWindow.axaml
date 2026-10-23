@@ -42,7 +42,7 @@
           <ListBoxItem Content="TX/RX"    Tag="TxRx" />
           <ListBoxItem Content="Gallery"  Tag="Gallery" />
           <ListBoxItem Content="Settings" Tag="Settings" />
-          <ListBoxItem Content="Alpha Testing" Tag="Alpha" />
+          <ListBoxItem Content="Beta Testing" Tag="Alpha" />
         </ListBox>
       </DockPanel>
     </Border>

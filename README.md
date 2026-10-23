@@ -11,7 +11,7 @@ RFpix is a free, open-source replacement for EasyPal, built first for our SSTV n
 It aims to be easy to install, easy to use, and compatible with stations still
 running EasyPal or QSSTV.
 
-> **Status:** pre-alpha, for on-air testing (Windows only). Download the newest test release from
+> **Status:** beta, for on-air testing (Windows only). Download the newest test release from
 > [Releases](https://github.com/brandandon/RFpix/releases/latest); how to test it is in
 > [docs/TESTING.md](docs/TESTING.md). The user manual (being written) is in
 > [docs/USER_MANUAL.md](docs/USER_MANUAL.md).
@@ -28,6 +28,7 @@ running EasyPal or QSSTV.
 | Oct 21 | Digital and analog pictures kept apart: separate Received folders, website copy folders and server folders; signal boxes always showing on the Receive tab (v0.4.5) |
 | Oct 21 | Analog SSTV sent as MMSSTV does (tone preamble, FSK ID callsign, optional CW after); FSK ID read on receive; analog waterfall marks; Receive tab boxes for digital or analog; Gallery split into Digital and Analog; separate website picture counts; grid square and %qth; sound devices moved to the Radio tab (v0.5.0) |
 | Oct 22 | Every page shrinks to fit a small window (down to 60%, then scrolls); Receive boxes show only while a picture arrives (v0.5.1) |
+| Oct 22 | Beta: sharing the radio with Ham Radio Deluxe (PTT, frequency, data mode); analog pictures found without their VIS code; the Alpha Testing page is now Beta Testing (v0.5.2 beta) |
 | Oct 18 | Waterfall text before and after each picture; CW and ID buttons; Settings in Audio, Radio and Misc tabs; Send tab laid out to fit any window size (v0.3.4) |
 | Oct 18 | Sending your own pictures (v0.3.3): image optimizer fits a picture to the transmit time (Auto or Manual), original and as-sent side by side with zoom, JPEG 2000, JPEG or AVIF (RFpix-only, smaller), settings drop-downs and saved profiles; test transmissions on their own Alpha Testing page; transparent logo; key frequency marks on the waterfall |
 | Oct 17 | TX/RX page with Receive and Send tabs; sound devices on the Settings page; wider picture area; logo above the menu (v0.3.0) |

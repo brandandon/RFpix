@@ -7,7 +7,7 @@
   level and Send below it). Right: the target time, size and quality (to fine-tune
   what was fitted), format, and the time it will take.
   The callsign is set in Settings (Misc tab).
-  The built-in test transmissions are on the Alpha Testing page.
+  The built-in test transmissions are on the Beta Testing page.
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"

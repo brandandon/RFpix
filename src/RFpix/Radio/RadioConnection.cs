@@ -1,4 +1,5 @@
-// RadioConnection.cs - talks to the radio through Hamlib: frequency, mode, data mode, PTT.
+// RadioConnection.cs - talks to the radio through Hamlib (or through Ham Radio Deluxe, when HRD
+// has the radio: HamRadioDeluxe.cs): frequency, mode, data mode, PTT.
 //
 // Every call to the radio goes over a serial cable (or a network program) and can
 // take up to a few seconds if the radio doesn't answer, so the screen calls these
@@ -10,7 +11,8 @@
 //
 // Data mode (IC-9700 only): before keying, RFpix turns the radio's DATA setting on with
 // Icom's own command (IcomCiv.cs), keeping its mode and filter, checks that it took, and
-// turns it off again after un-keying. If it was already on, RFpix leaves it alone.
+// turns it off again after un-keying. If it was already on, RFpix leaves it alone. Through
+// HRD, the same is done with HRD's own data-mode button (or list), for any radio HRD offers one for.
 
 namespace RFpix.Radio;
 
@@ -22,6 +24,7 @@ public sealed class RadioConnection : IDisposable
     private readonly object _lock = new();
     private readonly RadioSettings _settings;
     private IntPtr _rig;
+    private HrdClient? _hrd;   // set when Ham Radio Deluxe has the radio (no Hamlib then)
     private ManualResetEventSlim? _pttLimit;   // set = keying ended in time
     private string? _modeBeforeTransmit;   // set while data mode was switched on for transmitting, e.g. "FM"
 
@@ -42,17 +45,22 @@ public sealed class RadioConnection : IDisposable
     /// <summary>Raised (on the watcher thread) if the time limit un-keyed the radio.</summary>
     public event Action? KeyedTooLong;
 
-    private RadioConnection(RadioSettings settings, IntPtr rig)
+    private RadioConnection(RadioSettings settings, IntPtr rig, HrdClient? hrd = null)
     {
         _settings = settings;
         _rig = rig;
-        DataModeForTransmit = settings.DataModeForTransmit && settings.Choice == "ic9700";
+        _hrd = hrd;
+        DataModeForTransmit = settings.DataModeForTransmit && RadioChoices.CanSwitchDataMode(settings.Choice);
     }
+
+    /// <summary>Through Ham Radio Deluxe: the radio HRD is controlling ("IC-9700"); null otherwise.</summary>
+    public string? HrdRadio => _hrd?.RadioName;
 
     /// <summary>Opens the connection described by the settings. Throws <see cref="RadioException"/>.</summary>
     public static RadioConnection Open(RadioSettings settings)
     {
         var choice = RadioChoices.Find(settings.Choice);
+        if (choice.Id == RadioChoices.HrdId) return new RadioConnection(settings, IntPtr.Zero, HrdClient.Connect(settings.Port ?? ""));
         int model = choice.HamlibModel == -1 ? settings.OtherModel : choice.HamlibModel;
         if (model <= 0) throw new RadioException("No radio is chosen, so there's nothing to connect to.");
         bool pretend = model == DummyModel;   // Hamlib's pretend radio: no port needed
@@ -114,6 +122,7 @@ public sealed class RadioConnection : IDisposable
     {
         lock (_lock)
         {
+            if (_hrd is { } hrd) return hrd.ReadFrequency();
             Check(HamlibNative.rig_get_freq(Rig, HamlibNative.VfoCurrent, out double hz), "Couldn't read the frequency");
             return hz;
         }
@@ -121,7 +130,11 @@ public sealed class RadioConnection : IDisposable
 
     public void SetFrequency(double hz)
     {
-        lock (_lock) Check(HamlibNative.rig_set_freq(Rig, HamlibNative.VfoCurrent, hz), "Couldn't set the frequency");
+        lock (_lock)
+        {
+            if (_hrd is { } hrd) { hrd.SetFrequency(hz); return; }
+            Check(HamlibNative.rig_set_freq(Rig, HamlibNative.VfoCurrent, hz), "Couldn't set the frequency");
+        }
     }
 
     /// <summary>The radio's mode as Hamlib numbers it (see <see cref="ModeName"/>).</summary>
@@ -129,6 +142,7 @@ public sealed class RadioConnection : IDisposable
     {
         lock (_lock)
         {
+            if (_hrd is { } hrd) return ModeFromName(hrd.ReadModeText(), hrd.CanSwitchDataMode && hrd.DataModeOn());
             Check(HamlibNative.rig_get_mode(Rig, HamlibNative.VfoCurrent, out ulong mode, out _), "Couldn't read the mode");
             return mode;
         }
@@ -136,6 +150,7 @@ public sealed class RadioConnection : IDisposable
 
     public void SetMode(ulong mode)
     {
+        if (_hrd is not null) throw new RadioException("Change the mode in Ham Radio Deluxe.");
         lock (_lock)
             Check(HamlibNative.rig_set_mode(Rig, HamlibNative.VfoCurrent, mode, HamlibNative.PassbandNoChange), "Couldn't change the mode");
     }
@@ -153,7 +168,10 @@ public sealed class RadioConnection : IDisposable
             if (DataModeForTransmit) DataModeOn();
 
             if (_settings.Ptt != PttMethod.Vox)
-                Check(HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOn), "Couldn't key the transmitter");
+            {
+                if (_hrd is { } hrd) hrd.SetPtt(true);
+                else Check(HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOn), "Couldn't key the transmitter");
+            }
             IsKeyed = true;
 
             // The time limit has its own thread, so a busy computer can't delay it.
@@ -176,7 +194,16 @@ public sealed class RadioConnection : IDisposable
             _pttLimit = null;
             // Un-key (try twice before giving up). With VOX there's nothing to un-key.
             int result = 0;
-            if (_settings.Ptt != PttMethod.Vox)
+            if (_settings.Ptt != PttMethod.Vox && _hrd is { } hrd)
+            {
+                try { hrd.SetPtt(false); }
+                catch (RadioException)
+                {
+                    try { hrd.SetPtt(false); }
+                    catch (RadioException ex) { throw new RadioException("Couldn't un-key the transmitter through Ham Radio Deluxe. Un-key the radio by hand. " + ex.Message); }
+                }
+            }
+            else if (_settings.Ptt != PttMethod.Vox)
             {
                 result = HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOff);
                 if (result != 0) result = HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOff);
@@ -194,7 +221,7 @@ public sealed class RadioConnection : IDisposable
         {
             lock (_lock)
             {
-                if (!IsKeyed || _rig == IntPtr.Zero) return false;
+                if (!IsKeyed || _rig == IntPtr.Zero && _hrd is null) return false;
                 Unkey();
                 return true;
             }
@@ -210,6 +237,7 @@ public sealed class RadioConnection : IDisposable
     {
         lock (_lock)
         {
+            if (_hrd is { } hrd) return hrd.ReadPtt();
             Check(HamlibNative.rig_get_ptt(Rig, HamlibNative.VfoCurrent, out int ptt), "Couldn't read the transmit state");
             return ptt != HamlibNative.PttOff;
         }
@@ -224,6 +252,7 @@ public sealed class RadioConnection : IDisposable
 
     private void DataModeOn()
     {
+        if (_hrd is { } hrd) { HrdDataModeOn(hrd); return; }
         var (mode, report) = DataMode.On();
         LastDataModeReport = report;
         if (mode is null) return;
@@ -235,9 +264,52 @@ public sealed class RadioConnection : IDisposable
     {
         string mode = _modeBeforeTransmit!;
         _modeBeforeTransmit = null;
-        DataMode.Off(mode);
+        if (_hrd is { } hrd) hrd.SetDataMode(false);
+        else DataMode.Off(mode);
         LastDataModeReport += $" → {mode}";
-        DataModeSwitched?.Invoke($"IC-9700 back to {mode}");
+        DataModeSwitched?.Invoke($"{_hrd?.RadioName ?? "IC-9700"} back to {mode}");
+    }
+
+    // Through HRD: its data-mode button (or list) on, checked, and the mode noted to put back after.
+    private void HrdDataModeOn(HrdClient hrd)
+    {
+        if (!hrd.CanSwitchDataMode)
+        {
+            LastDataModeReport = $"HRD has no data mode switch for the {hrd.RadioName}";
+            return;
+        }
+        string mode = hrd.ReadModeText();
+        if (mode.Length == 0) mode = "its mode";
+        if (hrd.DataModeOn())
+        {
+            LastDataModeReport = $"{mode}-D already, left as it is";
+            return;
+        }
+        hrd.SetDataMode(true);
+        Thread.Sleep(SettleTime);
+        if (!hrd.DataModeOn())
+            throw new RadioException($"The {hrd.RadioName} didn't switch to data mode through Ham Radio Deluxe. Switch it by hand, or untick data mode.");
+        _modeBeforeTransmit = mode;
+        LastDataModeReport = $"{mode} → {mode}-D";
+        DataModeSwitched?.Invoke($"{hrd.RadioName} in {mode}-D");
+    }
+
+    /// <summary>A mode HRD names ("USB", "FM-N") as Hamlib numbers it, with data mode on or off.</summary>
+    public static ulong ModeFromName(string name, bool data)
+    {
+        string n = name.Trim().ToUpperInvariant();
+        if (n.EndsWith("-D")) { data = true; n = n[..^2]; }
+        if (n.StartsWith("PKT") || n.StartsWith("DATA")) data = true;
+        return n switch
+        {
+            _ when n.Contains("USB") || n is "DIGU" or "PKT-U" or "DATA-U" => data ? HamlibNative.ModePktUsb : HamlibNative.ModeUsb,
+            _ when n.Contains("LSB") || n is "DIGL" or "PKT-L" or "DATA-L" => data ? HamlibNative.ModePktLsb : HamlibNative.ModeLsb,
+            _ when n.StartsWith("FM") || n is "PKT-FM" or "DATA(FM)" or "WFM" => data ? HamlibNative.ModePktFm : HamlibNative.ModeFm,
+            _ when n.StartsWith("AM") => 1ul << 0,
+            _ when n.StartsWith("CW") => 1ul << 1,
+            _ when n.StartsWith("RTTY") || n.StartsWith("FSK") => 1ul << 4,
+            _ => 0,
+        };
     }
 
     /// <summary>Sends one CI-V message through Hamlib and returns the radio's answer to the
@@ -287,6 +359,13 @@ public sealed class RadioConnection : IDisposable
     {
         lock (_lock)
         {
+            if (_hrd is { } hrd)
+            {
+                try { Unkey(); } catch (RadioException) { }
+                hrd.Dispose();
+                _hrd = null;
+                return;
+            }
             if (_rig == IntPtr.Zero) return;
             try { Unkey(); } catch (RadioException) { }
             HamlibNative.rig_close(_rig);

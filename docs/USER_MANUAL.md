@@ -31,7 +31,7 @@ RFpix has four pages, chosen from the list on the left:
 - **TX/RX:** the **Receive** tab (the waterfall, the signal, and the last picture received) and the **Send** tab (your picture, how it will go out, and the **Send** button).
 - **Gallery:** every picture you've received and sent.
 - **Settings:** your radio, sound devices, callsign, and website upload.
-- **Alpha Testing:** fixed test transmissions, for checking how well pictures get through.
+- **Beta Testing:** fixed test transmissions, for checking how well pictures get through.
 
 A few things RFpix does for you:
 
@@ -125,7 +125,7 @@ These sections will be written once Part 1 has been checked.
 7. Overlay templates
 8. The Gallery
 9. Putting pictures on your website
-10. The Alpha Testing page
+10. The Beta Testing page
 
 **Part 3: Reference**
 
