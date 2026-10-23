@@ -23,7 +23,7 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 
 ## Receiving tests (the most useful help)
 
-1. On the **Settings** page's **Audio** tab, pick your radio's sound input (usually *Microphone (USB Audio CODEC)*)
+1. At the bottom of the **Settings** page's **Radio** tab, pick your radio's sound input (usually *Microphone (USB Audio CODEC)*)
    and output (usually *Speakers (USB Audio CODEC)*).
 2. On the **TX/RX** page's **Receive** tab, click **Start listening**. Tune to the agreed
    frequency (USB on HF).
