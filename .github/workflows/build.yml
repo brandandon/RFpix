@@ -156,8 +156,20 @@ jobs:
           dotnet-version: '10.0.x'
 
       # Publishes RFpix, builds Hamlib 4.7.2 from source, makes RFpix.app and the installer.
+      # If it fails, the last lines of its output are shown at the top of the run's page.
       - name: Build the Mac installer
-        run: tools/mac/package.sh ${{ matrix.arch }}
+        run: |
+          set -o pipefail
+          tools/mac/package.sh ${{ matrix.arch }} 2>&1 | tee package.log || {
+            tail -n 60 package.log | python3 -c '
+          import sys
+          lines = [l.rstrip() for l in sys.stdin]
+          for i in range(0, len(lines), 15):
+              text = "\n".join(lines[i:i + 15]).replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+              print(f"::error title=Mac build failed (lines {i + 1}-{i + 15} of the last 60)::{text}")
+          '
+            exit 1
+          }
 
       # The tests use the same Hamlib that goes into the installer.
       - name: Run the tests
