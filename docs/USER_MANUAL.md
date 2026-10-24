@@ -10,7 +10,7 @@ The manual has three parts:
 - **Part 2, Using it:** receiving, sending digital and analog pictures, templates, the Gallery, and putting pictures on a website.
 - **Part 3, Reference:** every setting, tab by tab; what RFpix's messages mean; and a glossary.
 
-Words in **bold** are what you see on the screen: a page, tab, button or box. *\[Screenshot: …\]* marks where a picture of the screen will go.
+Words in **bold** are what you see on the screen: a page, tab, button or box.
 
 ## Part 1: Getting started
 
