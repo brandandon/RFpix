@@ -182,9 +182,50 @@ public sealed class WasapiAudioInput : IAudioInput
         return value;
     }
 
+    // ---- the device's own recording level (Windows' Sound settings > Recording > Levels) ----
+    // Used from the screen's thread only (the Receive tab's slider).
+
+    private string? _levelDeviceId;
+    private MMDevice? _levelDevice;
+
+    private AudioEndpointVolume LevelControl(string deviceId)
+    {
+        if (_levelDevice is null || _levelDeviceId != deviceId)
+        {
+            ForgetLevelDevice();
+            _levelDevice = _enumerator.GetDevice(deviceId);
+            _levelDeviceId = deviceId;
+        }
+        return _levelDevice.AudioEndpointVolume;
+    }
+
+    private void ForgetLevelDevice()
+    {
+        _levelDevice?.Dispose();
+        _levelDevice = null;
+        _levelDeviceId = null;
+    }
+
+    public double? GetRecordingLevel(string deviceId)
+    {
+        try { return LevelControl(deviceId).MasterVolumeLevelScalar; }
+        catch (Exception) { ForgetLevelDevice(); return null; }   // unplugged, or no level control
+    }
+
+    public bool SetRecordingLevel(string deviceId, double level)
+    {
+        try
+        {
+            LevelControl(deviceId).MasterVolumeLevelScalar = (float)Math.Clamp(level, 0, 1);
+            return true;
+        }
+        catch (Exception) { ForgetLevelDevice(); return false; }
+    }
+
     public void Dispose()
     {
         Stop();
+        ForgetLevelDevice();
         _enumerator.Dispose();
     }
 }

@@ -61,6 +61,13 @@ public interface IAudioInput : IDisposable
     /// lost some). Each gap is filled with silence of the same length, so the timing is kept.</summary>
     int Gaps => 0;
 
+    /// <summary>The device's own recording level, 0 to 1: the slider in Windows' Sound settings
+    /// (Recording > Levels), or the Mac's input volume. Null if the device has none, or it can't be read.</summary>
+    double? GetRecordingLevel(string deviceId) => null;
+
+    /// <summary>Sets the device's own recording level (0 to 1). False if it can't be set.</summary>
+    bool SetRecordingLevel(string deviceId, double level) => false;
+
     /// <summary>Raised many times a second while listening (on a background thread).</summary>
     event EventHandler<AudioSamplesEventArgs>? SamplesAvailable;
 

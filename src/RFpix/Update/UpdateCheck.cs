@@ -1,9 +1,10 @@
-// UpdateCheck.cs - is there a newer RFpix? (Mac only for now; Windows gets it in a later version.)
+// UpdateCheck.cs - is there a newer RFpix?
 //
 // When RFpix starts (and "Check for new versions" is ticked in Settings > Misc), it asks GitHub
 // for the list of RFpix releases, once. If one is newer than the version running and has an
-// installer for this kind of Mac, the sidebar says so, with a Download button that opens it in
-// the web browser. Installing it replaces the old RFpix (your settings and pictures stay).
+// installer for this computer (Windows, or this kind of Mac), the sidebar says so, with a
+// Download button that opens it in the web browser. Installing it replaces the old RFpix (your
+// settings and pictures stay).
 //
 // Versions are compared number by number (0.5.10 is newer than 0.5.9); a test version ("beta")
 // comes before the finished one of the same number (0.5.2 beta, then 0.5.2). While you're
@@ -70,13 +71,20 @@ public static class UpdateCheck
 {
     public const string ReleasesApi = "https://api.github.com/repos/brandandon/RFpix/releases?per_page=30";
 
-    /// <summary>The installer's name ends like this on this kind of computer (null: not checked here).</summary>
-    public static string? InstallerEnding(bool mac, Architecture architecture) =>
-        !mac ? null : architecture == Architecture.Arm64 ? "-mac-apple-silicon.pkg" : "-mac-intel.pkg";
+    /// <summary>The name of the installer for this computer, with * for the version
+    /// (null: none is made for it, as on Linux).</summary>
+    public static string? InstallerPattern(bool windows, bool mac, Architecture architecture) =>
+        windows ? "RFpix-Setup-*.exe"
+        : mac ? (architecture == Architecture.Arm64 ? "RFpix-*-mac-apple-silicon.pkg" : "RFpix-*-mac-intel.pkg")
+        : null;
+
+    /// <summary>Whether a file's name fits the pattern (* stands for anything; capitals don't matter).</summary>
+    public static bool Fits(string name, string pattern) =>
+        Regex.IsMatch(name, "^" + Regex.Escape(pattern).Replace(@"\*", ".*") + "$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     /// <summary>From GitHub's list of releases (its JSON), the newest one newer than <paramref name="running"/>
-    /// with an installer ending <paramref name="installerEnding"/>. Null if there isn't one.</summary>
-    public static UpdateInfo? Newest(string releasesJson, AppVersion running, string installerEnding)
+    /// with an installer fitting <paramref name="installerPattern"/>. Null if there isn't one.</summary>
+    public static UpdateInfo? Newest(string releasesJson, AppVersion running, string installerPattern)
     {
         using var doc = JsonDocument.Parse(releasesJson);
         if (doc.RootElement.ValueKind != JsonValueKind.Array) return null;
@@ -92,7 +100,7 @@ public static class UpdateCheck
             string? download = null;
             if (release.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
                 foreach (var asset in assets.EnumerateArray())
-                    if (Text(asset, "name").EndsWith(installerEnding, StringComparison.OrdinalIgnoreCase))
+                    if (Fits(Text(asset, "name"), installerPattern))
                         download = Text(asset, "browser_download_url");
             if (string.IsNullOrEmpty(download)) continue;   // no installer for this computer (yet)
             best = new UpdateInfo(version, name.Length > 0 ? name : "RFpix " + tag, Text(release, "html_url"), download);
@@ -101,7 +109,7 @@ public static class UpdateCheck
     }
 
     /// <summary>Asks GitHub. Null if there's nothing newer, or GitHub couldn't be reached (no internet: no fuss).</summary>
-    public static async Task<UpdateInfo?> CheckAsync(AppVersion running, string installerEnding, CancellationToken cancel = default)
+    public static async Task<UpdateInfo?> CheckAsync(AppVersion running, string installerPattern, CancellationToken cancel = default)
     {
         try
         {
@@ -109,7 +117,7 @@ public static class UpdateCheck
             http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("RFpix", running.ToString().Replace(' ', '-')));
             http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
             string json = await http.GetStringAsync(ReleasesApi, cancel);
-            return Newest(json, running, installerEnding);
+            return Newest(json, running, installerPattern);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
         {

@@ -21,6 +21,19 @@ signed. Click **More info**, then **Run anyway**.
 Your settings live in %AppData%\RFpix, and your received pictures, recordings and test results
 in Documents\RFpix. Uninstalling asks whether to remove the settings, and never removes your files.
 
+## Receive level slider, and new-version notices on Windows (new in v0.5.3 beta)
+
+- **Receive** tab: a **Receive level** slider under the Level bar sets the radio's recording level
+  (the same one as in Windows' Sound settings, or the Mac's input volume), so there's no need to go
+  into Windows' settings. While a picture comes in, set it so the **Level** reads **-30 to -20 dB**.
+  The Level bar now turns **yellow** below -30 dB (too quiet for pictures to decode), as well as
+  orange above -6 dB (too loud). Please try the slider with your radio, and check WSJT-X or EasyPal
+  still have the level they need afterwards: they hear the same level.
+- **Windows:** RFpix now says when a newer version is out, at the bottom left when it starts, with
+  a **Download** button for the installer (as it already did on the Mac). **Settings > Misc** can
+  turn this off.
+- The user manual explains setting the receive level.
+
 ## On a Mac (new in v0.5.2 beta)
 
 This is the first Mac version, and it hasn't been tried with a radio yet: please tell us how it goes.
@@ -61,11 +74,9 @@ Please try receiving first, then **Test PTT**, then sending, and report anything
    and output (usually *Speakers (USB Audio CODEC)*).
 2. On the **TX/RX** page's **Receive** tab, click **Start listening**. Tune to the agreed
    frequency (USB on HF).
-   **Check the receive level:** while a picture is coming in, the number beside the **Level** bar
-   should read **-30 to -20 dB**. Below -30 dB pictures may not decode: turn up the radio's
-   recording level in Windows (press Windows, type **mmsys.cpl**, Enter; **Recording** tab;
-   double-click the radio's input; **Levels** tab), or the radio's USB audio output in its menu.
-   (On a Mac: **Audio MIDI Setup**, the radio's device, **Input**.)
+   **Set the receive level:** while a picture is coming in, move the **Receive level** slider
+   (under the Level bar) until the number beside the **Level** bar reads **-30 to -20 dB**.
+   Yellow (below -30 dB) is too quiet: pictures may not decode.
 3. That's all. When a test transmission ends, RFpix shows a line such as
    **"Test 2 from KD9DD: perfect · quality 24 dB (needs about 11)"**,
    or how many of the picture's pieces arrived if it didn't come through. Each sending is judged

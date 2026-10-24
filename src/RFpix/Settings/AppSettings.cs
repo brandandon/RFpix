@@ -64,7 +64,7 @@ public sealed class AppSettings
     /// <summary>Analog SSTV: send your callsign in CW after the picture (and its FSK ID), half a second later.</summary>
     public bool AnalogCw { get; set; }
 
-    /// <summary>When RFpix starts, ask GitHub whether there's a newer version (Mac only for now).</summary>
+    /// <summary>When RFpix starts, ask GitHub whether there's a newer version.</summary>
     public bool CheckForUpdates { get; set; } = true;
 
     /// <summary>The overlay template in use on the Send tab (null: none), and its fill-in boxes.</summary>

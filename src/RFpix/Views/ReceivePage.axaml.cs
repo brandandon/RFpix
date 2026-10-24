@@ -58,6 +58,7 @@ public partial class ReceivePage : UserControl, IDisposable
     private volatile int _analogLines;                         // lines of the analog picture so far
     private RFpix.Analog.SstvModeInfo? _analogMode;            // the analog picture shown in the boxes
     private string _analogFrom = "";                           // its sender, from the FSK ID
+    private static readonly IBrush TooQuietBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0xA8, 0x00));   // yellow
     private DateTime _analogBoxesUntil = DateTime.MinValue;    // the analog boxes stay a little after it ends
     private (string Folder, GalleryEntry Entry, DateTime Saved)? _lastAnalog;   // for the FSK ID that follows
     private string _analogCaption = "";
@@ -86,6 +87,8 @@ public partial class ReceivePage : UserControl, IDisposable
 
         _input.SamplesAvailable += OnSamples;
         _input.Failed += OnAudioFailed;
+        RecordingLevelSlider.ValueChanged += OnRecordingLevelChanged;
+        ShowRecordingLevel();
 
         // The recording player feeds the same handler as the radio.
         _player.SamplesAvailable += OnSamples;
@@ -184,6 +187,40 @@ public partial class ReceivePage : UserControl, IDisposable
             StartListening();
         }
         UpdateStartButton();
+        ShowRecordingLevel();
+    }
+
+    // ---- the receive level slider: the radio's recording level in Windows (or the Mac) ----
+
+    private bool _showingLevel;   // the slider is being set from the device, not moved by hand
+    private DateTime _levelMovedAt = DateTime.MinValue;
+    private int _levelTicks;
+
+    /// <summary>Reads the radio's recording level into the slider (or says why there isn't one).</summary>
+    private void ShowRecordingLevel()
+    {
+        string? id = AppSettings.Current.InputDeviceId;
+        double? level = id is null ? null : _input.GetRecordingLevel(id);
+        _showingLevel = true;
+        try
+        {
+            RecordingLevelSlider.IsEnabled = level is not null;
+            if (level is double l) RecordingLevelSlider.Value = Math.Round(l * 100);
+            RecordingLevelText.Text = level is not null ? LevelHint(RecordingLevelSlider.Value)
+                : id is null ? "Pick the radio's sound input in Settings (Radio tab) first."
+                : "This sound input has no level control: use the radio's USB audio output level, in its menu.";
+        }
+        finally { _showingLevel = false; }
+    }
+
+    private static string LevelHint(double percent) => $"{percent:0}%  ·  for pictures, set the Level to -30 to -20 dB";
+
+    private void OnRecordingLevelChanged(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (_showingLevel || AppSettings.Current.InputDeviceId is not { } id) return;
+        _levelMovedAt = DateTime.Now;
+        if (_input.SetRecordingLevel(id, e.NewValue / 100)) RecordingLevelText.Text = LevelHint(e.NewValue);
+        else ShowRecordingLevel();   // unplugged, or it can't be set after all
     }
 
     private string? _listeningTo;   // the device ID being listened to
@@ -223,6 +260,7 @@ public partial class ReceivePage : UserControl, IDisposable
             double ppm = AppSettings.Correction(AppSettings.Current.InputClock, device.Id);
             _clockCorrector = ppm != 0 ? new ClockCorrector(ClockCorrector.InputRatio(ppm)) : null;
             _input.Start(device.Id);
+            ShowRecordingLevel();
             _listeningTo = device.Id;
             _deviceName = device.Name;
             _gapsAtLastReport = 0;   // a new start counts gaps afresh
@@ -555,8 +593,17 @@ public partial class ReceivePage : UserControl, IDisposable
 
         if (db > -6)
             LevelMeter.Foreground = Brushes.OrangeRed;   // too loud
+        else if (db < -30)
+            LevelMeter.Foreground = TooQuietBrush;       // too quiet for pictures to decode
         else
             LevelMeter.ClearValue(ForegroundProperty);   // back to the theme's colour
+
+        // Every 2 seconds, pick up a change made in Windows' Sound settings (unless the slider is being moved).
+        if (++_levelTicks >= 40)
+        {
+            _levelTicks = 0;
+            if (DateTime.Now - _levelMovedAt > TimeSpan.FromSeconds(3)) ShowRecordingLevel();
+        }
 
         ShowSignal();
         ShowHeard();

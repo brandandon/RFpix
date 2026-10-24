@@ -64,7 +64,7 @@
               </ComboBox>
             </StackPanel>
 
-            <!-- New versions (Mac only for now: shown by UseMacWords). -->
+            <!-- New versions (shown on Windows and the Mac, by SettingsPage.axaml.cs). -->
             <StackPanel x:Name="UpdatesPanel" Spacing="6" IsVisible="False">
               <TextBlock Text="New versions" FontWeight="SemiBold" />
               <CheckBox x:Name="CheckForUpdatesBox" Content="Check for new versions of RFpix when it starts" />

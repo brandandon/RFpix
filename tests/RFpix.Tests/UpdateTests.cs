@@ -44,13 +44,25 @@ public class UpdateTests
     public void The_same_version_is_not_newer() =>
         Assert.False(AppVersion.Parse("v0.5.2-beta")! > AppVersion.Parse("0.5.2 beta")!);
 
+    private const string Intel = "RFpix-*-mac-intel.pkg", AppleSilicon = "RFpix-*-mac-apple-silicon.pkg", Windows = "RFpix-Setup-*.exe";
+
     [Fact]
-    public void Each_kind_of_Mac_gets_its_own_installer()
+    public void Each_computer_gets_its_own_installer()
     {
-        Assert.Equal("-mac-intel.pkg", UpdateCheck.InstallerEnding(true, Architecture.X64));
-        Assert.Equal("-mac-apple-silicon.pkg", UpdateCheck.InstallerEnding(true, Architecture.Arm64));
-        Assert.Null(UpdateCheck.InstallerEnding(false, Architecture.X64));   // Windows: not yet
+        Assert.Equal(Intel, UpdateCheck.InstallerPattern(false, true, Architecture.X64));
+        Assert.Equal(AppleSilicon, UpdateCheck.InstallerPattern(false, true, Architecture.Arm64));
+        Assert.Equal(Windows, UpdateCheck.InstallerPattern(true, false, Architecture.X64));
+        Assert.Null(UpdateCheck.InstallerPattern(false, false, Architecture.X64));   // Linux: none yet
     }
+
+    [Theory]
+    [InlineData("RFpix-Setup-0.5.3-beta.exe", Windows, true)]
+    [InlineData("RFpix.exe", Windows, false)]                         // the one-file program, not the installer
+    [InlineData("RFpix-0.5.3-beta-mac-intel.pkg", Intel, true)]
+    [InlineData("RFpix-0.5.3-beta-mac-apple-silicon.pkg", Intel, false)]
+    [InlineData("rfpix-0.5.3-beta-MAC-INTEL.PKG", Intel, true)]
+    public void Installer_names_are_recognised(string name, string pattern, bool fits) =>
+        Assert.Equal(fits, UpdateCheck.Fits(name, pattern));
 
     private static string Release(string tag, bool draft = false, bool prerelease = true, params string[] files) =>
         $$"""
@@ -71,7 +83,7 @@ public class UpdateTests
                                                    "RFpix-0.5.3-beta-mac-apple-silicon.pkg" }),
             Release("v0.5.2-beta", files: "RFpix-0.5.2-beta-mac-intel.pkg"),
             Release("v0.5.1", prerelease: false, files: "RFpix-Setup-0.5.1.exe"));
-        var update = UpdateCheck.Newest(json, running, "-mac-apple-silicon.pkg")!;
+        var update = UpdateCheck.Newest(json, running, AppleSilicon)!;
         Assert.Equal("0.5.3 beta", update.Version.ToString());
         Assert.Equal("https://example.com/RFpix-0.5.3-beta-mac-apple-silicon.pkg", update.DownloadUrl);
         Assert.EndsWith("/v0.5.3-beta", update.PageUrl);
@@ -81,10 +93,21 @@ public class UpdateTests
     public void Nothing_is_offered_when_up_to_date_or_without_a_Mac_installer()
     {
         var running = AppVersion.Parse("0.5.2-beta")!;
-        Assert.Null(UpdateCheck.Newest(List(Release("v0.5.2-beta", files: "RFpix-0.5.2-beta-mac-intel.pkg")), running, "-mac-intel.pkg"));
-        Assert.Null(UpdateCheck.Newest(List(Release("v0.5.3-beta", files: "RFpix-Setup-0.5.3-beta.exe")), running, "-mac-intel.pkg"));
-        Assert.Null(UpdateCheck.Newest("[]", running, "-mac-intel.pkg"));
-        Assert.Null(UpdateCheck.Newest("""{ "message": "API rate limit exceeded" }""", running, "-mac-intel.pkg"));
+        Assert.Null(UpdateCheck.Newest(List(Release("v0.5.2-beta", files: "RFpix-0.5.2-beta-mac-intel.pkg")), running, Intel));
+        Assert.Null(UpdateCheck.Newest(List(Release("v0.5.3-beta", files: "RFpix-Setup-0.5.3-beta.exe")), running, Intel));
+        Assert.Null(UpdateCheck.Newest("[]", running, Intel));
+        Assert.Null(UpdateCheck.Newest("""{ "message": "API rate limit exceeded" }""", running, Intel));
+    }
+
+    [Fact]
+    public void Windows_is_offered_its_installer_not_the_one_file_program()
+    {
+        var running = AppVersion.Parse("0.5.3-beta")!;
+        string json = List(Release("v0.5.4beta", files: new[] { "RFpix.exe", "RFpix-Setup-0.5.4-beta.exe", "RFpix-0.5.4-beta-mac-intel.pkg" }),
+                           Release("v0.5.3beta", files: new[] { "RFpix.exe", "RFpix-Setup-0.5.3-beta.exe" }));
+        var update = UpdateCheck.Newest(json, running, Windows)!;
+        Assert.Equal("0.5.4 beta", update.Version.ToString());
+        Assert.Equal("https://example.com/RFpix-Setup-0.5.4-beta.exe", update.DownloadUrl);
     }
 
     [Fact]
@@ -93,6 +116,6 @@ public class UpdateTests
         var running = AppVersion.Parse("1.0.0")!;
         string json = List(Release("v1.1.0-beta", files: "RFpix-1.1.0-beta-mac-intel.pkg"),
                            Release("v1.0.1", prerelease: false, files: "RFpix-1.0.1-mac-intel.pkg"));
-        Assert.Equal("1.0.1", UpdateCheck.Newest(json, running, "-mac-intel.pkg")!.Version.ToString());
+        Assert.Equal("1.0.1", UpdateCheck.Newest(json, running, Intel)!.Version.ToString());
     }
 }

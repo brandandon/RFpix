@@ -124,5 +124,18 @@ public sealed class CoreAudioInput : IAudioInput
         FormatDescription = "";
     }
 
+    // The device's own input volume (the radio's recording level), for the Receive tab's slider.
+    public double? GetRecordingLevel(string deviceId)
+    {
+        try { return InputVolume(deviceId); }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return null; }
+    }
+
+    public bool SetRecordingLevel(string deviceId, double level)
+    {
+        try { return SetInputVolume(deviceId, level); }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return false; }
+    }
+
     public void Dispose() => Stop();
 }

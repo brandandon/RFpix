@@ -30,6 +30,7 @@ running EasyPal or QSSTV.
 | Oct 22 | Every page shrinks to fit a small window (down to 60%, then scrolls); Receive boxes show only while a picture arrives (v0.5.1) |
 | Oct 22 | Beta: sharing the radio with Ham Radio Deluxe (PTT, frequency, data mode); analog pictures found without their VIS code; the Alpha Testing page is now Beta Testing (v0.5.2 beta) |
 | Oct 23 | The Mac version: installers for Intel and Apple Silicon Macs with Hamlib inside, the Mac's own sound system (Core Audio), Trash and Finder in the Gallery, and a check for new versions at start-up (v0.5.2 beta) |
+| Oct 24 | Receive level slider on the Receive tab (sets the radio's recording level in Windows or on the Mac); the Level bar turns yellow when too quiet for pictures; new-version notices on Windows too (v0.5.3 beta) |
 | Oct 18 | Waterfall text before and after each picture; CW and ID buttons; Settings in Audio, Radio and Misc tabs; Send tab laid out to fit any window size (v0.3.4) |
 | Oct 18 | Sending your own pictures (v0.3.3): image optimizer fits a picture to the transmit time (Auto or Manual), original and as-sent side by side with zoom, JPEG 2000, JPEG or AVIF (RFpix-only, smaller), settings drop-downs and saved profiles; test transmissions on their own Alpha Testing page; transparent logo; key frequency marks on the waterfall |
 | Oct 17 | TX/RX page with Receive and Send tabs; sound devices on the Settings page; wider picture area; logo above the menu (v0.3.0) |
@@ -48,7 +49,6 @@ running EasyPal or QSSTV.
 ## Planned features
 
 - A Linux version
-- The new-version check on Windows too
 - Signing by Apple and Microsoft, so the "unknown program" warnings go away
 
 ## Built with

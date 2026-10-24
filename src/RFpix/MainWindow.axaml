@@ -34,14 +34,13 @@
                    Classes="Hint" FontSize="12"
                    Margin="12,0,12,4" />
 
-        <!-- "A new version is out" (Mac only for now): shown by the update check at start-up. -->
+        <!-- "A new version is out": shown by the update check at start-up. -->
         <Border x:Name="UpdateNotice" DockPanel.Dock="Bottom" IsVisible="False"
                 Margin="6,0,6,12" Padding="10" CornerRadius="6"
                 Background="{DynamicResource SystemControlBackgroundListLowBrush}">
           <StackPanel Spacing="8">
             <TextBlock x:Name="UpdateText" TextWrapping="Wrap" FontWeight="SemiBold" />
-            <TextBlock Classes="Hint" FontSize="12" TextWrapping="Wrap"
-                       Text="Download it, quit RFpix and open the installer. Your settings and pictures stay." />
+            <TextBlock x:Name="UpdateHint" Classes="Hint" FontSize="12" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Button Content="Download" Click="OnUpdateDownloadClick" />
               <Button Content="Not now" Click="OnUpdateNotNowClick" />

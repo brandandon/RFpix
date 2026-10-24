@@ -39,19 +39,22 @@ public partial class MainWindow : Window
         _ = CheckForUpdateAsync(version);
     }
 
-    // ---- is there a newer RFpix? (Mac only for now) ----
+    // ---- is there a newer RFpix? ----
 
     private RFpix.Update.UpdateInfo? _update;
 
     private async Task CheckForUpdateAsync(string version)
     {
-        string? ending = RFpix.Update.UpdateCheck.InstallerEnding(OperatingSystem.IsMacOS(),
-                                                                  System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture);
-        if (ending is null || !AppSettings.Current.CheckForUpdates || RFpix.Update.AppVersion.Parse(version) is not { } running) return;
+        string? installer = RFpix.Update.UpdateCheck.InstallerPattern(OperatingSystem.IsWindows(), OperatingSystem.IsMacOS(),
+                                                                       System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture);
+        if (installer is null || !AppSettings.Current.CheckForUpdates || RFpix.Update.AppVersion.Parse(version) is not { } running) return;
         await Task.Delay(TimeSpan.FromSeconds(5));   // let RFpix finish starting first
-        _update = await RFpix.Update.UpdateCheck.CheckAsync(running, ending);
+        _update = await RFpix.Update.UpdateCheck.CheckAsync(running, installer);
         if (_update is null) return;
         UpdateText.Text = $"RFpix {_update.Version} is out (you have {running}).";
+        UpdateHint.Text = OperatingSystem.IsWindows()
+            ? "Download it and open the installer: it closes RFpix and updates it. Your settings and pictures stay."
+            : "Download it, quit RFpix and open the installer. Your settings and pictures stay.";
         UpdateNotice.IsVisible = true;
     }
 
