@@ -61,6 +61,11 @@ Please try receiving first, then **Test PTT**, then sending, and report anything
    and output (usually *Speakers (USB Audio CODEC)*).
 2. On the **TX/RX** page's **Receive** tab, click **Start listening**. Tune to the agreed
    frequency (USB on HF).
+   **Check the receive level:** while a picture is coming in, the number beside the **Level** bar
+   should read **-30 to -20 dB**. Below -30 dB pictures may not decode: turn up the radio's
+   recording level in Windows (press Windows, type **mmsys.cpl**, Enter; **Recording** tab;
+   double-click the radio's input; **Levels** tab), or the radio's USB audio output in its menu.
+   (On a Mac: **Audio MIDI Setup**, the radio's device, **Input**.)
 3. That's all. When a test transmission ends, RFpix shows a line such as
    **"Test 2 from KD9DD: perfect · quality 24 dB (needs about 11)"**,
    or how many of the picture's pieces arrived if it didn't come through. Each sending is judged
