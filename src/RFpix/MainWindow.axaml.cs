@@ -32,11 +32,43 @@ public partial class MainWindow : Window
                          ?? assembly.GetName().Version?.ToString(3) ?? "";
         VersionText.Text = $"Version {version.Replace('-', ' ')}";
 
+        if (OperatingSystem.IsMacOS()) RepairMacDeviceChoices();
         NavList.SelectedIndex = 0;   // start on the first page (TX/RX, on its Receive tab)
         RestorePlacement();
         GalleryPage.SendRequested += OnGallerySend;
         RFpix.Upload.UploadService.Restart();   // uploading pictures to a website, if that's set up
         _ = CheckForUpdateAsync(version);
+    }
+
+    // ---- the Mac: sound devices saved garbled by 0.5.2 to 0.6.0 (see Audio/DeviceIdRepair.cs) ----
+
+    private static void RepairMacDeviceChoices()
+    {
+        var s = AppSettings.Current;
+        if (!new[] { s.InputDeviceId, s.OutputDeviceId, s.InputClock?.DeviceId, s.OutputClock?.DeviceId }.Any(RFpix.Audio.DeviceIdRepair.LooksGarbled))
+            return;
+        try
+        {
+            using var input = RFpix.Audio.AudioSystem.CreateInput();
+            using var output = RFpix.Audio.AudioSystem.CreateOutput();
+            var inputs = input.GetDevices();
+            var outputs = output.GetDevices();
+            // A choice that can't be matched (that device isn't plugged in now) is cleared, to be picked again.
+            string? Mend(string? id, IReadOnlyList<RFpix.Audio.AudioDeviceInfo> devices) =>
+                RFpix.Audio.DeviceIdRepair.LooksGarbled(id) ? RFpix.Audio.DeviceIdRepair.Find(id!, devices)?.Id : id;
+            ClockCalibration? MendClock(ClockCalibration? c, IReadOnlyList<RFpix.Audio.AudioDeviceInfo> devices)
+            {
+                if (c is null || !RFpix.Audio.DeviceIdRepair.LooksGarbled(c.DeviceId)) return c;
+                var device = RFpix.Audio.DeviceIdRepair.Find(c.DeviceId, devices);
+                return device is null ? null : c with { DeviceId = device.Id, DeviceName = device.Name };
+            }
+            s.InputDeviceId = Mend(s.InputDeviceId, inputs);
+            s.OutputDeviceId = Mend(s.OutputDeviceId, outputs);
+            s.InputClock = MendClock(s.InputClock, inputs);
+            s.OutputClock = MendClock(s.OutputClock, outputs);
+            s.Save();
+        }
+        catch (Exception) { /* the sound system isn't answering: leave them for now */ }
     }
 
     // ---- is there a newer RFpix? ----

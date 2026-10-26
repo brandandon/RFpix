@@ -42,6 +42,7 @@ public sealed class CoreAudioInput : IAudioInput
     public void Start(string deviceId)
     {
         Stop();
+        CheckMicrophoneAccess();
         try
         {
             var format = StreamFormat.Float(SampleRate, Channels);
@@ -56,9 +57,7 @@ public sealed class CoreAudioInput : IAudioInput
             _running = true;
             Interlocked.Exchange(ref _lastSound, Environment.TickCount64);
             int status = AudioQueueStart(queue, IntPtr.Zero);
-            if (status != 0)
-                throw new AudioException($"The Mac didn't let RFpix use that sound input (error {status}). If it's the radio, check " +
-                                         "System Settings > Privacy & Security > Microphone and allow RFpix, then click Start listening again.");
+            if (status != 0) throw new AudioException(StartProblem(status, input: true));
             FormatDescription = $"{SampleRate} Hz, 32-bit, {Channels} channel(s)";
             // macOS says nothing when a device goes away: if no sound arrives for 3 seconds, say so.
             _watchdog = new Timer(_ => CheckStillComing(), null, 1000, 1000);
@@ -72,6 +71,30 @@ public sealed class CoreAudioInput : IAudioInput
         {
             Stop();
             throw new AudioException("The Mac's sound system couldn't be reached: " + ex.Message, ex);
+        }
+    }
+
+    /// <summary>Asks macOS, the first time, whether RFpix may listen (the radio counts as a microphone);
+    /// throws with what to do if it isn't allowed (yet).</summary>
+    private static void CheckMicrophoneAccess()
+    {
+        MacMicrophone.Access access;
+        try { access = MacMicrophone.Status(); }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or ArgumentException) { return; }   // can't tell: just try
+        switch (access)
+        {
+            case MacMicrophone.Access.Allowed:
+                return;
+            case MacMicrophone.Access.NotAskedYet:
+                try { MacMicrophone.Ask(); }
+                catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or ArgumentException) { return; }
+                throw new AudioException("The Mac is asking whether RFpix may use the microphone (the radio's sound input counts as one). " +
+                                         "Click Allow, then click Start listening again.");
+            case MacMicrophone.Access.Denied:
+                throw new AudioException("The Mac isn't letting RFpix listen. Open System Settings > Privacy & Security > Microphone, " +
+                                         "turn RFpix on, then click Start listening again.");
+            default:
+                throw new AudioException("This Mac doesn't allow programs to use the microphone (a restriction set on it), so RFpix can't listen.");
         }
     }
 

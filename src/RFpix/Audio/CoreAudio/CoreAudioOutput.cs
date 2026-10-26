@@ -96,7 +96,8 @@ public sealed class CoreAudioOutput : IAudioOutput
                     Check(AudioQueueAllocateBuffer(queue, (uint)(frames * Channels * 4), out var buffer), "make room for the sound");
                     Fill(queue, buffer);
                 }
-                Check(AudioQueueStart(queue, IntPtr.Zero), "start playing to that sound output");
+                int status = AudioQueueStart(queue, IntPtr.Zero);
+                if (status != 0) throw new AudioException(StartProblem(status, input: false));
             }
             catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
             {

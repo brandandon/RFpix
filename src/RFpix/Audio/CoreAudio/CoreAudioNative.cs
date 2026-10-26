@@ -155,11 +155,14 @@ internal static class CoreAudioNative
     [DllImport(CoreFoundationLib)]
     public static extern nint CFStringGetLength(IntPtr str);
 
+    // The characters are UTF-16 (two bytes each). They're passed as plain memory: a char[] here
+    // would be taken for one byte a character, and the text would come back garbled (as it did
+    // in 0.5.2 to 0.6.0, so the Mac couldn't find the device RFpix asked for: error -66680).
     [DllImport(CoreFoundationLib)]
-    public static extern void CFStringGetCharacters(IntPtr str, CFRange range, [Out] char[] buffer);
+    public static extern void CFStringGetCharacters(IntPtr str, CFRange range, IntPtr buffer);
 
-    [DllImport(CoreFoundationLib, CharSet = CharSet.Unicode)]
-    public static extern IntPtr CFStringCreateWithCharacters(IntPtr allocator, string chars, nint length);
+    [DllImport(CoreFoundationLib)]
+    public static extern IntPtr CFStringCreateWithCharacters(IntPtr allocator, [MarshalAs(UnmanagedType.LPWStr)] string chars, nint length);
 
     [DllImport(CoreFoundationLib)]
     public static extern void CFRelease(IntPtr obj);
@@ -168,15 +171,32 @@ internal static class CoreAudioNative
     {
         if (str == IntPtr.Zero) return "";
         nint length = CFStringGetLength(str);
-        var chars = new char[length];
-        CFStringGetCharacters(str, new CFRange { Location = 0, Length = length }, chars);
-        return new string(chars);
+        if (length <= 0) return "";
+        IntPtr buffer = Marshal.AllocHGlobal((int)length * 2);
+        try
+        {
+            CFStringGetCharacters(str, new CFRange { Location = 0, Length = length }, buffer);
+            return Marshal.PtrToStringUni(buffer, (int)length);
+        }
+        finally { Marshal.FreeHGlobal(buffer); }
     }
 
     public static void Check(int status, string what)
     {
         if (status != 0) throw new AudioException($"The Mac's sound system couldn't {what} (error {status}).");
     }
+
+    /// <summary>What a failed start means, in words (the Audio Queue's error codes, from AudioQueue.h).</summary>
+    public static string StartProblem(int status, bool input) => status switch
+    {
+        -66680 => $"The Mac couldn't find that sound {(input ? "input" : "output")} (error {status}). Check the radio is switched on and " +
+                  "plugged in, then click Refresh in Settings (Radio tab) and pick it again.",
+        -66676 => "The Mac isn't letting RFpix use that sound input (error -66676). Open System Settings > Privacy & Security > " +
+                  "Microphone, turn RFpix on, then try again.",
+        -66681 => $"The Mac couldn't start that sound {(input ? "input" : "output")} (error {status}): another program may be " +
+                  "using it in a way that keeps others out. Close other radio programs and try again.",
+        _ => $"The Mac's sound system couldn't start that sound {(input ? "input" : "output")} (error {status}).",
+    };
 
     // ---- the devices ----
 
