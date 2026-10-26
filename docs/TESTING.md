@@ -23,6 +23,10 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
 
 ## Linux, moving the Gallery, and replying with their picture (new in v0.6.0 beta)
 
+- **Mac fix:** Start listening and Send failed with *"error -66680"* (the Mac couldn't find the sound
+  device): RFpix read the Mac's device names wrongly. Fixed; your sound device choices are put right
+  by themselves. The first time you click **Start listening**, macOS now asks whether RFpix may use
+  the microphone: click **Allow**, then **Start listening** again.
 - **Linux** (new): see **On Linux** below.
 - **Gallery** page: **Change folder…** keeps your received and sent pictures somewhere else (a
   bigger drive, say). If you have pictures already, choose **Move my pictures there** (they're
