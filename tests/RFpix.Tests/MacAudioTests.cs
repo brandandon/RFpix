@@ -29,8 +29,9 @@ public class MacAudioTests
         var devices = CoreAudioNative.ListDevices(input: true).Concat(CoreAudioNative.ListDevices(input: false)).ToList();
         foreach (var device in devices)
         {
-            Assert.DoesNotContain("\0", device.Id);
-            Assert.DoesNotContain("\0", device.Name);
+            // (A zero character, compared exactly: the language-aware comparison overlooks it.)
+            Assert.False(device.Id.Contains('\0'), $"\"{device.Name}\" has a garbled ID");
+            Assert.False(device.Name.Contains('\0'), $"\"{device.Id}\" has a garbled name");
             Assert.True(CoreAudioNative.DeviceFromUid(device.Id) != 0, $"\"{device.Name}\" ({device.Id}) can't be found by its ID");
         }
     }
