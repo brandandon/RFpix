@@ -45,8 +45,9 @@ public partial class MainWindow : Window
 
     private async Task CheckForUpdateAsync(string version)
     {
+        string? linux = RFpix.Update.UpdateCheck.LinuxKind();
         string? installer = RFpix.Update.UpdateCheck.InstallerPattern(OperatingSystem.IsWindows(), OperatingSystem.IsMacOS(),
-                                                                       System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture);
+                                                                       System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture, linux);
         if (installer is null || !AppSettings.Current.CheckForUpdates || RFpix.Update.AppVersion.Parse(version) is not { } running) return;
         await Task.Delay(TimeSpan.FromSeconds(5));   // let RFpix finish starting first
         _update = await RFpix.Update.UpdateCheck.CheckAsync(running, installer);
@@ -54,6 +55,10 @@ public partial class MainWindow : Window
         UpdateText.Text = $"RFpix {_update.Version} is out (you have {running}).";
         UpdateHint.Text = OperatingSystem.IsWindows()
             ? "Download it and open the installer: it closes RFpix and updates it. Your settings and pictures stay."
+            : linux == "appimage"
+            ? "Download the new AppImage, make it runnable (Properties > Permissions, or chmod +x) and use it instead of this one. Your settings and pictures stay."
+            : linux == "deb"
+            ? "Download it, quit RFpix and open the .deb to install it over this one. Your settings and pictures stay."
             : "Download it, quit RFpix and open the installer. Your settings and pictures stay.";
         UpdateNotice.IsVisible = true;
     }

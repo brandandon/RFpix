@@ -374,6 +374,7 @@ public partial class GalleryPage : UserControl
             string path = entry.FullPath;
             if (OperatingSystem.IsWindows()) Process.Start("explorer.exe", $"/select,\"{path}\"");
             else if (OperatingSystem.IsMacOS()) RFpix.Platform.MacFiles.ShowInFinder(path);
+            else if (OperatingSystem.IsLinux()) RFpix.Platform.LinuxFiles.ShowInFileManager(path);
             else OnOpenFolderClick(sender, e);
         }
         catch (Exception ex)
@@ -514,6 +515,7 @@ public partial class GalleryPage : UserControl
                 Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(path, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
                                                                     Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
             else if (OperatingSystem.IsMacOS()) RFpix.Platform.MacFiles.MoveToTrash(path);
+            else if (OperatingSystem.IsLinux()) RFpix.Platform.LinuxFiles.MoveToTrash(path);
             else File.Delete(path);
             GalleryIndex.Remove(folder, entry.File);
             if (_thumbnails.Remove(path, out var t))

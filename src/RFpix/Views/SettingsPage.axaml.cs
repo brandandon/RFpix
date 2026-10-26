@@ -29,8 +29,10 @@ public partial class SettingsPage : UserControl, IDisposable
     {
         InitializeComponent();
         if (OperatingSystem.IsMacOS()) UseMacWords();
-        // New versions: checked for on Windows and the Mac (no installer is made for Linux yet).
-        UpdatesPanel.IsVisible = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
+        if (OperatingSystem.IsLinux()) UseLinuxWords();
+        // New versions: checked for wherever RFpix was installed from a download.
+        UpdatesPanel.IsVisible = RFpix.Update.UpdateCheck.InstallerPattern(OperatingSystem.IsWindows(), OperatingSystem.IsMacOS(),
+            System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture, RFpix.Update.UpdateCheck.LinuxKind()) is not null;
         CheckForUpdatesBox.IsChecked = AppSettings.Current.CheckForUpdates;
         CheckForUpdatesBox.IsCheckedChanged += (_, _) =>
         {
@@ -350,5 +352,16 @@ public partial class SettingsPage : UserControl, IDisposable
             "first make sure Windows' clock is set right (Settings > Time & language > Date & time > Sync now)",
             "first make sure the Mac's clock is set right (System Settings > General > Date & Time > Set time and date automatically)");
         DeviceHint.Text = DeviceHint.Text?.Replace("Renaming them in Windows Sound settings", "Renaming them in Audio MIDI Setup");
+    }
+
+    // ... and on Linux, Linux's.
+    private void UseLinuxWords()
+    {
+        FollowSystemItem.Content = "Follow the system";
+        CalibrationHint.Text = CalibrationHint.Text?.Replace(
+            "first make sure Windows' clock is set right (Settings > Time & language > Date & time > Sync now)",
+            "first make sure the computer's clock is set right (most Linux systems set it from the internet: check Date & Time in the system settings)");
+        DeviceHint.Text = "Radios usually appear as \"USB Audio CODEC\" (\"PCM2901 Audio Codec\" on some). Not your computer's own speakers or " +
+                          "microphone. If the radio isn't listed, check it's switched on and plugged in, then click Refresh.";
     }
 }

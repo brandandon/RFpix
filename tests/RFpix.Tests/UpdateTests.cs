@@ -52,7 +52,13 @@ public class UpdateTests
         Assert.Equal(Intel, UpdateCheck.InstallerPattern(false, true, Architecture.X64));
         Assert.Equal(AppleSilicon, UpdateCheck.InstallerPattern(false, true, Architecture.Arm64));
         Assert.Equal(Windows, UpdateCheck.InstallerPattern(true, false, Architecture.X64));
-        Assert.Null(UpdateCheck.InstallerPattern(false, false, Architecture.X64));   // Linux: none yet
+        Assert.Null(UpdateCheck.InstallerPattern(false, false, Architecture.X64));   // Linux, run from source: none
+        Assert.Equal("RFpix-*-linux-x64.AppImage", UpdateCheck.InstallerPattern(false, false, Architecture.X64, "appimage"));
+        Assert.Equal("RFpix-*-linux-arm64.AppImage", UpdateCheck.InstallerPattern(false, false, Architecture.Arm64, "appimage"));
+        Assert.Equal("rfpix_*_amd64.deb", UpdateCheck.InstallerPattern(false, false, Architecture.X64, "deb"));
+        Assert.Equal("rfpix_*_arm64.deb", UpdateCheck.InstallerPattern(false, false, Architecture.Arm64, "deb"));
+        Assert.True(UpdateCheck.Fits("rfpix_0.6.0~beta_arm64.deb", "rfpix_*_arm64.deb"));
+        Assert.False(UpdateCheck.Fits("RFpix-0.6.0-beta-linux-x64.AppImage", "RFpix-*-linux-arm64.AppImage"));
     }
 
     [Theory]

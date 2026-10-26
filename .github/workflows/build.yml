@@ -1,10 +1,10 @@
-# Tests and builds RFpix for Windows and the Mac on GitHub's servers every time code is pushed.
+# Tests and builds RFpix for Windows, the Mac and Linux on GitHub's servers every time code is pushed.
 # The finished program can be downloaded from the run's Summary page,
 # under "Artifacts" (you need to be signed in to GitHub to download it).
 #
-# A version tag (e.g. v0.2.0) also makes a public Release: RFpix.exe, the Windows installer and
-# the two Mac installers (Intel and Apple Silicon) for anyone to download, with docs/TESTING.md
-# as its instructions. To make one: GitHub > Releases > "Draft a new
+# A version tag (e.g. v0.2.0) also makes a public Release: RFpix.exe, the Windows installer, the
+# two Mac installers (Intel and Apple Silicon) and the Linux AppImages and .debs (PCs and
+# Raspberry Pi) for anyone to download, with docs/TESTING.md as its instructions. To make one: GitHub > Releases > "Draft a new
 # release", type a new tag such as v0.2.0, and Publish; a few minutes later RFpix.exe is
 # attached. The newest is always at https://github.com/brandandon/RFpix/releases/latest
 
@@ -231,3 +231,118 @@ jobs:
             echo "Waiting for the release $tag to exist..."; sleep 30
           done
           gh release upload "$tag" dist/RFpix-*-mac-${{ matrix.kind }}.pkg --clobber
+
+  # Linux: an AppImage and a .deb for 64-bit PCs and for the Raspberry Pi (64-bit), each built and
+  # tested on a computer of that kind. Built on Ubuntu 22.04, so they run on it and anything newer.
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            deb: amd64
+            runner: ubuntu-22.04
+          - arch: arm64
+            deb: arm64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v6
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install the build tools, a sound server for the tests, and a screen for trying it
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q build-essential pulseaudio xvfb libfontconfig1 libice6 libsm6 libx11-6
+
+      # Publishes RFpix, builds Hamlib 4.7.2 from source, makes the AppImage and the .deb.
+      # If it fails, the last lines of its output are shown at the top of the run's page.
+      - name: Build the AppImage and the .deb
+        run: |
+          set -o pipefail
+          tools/linux/package.sh ${{ matrix.arch }} 2>&1 | tee package.log || {
+            tail -n 60 package.log | python3 -c '
+          import sys
+          lines = [l.rstrip() for l in sys.stdin]
+          for i in range(0, len(lines), 15):
+              text = "\n".join(lines[i:i + 15]).replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+              print(f"::error title=Linux build failed (lines {i + 1}-{i + 15} of the last 60)::{text}")
+          '
+            exit 1
+          }
+
+      # The tests use the same Hamlib that goes into the packages, and a real sound server with a
+      # test output and a test input that hears it (for the Linux sound tests).
+      - name: Run the tests
+        run: |
+          pulseaudio -D --exit-idle-time=-1 -n -L module-native-protocol-unix \
+            -L "module-null-sink sink_name=rfpix_test_out" \
+            -L "module-remap-source source_name=rfpix_test_in master=rfpix_test_out.monitor"
+          dotnet build tests/RFpix.Tests/RFpix.Tests.csproj -c Release
+          for dir in tests/RFpix.Tests/bin/Release/*/; do cp build/linux-${{ matrix.arch }}/publish/libhamlib.so.4 "$dir"; done
+          RFPIX_PULSE_TEST=1 dotnet test tests/RFpix.Tests/RFpix.Tests.csproj -c Release --no-build --logger "trx;LogFileName=results.trx" --results-directory test-results
+
+      - name: Count the tests
+        if: always()
+        shell: python3 {0}
+        run: |
+          import glob, xml.etree.ElementTree as ET
+          ns = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
+          for f in glob.glob("test-results/**/*.trx", recursive=True):
+              root = ET.parse(f).getroot()
+              c = root.find("t:ResultSummary/t:Counters", ns)
+              failed = [r for r in root.iterfind(".//t:UnitTestResult", ns) if r.get("outcome") == "Failed"]
+              print(f"::notice title=Linux (${{ matrix.arch }}) tests::{c.get('passed')} of {c.get('total')} passed")
+              for r in failed:
+                  m = r.find(".//t:Message", ns)
+                  text = (m.text or "").replace("\n", " ") if m is not None else ""
+                  print(f"::error title=Linux test failed: {r.get('testName')}::{text}")
+
+      # Install the .deb, start RFpix for 20 seconds on a screen of its own, install it again on
+      # top (as an update does); then start the AppImage the same way.
+      - name: Test the packages
+        run: |
+          deb=$(ls dist/rfpix_*_${{ matrix.deb }}.deb)
+          sudo apt-get install -y -q "./$deb"
+          for f in RFpix libhamlib.so.4 RFpix.dll; do
+            test -f "/opt/rfpix/$f" || { echo "::error::After installing the .deb, /opt/rfpix/$f is missing."; exit 1; }
+          done
+          test -L /usr/bin/rfpix && test -f /usr/share/applications/rfpix.desktop
+          started() {   # $1: what was started; the rest: the command
+            what="$1"; shift
+            set +e; xvfb-run -a timeout 20 "$@" > start.log 2>&1; code=$?; set -e
+            if [ $code -eq 124 ]; then echo "$what started and kept running."
+            else echo "::warning title=Linux start-up ($what)::RFpix stopped within 20 seconds (exit $code):"; cat start.log; fi
+          }
+          started ".deb" rfpix
+          sudo dpkg -i "$deb"
+          test -f /opt/rfpix/RFpix || { echo "::error::Installing the .deb again (an update) lost RFpix."; exit 1; }
+          appimage=$(ls dist/RFpix-*-linux-${{ matrix.arch }}.AppImage)
+          started "AppImage" env APPIMAGE_EXTRACT_AND_RUN=1 "./$appimage"
+          echo "Packages installed and started."
+
+      - name: Keep the packages for download
+        uses: actions/upload-artifact@v6
+        with:
+          name: RFpix-linux-${{ matrix.arch }}
+          path: |
+            dist/RFpix-*-linux-${{ matrix.arch }}.AppImage
+            dist/rfpix_*_${{ matrix.deb }}.deb
+
+      - name: Add to the Release (version tags only)
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ github.ref_name }}"
+          for i in $(seq 1 60); do
+            gh release view "$tag" > /dev/null 2>&1 && break
+            echo "Waiting for the release $tag to exist..."; sleep 30
+          done
+          gh release upload "$tag" dist/RFpix-*-linux-${{ matrix.arch }}.AppImage dist/rfpix_*_${{ matrix.deb }}.deb --clobber

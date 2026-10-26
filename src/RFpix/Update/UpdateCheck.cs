@@ -71,12 +71,24 @@ public static class UpdateCheck
 {
     public const string ReleasesApi = "https://api.github.com/repos/brandandon/RFpix/releases?per_page=30";
 
-    /// <summary>The name of the installer for this computer, with * for the version
-    /// (null: none is made for it, as on Linux).</summary>
-    public static string? InstallerPattern(bool windows, bool mac, Architecture architecture) =>
+    /// <summary>The name of the download for this computer, with * for the version (null: none,
+    /// as when RFpix runs from its source code). On Linux it's the same kind as the one running:
+    /// <paramref name="linuxKind"/> "appimage" or "deb" (see <see cref="LinuxKind"/>).</summary>
+    public static string? InstallerPattern(bool windows, bool mac, Architecture architecture, string? linuxKind = null) =>
         windows ? "RFpix-Setup-*.exe"
         : mac ? (architecture == Architecture.Arm64 ? "RFpix-*-mac-apple-silicon.pkg" : "RFpix-*-mac-intel.pkg")
+        : linuxKind == "appimage" ? (architecture == Architecture.Arm64 ? "RFpix-*-linux-arm64.AppImage" : "RFpix-*-linux-x64.AppImage")
+        : linuxKind == "deb" ? (architecture == Architecture.Arm64 ? "rfpix_*_arm64.deb" : "rfpix_*_amd64.deb")
         : null;
+
+    /// <summary>On Linux: "appimage" when running as an AppImage, "deb" when installed from the
+    /// .deb (in /opt/rfpix), otherwise null.</summary>
+    public static string? LinuxKind()
+    {
+        if (!OperatingSystem.IsLinux()) return null;
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("APPIMAGE"))) return "appimage";
+        return AppContext.BaseDirectory.StartsWith("/opt/rfpix/", StringComparison.Ordinal) ? "deb" : null;
+    }
 
     /// <summary>Whether a file's name fits the pattern (* stands for anything; capitals don't matter).</summary>
     public static bool Fits(string name, string pattern) =>

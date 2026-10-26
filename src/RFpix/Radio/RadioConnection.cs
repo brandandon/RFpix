@@ -80,7 +80,9 @@ public sealed class RadioConnection : IDisposable
             throw new RadioException("Hamlib, the radio-control library, couldn't be loaded. " +
                 (OperatingSystem.IsWindows() ? "libhamlib-4.dll should be next to RFpix.exe: try rebuilding RFpix."
                  : OperatingSystem.IsMacOS() ? "It comes inside RFpix.app: try installing RFpix again."
-                                             : "Install your system's hamlib package.") + $" ({ex.Message})");
+                 : File.Exists(Path.Combine(AppContext.BaseDirectory, "RFpix.dll")) && AppContext.BaseDirectory.Contains("/opt/rfpix")
+                     ? "It comes with RFpix: try installing RFpix again."
+                     : "Install your system's hamlib package (libhamlib4), or use the RFpix AppImage or .deb, which carry their own.") + $" ({ex.Message})");
         }
         if (rig == IntPtr.Zero) throw new RadioException($"Hamlib doesn't know radio model {model}. Check the model number.");
 

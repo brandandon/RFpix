@@ -5,7 +5,8 @@
 // .NET finds it in the library file at run time.
 //   Windows: libhamlib-4.dll (with libgcc_s_seh-1.dll, libwinpthread-1.dll and
 //            libusb-1.0.dll), downloaded by the build and placed next to RFpix.exe
-//   Linux:   libhamlib.so.4 (the hamlib package)
+//   Linux:   libhamlib.so.4, carried with RFpix (next to it, in the AppImage or /opt/rfpix);
+//            the system's hamlib package is used if it isn't there (as when running from source)
 //   Mac:     libhamlib.4.dylib, carried inside RFpix.app (Contents/MacOS, next to RFpix);
 //            Homebrew's hamlib is used if it isn't there (as when running from source)
 //
@@ -107,7 +108,7 @@ internal static class HamlibNative
         string[] candidates =
             OperatingSystem.IsWindows() ? new[] { Path.Combine(AppContext.BaseDirectory, "libhamlib-4.dll"), "libhamlib-4.dll" }
             : OperatingSystem.IsMacOS() ? new[] { Path.Combine(AppContext.BaseDirectory, "libhamlib.4.dylib"), "libhamlib.4.dylib", "/opt/homebrew/lib/libhamlib.4.dylib", "/usr/local/lib/libhamlib.4.dylib" }
-            : new[] { "libhamlib.so.4", "libhamlib.so" };
+            : new[] { Path.Combine(AppContext.BaseDirectory, "libhamlib.so.4"), "libhamlib.so.4", "libhamlib.so" };
         foreach (var candidate in candidates)
             if (NativeLibrary.TryLoad(candidate, out var handle)) return handle;
         return IntPtr.Zero;   // .NET then reports the library as missing (DllNotFoundException)
