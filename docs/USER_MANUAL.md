@@ -1,8 +1,8 @@
 # RFpix User Manual
 
-Version 0.5.3 beta · Oct 24, 2026 · KD9DD
+Version 0.6.0 beta · Oct 25, 2026 · KD9DD
 
-This manual covers RFpix version 0.5.3 beta for Windows 10 and 11, and for the Mac (macOS 14 or newer). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
+This manual covers RFpix version 0.6.0 beta for Windows 10 and 11, the Mac (macOS 14 or newer) and Linux (64-bit PCs and Raspberry Pi). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
 
 The manual has three parts:
 
@@ -46,16 +46,16 @@ A few things RFpix does for you:
 
 ### 2. Installing
 
-RFpix is free to download from its [releases page on GitHub](https://github.com/brandandon/RFpix/releases/latest). It needs a 64-bit Windows 10 or 11 computer, or a Mac with macOS 14 (Sonoma) or newer (see [On a Mac](#on-a-mac) below). For Windows, each release offers two files under **Assets**:
+RFpix is free to download from its [releases page on GitHub](https://github.com/brandandon/RFpix/releases/latest). It needs a 64-bit Windows 10 or 11 computer, a Mac with macOS 14 (Sonoma) or newer (see [On a Mac](#on-a-mac) below), or a 64-bit Linux PC or Raspberry Pi (see [On Linux](#on-linux)). For Windows, each release offers two files under **Assets**:
 
 | File | What it is | Choose it if |
 | --- | --- | --- |
-| **RFpix-Setup-0.5.3-beta.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
+| **RFpix-Setup-0.6.0-beta.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
 | **RFpix.exe** | The program in one file, nothing to install | You want to run it from a folder or a USB stick |
 
 #### Installing with the installer
 
-1. Download **RFpix-Setup-0.5.3-beta.exe** and open it.
+1. Download **RFpix-Setup-0.6.0-beta.exe** and open it.
 2. If Windows says *"Windows protected your PC"*, click **More info**, then **Run anyway**. Windows says this about new programs that aren't yet signed; it doesn't mean anything is wrong.
 3. Accept the licence, and choose where to put RFpix. The suggested folder needs no administrator password.
 4. Tick **Put a shortcut on the desktop** if you want one.
@@ -81,8 +81,8 @@ The Mac version is new in 0.5.2 beta, and hasn't yet been tried with a radio. Ea
 
 | File | For |
 | --- | --- |
-| **RFpix-0.5.3-beta-mac-apple-silicon.pkg** | Apple Silicon Macs (M1 and newer) |
-| **RFpix-0.5.3-beta-mac-intel.pkg** | Intel Macs |
+| **RFpix-0.6.0-beta-mac-apple-silicon.pkg** | Apple Silicon Macs (M1 and newer) |
+| **RFpix-0.6.0-beta-mac-intel.pkg** | Intel Macs |
 
 1. Download the installer for your Mac and open it.
 2. macOS says the installer was *"Not Opened"*, because RFpix isn't yet signed by Apple. Click **Done**. This doesn't mean anything is wrong.
@@ -102,6 +102,37 @@ A few things differ on the Mac:
 - Deleting a picture in the Gallery moves it to the Trash, and **Show in folder** opens it in Finder.
 - Ham Radio Deluxe runs only on Windows, so on the Mac connect the radio with Hamlib (CAT) or use VOX.
 
+#### On Linux
+
+The Linux version is new in 0.6.0 beta, and hasn't yet been tried with a radio. It runs on 64-bit PCs and on the Raspberry Pi 4 and 5 with the 64-bit Raspberry Pi OS. Ubuntu 22.04, Debian 12, Linux Mint 21 or anything newer works. Each release offers two kinds of download for each:
+
+| File | What it is | For |
+| --- | --- | --- |
+| **rfpix_0.6.0~beta_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
+| **rfpix_0.6.0~beta_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
+| **RFpix-0.6.0-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
+| **RFpix-0.6.0-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
+
+**With the .deb:** download it and open it (double-click it, or right-click it and choose to open it with the software installer), then click **Install**. Or, in a terminal, in the folder where it was downloaded: `sudo apt install ./rfpix_0.6.0~beta_amd64.deb`. RFpix then appears in the menu (under Internet, or Ham Radio), and `rfpix` starts it from a terminal.
+
+**With the AppImage:** download it, then make it runnable: right-click it, choose **Properties > Permissions** and tick **Allow executing file as program** (or, in a terminal: `chmod +x RFpix-*.AppImage`). Then double-click it. Keep it wherever you like.
+
+**Letting RFpix use the radio's port:** on Linux, only members of the **dialout** group may use serial ports. If **Connect** says it can't open the port, run this once in a terminal, then log out and back in (or restart):
+
+`sudo usermod -aG dialout $USER`
+
+**Updating on Linux:** when a newer version is out, a notice appears at the bottom left of RFpix's window when it starts, with a **Download** button that fetches the same kind you have. A newer .deb installs over the old one. A newer AppImage is used instead of the old one (make it runnable, as above, then delete the old one). Your settings and pictures stay either way. To stop RFpix checking, untick **Check for new versions of RFpix when it starts** in **Settings > Misc**.
+
+**Uninstalling on Linux:** for the .deb, remove **RFpix** in the software manager, or run `sudo apt remove rfpix`. For the AppImage, delete the file. Your pictures in **Documents/RFpix** stay, as do your settings (in the hidden folder **~/.config/RFpix**).
+
+A few things differ on Linux:
+
+- The radio's port is named like **/dev/ttyUSB0**; RFpix shows the adapter's name beside it (the FT-991A's two ports show as *Enhanced* and *Standard*, as on Windows).
+- Sound goes through the system's sound server (PipeWire or PulseAudio), which nearly every Linux desktop has. Radios usually show as **USB Audio CODEC** or **PCM2901 Audio Codec**.
+- Website copies go to **Documents/RFpix/Website copies** unless you choose another folder.
+- Deleting a picture in the Gallery moves it to the Trash, and **Show in folder** opens it in the file manager.
+- Ham Radio Deluxe runs only on Windows, so on Linux connect the radio with Hamlib (CAT), rigctld or flrig, or use VOX.
+
 #### Uninstalling
 
 In Windows, open **Settings > Apps**, find **RFpix**, and choose **Uninstall**. RFpix asks whether to remove your settings too (radio, sound devices, callsign). Your pictures, recordings and test results in **Documents\RFpix** are always kept.
@@ -117,7 +148,9 @@ In Windows, open **Settings > Apps**, find **RFpix**, and choose **Uninstall**. 
 | Test results | Documents\RFpix\Test results.csv |
 | Settings | %AppData%\RFpix\settings.json |
 
-On a Mac the same folders are in **Documents/RFpix**, and the settings are in **~/Library/Application Support/RFpix/settings.json** (in Finder: **Go > Go to Folder**).
+On a Mac the same folders are in **Documents/RFpix**, and the settings are in **~/Library/Application Support/RFpix/settings.json** (in Finder: **Go > Go to Folder**). On Linux they're in **Documents/RFpix** too, and the settings in **~/.config/RFpix/settings.json**.
+
+The Received and Sent folders can be moved somewhere else (a bigger drive, say) with **Change folder…** on the Gallery page (section 8).
 
 ### 3. First-time setup checklist
 
@@ -207,7 +240,7 @@ The thin vertical lines on the waterfall show where a good signal should sit. Po
 
 #### Where pictures are saved
 
-Digital pictures go to **Documents\RFpix\Received\Digital** and analog pictures to **Documents\RFpix\Received\Analog**. Each file is named with the date, time and sender, for example *2026-10-22 2130 N0ABC tower.jpg*. Every picture also appears in the **Gallery** (section 8), and can be copied to your website (section 9).
+Digital pictures go to **Documents\RFpix\Received\Digital** and analog pictures to **Documents\RFpix\Received\Analog**. Each file is named with the date, time and sender, for example *2026-10-22 2130 N0ABC tower.jpg*. (If you've moved your pictures with **Change folder…** on the Gallery page, they go to that folder's Received instead.) Every picture also appears in the **Gallery** (section 8), and can be copied to your website (section 9).
 
 #### Analog pictures that started before you were listening
 
@@ -375,6 +408,7 @@ A template draws text, boxes, a logo or a border on your picture as it goes out:
 1. On the **Send** tab, click **Template…**.
 2. Each template is shown on your own picture. Click one to use it, or **None** for no template.
 3. If the template has codes such as %to, boxes appear beside the Template button: type the other station's callsign in **To**, their name in **Name**, and the report in **RST**.
+4. If the template shows a received picture (such as **Reply with their picture**), a **Received picture** list appears too, with your newest received picture chosen. Pick the one you're replying to: its sender's callsign goes in the **To** box for you (you can still change it).
 
 The **As sent** picture shows the result. Templates are drawn again just before sending, so the date and time on them are the sending time.
 
@@ -385,6 +419,7 @@ The **As sent** picture shows the result. Templates are drawn again just before 
 | **Callsign bar** | A dark bar along the bottom with your callsign and the date. |
 | **CQ SSTV net** | "CQ SSTV NET" across the top and "de" your callsign across the bottom. |
 | **Reply** | "N0ABC de N0CALL" (their callsign and yours) along the bottom, and "RST 595" in a box at the top right. |
+| **Reply with their picture** | The picture they sent you, small and framed at the top right, with "N0ABC de N0CALL" and "RST 595" along the bottom: send their picture back with your report. |
 | **Framed** | A white border, a blue bar fading to black with your callsign, and the date and UTC time. |
 | **Date stamp** | The date and time in the bottom left corner. |
 
@@ -415,7 +450,7 @@ In the template window, click **New template…** to start from a sample, or **E
 
 In the editor:
 
-- Add items with **+ Text**, **+ Box**, **+ Logo** (a picture file, such as your club's logo) and **+ Border**.
+- Add items with **+ Text**, **+ Box**, **+ Logo** (a picture file, such as your club's logo), **+ Border** and **+ Received picture** (a box for a picture you received, chosen on the Send tab; it can have a frame round it). In the editor, a received-picture box shows as a grey "Received picture" placeholder.
 - Click an item to choose it, drag it to move it, and drag its corner square to resize it. Its settings (text, font, colour, size, see-through) are on the right.
 - **Up** and **Down** change which items are drawn on top; **Copy** and **Remove** do as they say.
 - **Preview** switches between an analog-sized (320 × 256) and a digital-sized (1280 × 960) picture, to check it works for both.
@@ -434,18 +469,31 @@ The **Gallery** page shows every picture you've received and sent, newest first,
 - **Received** shows digital pictures on the left and analog pictures on the right, each with its own count and scroll bar.
 - **Sent** shows the pictures you've sent, each marked **Digital** or **Analog** beside its time.
 - **Find** narrows the list to pictures whose callsign or name contains what you type.
-- **Open folder** opens the folder the pictures are in.
+- **Open folder** opens the folder the pictures are in. The line under the tabs says where that is.
+- **Change folder…** keeps your pictures somewhere else (see below).
 
 The newest 300 pictures are shown; type in **Find** to reach older ones.
+
+#### Keeping your pictures somewhere else
+
+Received and sent pictures are kept in **Documents\RFpix** to start with, in its Received and Sent folders. To keep them somewhere else (a bigger drive, or a folder that's backed up), click **Change folder…** and choose the new folder. Received and Sent go inside it.
+
+If you already have pictures, RFpix asks what to do with them:
+
+- **Move my pictures there:** your pictures move to the new folder, with what RFpix knows about each one (who sent it, the signal, BSR). RFpix copies them all first and checks each copy, and only then removes the old ones, so if anything goes wrong nothing is lost. A picture with the same name as one already there gets "(2)" added to its name.
+- **Start empty there:** new pictures go to the new folder; your earlier ones stay where they were, and no longer show in the Gallery.
+- **Cancel:** nothing changes.
+
+Recordings, templates and test results stay in Documents\RFpix.
 
 #### A picture's details
 
 Click a picture to see it larger on the right, with what's known about it: who it's **From**, when it was **Received** (or **Sent**), its size and format, the settings it was **Sent as**, the **Signal** quality, and whether missing pieces were filled in (BSR) or repaired (Reed-Solomon).
 
-- **Double-click** the picture to open it full size in Windows' picture viewer.
+- **Double-click** the picture to open it full size in your picture viewer.
 - **Send this picture** opens it on the Send tab, ready to fit and send: handy for passing a picture on.
 - **Show in folder** opens its folder with the file selected.
-- **Delete** moves it to the Recycle Bin, after a second click to be sure.
+- **Delete** moves it to the Recycle Bin (the Trash on the Mac and Linux), after a second click to be sure.
 
 ### 9. Putting pictures on your website
 
@@ -459,7 +507,7 @@ RFpix can keep your website showing the latest pictures you've received. It work
 
 1. **Copies for the website:** tick **Save a JPEG copy of each picture received**. Leave **Write the date and time on the copy** ticked to stamp each copy in its lower left corner, as MMSSTV does. Tick **Copy the pictures I send too** if your site should show those as well.
 2. **Folder:** where the copies go (C:\FTPIMAGE to start with). Digital and analog copies are kept apart, in its **Digital** and **Analog** folders.
-3. **Upload:** tick **Upload new pictures from that folder to my website**.
+3. **Upload:** tick **Upload new pictures from that folder to my website**. Below it, **Upload analog pictures found without their VIS code, when at least … of the picture arrived** decides what happens to analog pictures that RFpix found partway through (you started listening late, or the VIS code was lost in noise): untick it to never upload them, or choose how much must have arrived (25%, 50%, 75% or 100%). Pictures that came with their VIS code are always uploaded.
 4. **Server:** choose the **Connection** (FTP, FTPS or SFTP, as your web host says), and type the **Server address**, **Port** (21 for FTP and FTPS, 22 for SFTP), **User name** and **Password**. The password is kept encrypted, for your Windows account only.
 5. **Folder on the server** for digital pictures, and for analog pictures: where on the site each kind goes. Leave one blank for the folder you log in to.
 6. **On the website:** **Pictures shown Digital** and **Pictures shown Analog** say how many of each the site keeps (for example 3 digital, because they're bigger, and 12 analog). The file names are **image1.jpg**, **image2.jpg** and so on, unless you change **File name**.
@@ -552,8 +600,9 @@ Section 9 explains setting it up and how the upload works. In short:
 | **Save a JPEG copy of each picture received** | Turns the website copies on. **Write the date and time on the copy** stamps them as MMSSTV does; **Copy the pictures I send too** adds yours. |
 | **Folder** | Where the copies go, in its Digital and Analog folders. **Browse…** picks it. |
 | **Upload new pictures from that folder to my website** | Turns uploading on. |
+| **Upload analog pictures found without their VIS code, when at least … arrived** | Whether analog pictures found partway through (no VIS code) are uploaded, and how much of the picture must have arrived: 25%, 50% (to start with), 75% or 100%. |
 | **Connection**, **Server address**, **Port** | FTP (plain), FTPS (FTP with encryption) or SFTP (over SSH); the server's name; usually port 21, or 22 for SFTP. |
-| **User name**, **Password** | Your web host's login. The password is kept encrypted for your Windows account. |
+| **User name**, **Password** | Your web host's login. The password is kept encrypted (on Windows, for your Windows account; on the Mac and Linux, with a key only your account can read). |
 | **Folder on the server for digital / analog pictures** | Where each kind goes on the site; blank for the folder you log in to. |
 | **Pictures shown Digital / Analog** | How many of each the site keeps (image1 to imageN). |
 | **File name (start, number, end)** | The names on the site: image, then the number, then .jpg. |
@@ -622,6 +671,10 @@ RFpix says what went wrong in plain words, in orange, near what you were doing. 
 | What you see | What to do |
 | --- | --- |
 | *Windows protected your PC* | Click **More info**, then **Run anyway** (section 2). |
+| Mac: the installer *"Not Opened"* | **System Settings > Privacy & Security**, then **Open Anyway** (section 2, On a Mac). |
+| Linux: **Connect** can't open the port (*permission denied*) | Add yourself to the dialout group: `sudo usermod -aG dialout $USER`, then log out and back in (section 2, On Linux). |
+| Linux: the AppImage doesn't start when double-clicked | Make it runnable first: **Properties > Permissions > Allow executing file as program**, or `chmod +x` it. |
+| Linux: no sound devices are listed | RFpix uses the system's sound server (PipeWire or PulseAudio). Check sound works in the system settings, switch the radio on, then click **Refresh**. |
 
 If something else goes wrong, click **Record** on the Receive tab before the next try: the recording (in Documents\RFpix\Recordings) shows exactly what your radio heard, and helps find the cause.
 
@@ -678,5 +731,5 @@ If something else goes wrong, click **Record** on the Receive tab before the nex
 | Test results | Documents\RFpix\Test results.csv |
 | What the Gallery knows about each picture | .RFpix gallery.json, a hidden file in each pictures folder |
 | Copies for the website | C:\FTPIMAGE\Digital and C:\FTPIMAGE\Analog (or the folder you chose), with their Archives folders |
-| Settings (radio, sound devices, callsign, profiles...) | %AppData%\RFpix\settings.json. To open the folder, press Windows key + R, type %AppData%\RFpix and press Enter. |
-| The program (installed) | The folder chosen when installing; normally your own programs folder (%LocalAppData%\Programs\RFpix) |
+| Settings (radio, sound devices, callsign, profiles...) | %AppData%\RFpix\settings.json. To open the folder, press Windows key + R, type %AppData%\RFpix and press Enter. (Mac: ~/Library/Application Support/RFpix; Linux: ~/.config/RFpix.) |
+| The program (installed) | The folder chosen when installing; normally your own programs folder (%LocalAppData%\Programs\RFpix). Mac: Applications. Linux: /opt/rfpix (from the .deb), or wherever you keep the AppImage. |

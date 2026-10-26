@@ -1,13 +1,13 @@
 # Testing RFpix on the air
 
-Thanks for helping test RFpix (now in beta), a HamDRM (digital SSTV) program for Windows and the Mac by KD9DD.
+Thanks for helping test RFpix (now in beta), a HamDRM (digital SSTV) program for Windows, the Mac and Linux by KD9DD.
 RFpix has ten built-in **test transmissions**: fixed pictures sent with fixed settings,
 and each picture says what its settings are. When you receive one, RFpix checks it against
 its own copy of the original and writes down how it came through.
 
 ## Getting it
 
-Download one of these (below, under *Assets*). For a Mac, see **On a Mac** below.
+Download one of these (below, under *Assets*). For a Mac, see **On a Mac** below; for Linux, **On Linux**.
 
 - **RFpix-Setup-x.y.z.exe** (recommended) installs RFpix. You choose the folder (no administrator
   rights needed), and it adds RFpix to the Start menu. Uninstall it from Windows' Settings > Apps
@@ -20,6 +20,49 @@ signed. Click **More info**, then **Run anyway**.
 
 Your settings live in %AppData%\RFpix, and your received pictures, recordings and test results
 in Documents\RFpix. Uninstalling asks whether to remove the settings, and never removes your files.
+
+## Linux, moving the Gallery, and replying with their picture (new in v0.6.0 beta)
+
+- **Linux** (new): see **On Linux** below.
+- **Gallery** page: **Change folder…** keeps your received and sent pictures somewhere else (a
+  bigger drive, say). If you have pictures already, choose **Move my pictures there** (they're
+  copied and checked before the old ones are removed) or **Start empty there**. The line under the
+  tabs says where the pictures are. Please try moving a few to a USB stick and back.
+- The Gallery's own file in each picture folder is now hidden.
+- **Templates:** a new item, **+ Received picture**, shows a picture you received in a box, so
+  you can send it back with your report. Try the new **Reply with their picture** template: on the
+  Send tab, pick the picture in **Received picture** (the newest is picked for you) and its
+  sender's callsign goes in **To**.
+- **Settings > FTP server:** **Upload analog pictures found without their VIS code, when at least
+  … of the picture arrived** (25%, 50%, 75% or 100%; 50% to start with). Pictures with their VIS
+  code always upload.
+- **Receive level** slider: now just says to adjust it for the best image reception. The Level bar
+  still turns yellow when the sound is too quiet.
+
+## On Linux (new in v0.6.0 beta)
+
+This is the first Linux version, and it hasn't been tried with a radio yet: please tell us how it
+goes. It runs on 64-bit PCs and on the Raspberry Pi 4 and 5 (64-bit Raspberry Pi OS); Ubuntu 22.04,
+Debian 12, Mint 21 or newer.
+
+- **rfpix_x.y.z~beta_amd64.deb** (PCs) or **rfpix_x.y.z~beta_arm64.deb** (Raspberry Pi): for Ubuntu,
+  Mint, Debian and Raspberry Pi OS. Open it to install, or `sudo apt install ./rfpix_*.deb`. RFpix
+  then appears in the menu, and `rfpix` starts it.
+- **RFpix-x.y.z-beta-linux-x64.AppImage** (PCs) or **-linux-arm64.AppImage** (Raspberry Pi): one
+  file for any other Linux. Make it runnable (right-click, **Properties > Permissions > Allow
+  executing file as program**, or `chmod +x`), then double-click it.
+
+On Linux:
+- To use the radio's port, you must be in the **dialout** group: run `sudo usermod -aG dialout $USER`
+  once, then log out and back in.
+- The radio's port is named like **/dev/ttyUSB0**, with the adapter's name beside it (the FT-991A's
+  show as *Enhanced* and *Standard*).
+- Sound goes through the system's sound server (PipeWire or PulseAudio). The Receive level slider
+  sets the radio's recording level there.
+- Settings are in **~/.config/RFpix**; pictures in **Documents/RFpix**, as elsewhere.
+- Ham Radio Deluxe is Windows-only: use Hamlib (CAT), rigctld or flrig, or VOX.
+- When a newer version is out, RFpix says so when it starts, with a **Download** button for the same
+  kind (.deb or AppImage).
 
 ## Receive level slider, and new-version notices on Windows (new in v0.5.3 beta)
 

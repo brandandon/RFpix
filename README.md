@@ -11,7 +11,7 @@ RFpix is a free, open-source replacement for EasyPal, built first for our SSTV n
 It aims to be easy to install, easy to use, and compatible with stations still
 running EasyPal or QSSTV.
 
-> **Status:** beta, for on-air testing, on Windows and (new, not yet tried with a radio) the Mac. Download the newest test release from
+> **Status:** beta, for on-air testing, on Windows, and (new, not yet tried with a radio) the Mac and Linux. Download the newest test release from
 > [Releases](https://github.com/brandandon/RFpix/releases/latest); how to test it is in
 > [docs/TESTING.md](docs/TESTING.md). The user manual is in
 > [docs/USER_MANUAL.md](docs/USER_MANUAL.md).
@@ -31,6 +31,7 @@ running EasyPal or QSSTV.
 | Oct 22 | Beta: sharing the radio with Ham Radio Deluxe (PTT, frequency, data mode); analog pictures found without their VIS code; the Alpha Testing page is now Beta Testing (v0.5.2 beta) |
 | Oct 23 | The Mac version: installers for Intel and Apple Silicon Macs with Hamlib inside, the Mac's own sound system (Core Audio), Trash and Finder in the Gallery, and a check for new versions at start-up (v0.5.2 beta) |
 | Oct 24 | Receive level slider on the Receive tab (sets the radio's recording level in Windows or on the Mac); the Level bar turns yellow when too quiet for pictures; new-version notices on Windows too (v0.5.3 beta) |
+| Oct 25 | The Linux version: AppImage and .deb for 64-bit PCs and the Raspberry Pi, with Hamlib inside and PipeWire/PulseAudio sound; the Gallery's pictures can be moved to another folder; templates can show a received picture to send back with the report; uploading no-VIS analog pictures only when enough arrived; the Gallery's file hidden (v0.6.0 beta) |
 | Oct 18 | Waterfall text before and after each picture; CW and ID buttons; Settings in Audio, Radio and Misc tabs; Send tab laid out to fit any window size (v0.3.4) |
 | Oct 18 | Sending your own pictures (v0.3.3): image optimizer fits a picture to the transmit time (Auto or Manual), original and as-sent side by side with zoom, JPEG 2000, JPEG or AVIF (RFpix-only, smaller), settings drop-downs and saved profiles; test transmissions on their own Alpha Testing page; transparent logo; key frequency marks on the waterfall |
 | Oct 17 | TX/RX page with Receive and Send tabs; sound devices on the Settings page; wider picture area; logo above the menu (v0.3.0) |
@@ -48,14 +49,13 @@ running EasyPal or QSSTV.
 
 ## Planned features
 
-- A Linux version
 - Signing by Apple and Microsoft, so the "unknown program" warnings go away
 
 ## Built with
 
 - C# and .NET
 - [Avalonia](https://avaloniaui.net/) for the user interface
-- NAudio (WASAPI) for sound on Windows, and the Mac's own Core Audio on the Mac.
+- NAudio (WASAPI) for sound on Windows, the Mac's own Core Audio on the Mac, and PulseAudio (or PipeWire) on Linux.
 - [CoreJ2K](https://github.com/cinderblocks/CoreJ2K) (BSD licence) for JPEG 2000 pictures.
 - [Magick.NET](https://github.com/dlemstra/Magick.NET) (ImageMagick, Apache licence) for opening pictures and for JPEG and AVIF.
 - [Hamlib](https://hamlib.github.io/) (LGPL licence) for radio control (CAT and PTT).
