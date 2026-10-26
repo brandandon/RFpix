@@ -34,7 +34,7 @@
     </Style>
   </UserControl.Styles>
 
-  <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6">
+  <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="6">
     <TextBlock Grid.Row="0" Classes="PageTitle" Text="Gallery" />
 
     <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -46,10 +46,29 @@
         <TextBlock Text="Find" VerticalAlignment="Center" />
         <TextBox x:Name="FindBox" Width="200" Watermark="Callsign or name" />
         <Button Content="Open folder" Click="OnOpenFolderClick" />
+        <Button Content="Change folder…" Click="OnChangeFolderClick"
+                ToolTip.Tip="Choose another folder for your received and sent pictures (a bigger drive, say). RFpix can move the pictures you have there." />
       </StackPanel>
     </Grid>
 
-    <Grid Grid.Row="2" ColumnDefinitions="*,340" ColumnSpacing="20" Margin="0,12,0,0">
+    <!-- Where the pictures are; and, after Change folder…, whether to move them there -->
+    <StackPanel Grid.Row="2" Spacing="6">
+      <TextBlock x:Name="WhereText" Classes="Hint" FontSize="12" TextWrapping="Wrap" />
+      <Border x:Name="MovePanel" IsVisible="False" Padding="12" CornerRadius="6"
+              Background="{DynamicResource SystemControlBackgroundListLowBrush}">
+        <StackPanel Spacing="8">
+          <TextBlock x:Name="MoveQuestion" TextWrapping="Wrap" FontWeight="SemiBold" />
+          <StackPanel x:Name="MoveButtons" Orientation="Horizontal" Spacing="8">
+            <Button Content="Move my pictures there" Click="OnMoveClick" />
+            <Button Content="Start empty there" Click="OnStartEmptyClick" />
+            <Button Content="Cancel" Click="OnMoveCancelClick" />
+          </StackPanel>
+          <TextBlock x:Name="MoveStatus" TextWrapping="Wrap" IsVisible="False" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <Grid Grid.Row="3" ColumnDefinitions="*,340" ColumnSpacing="20" Margin="0,6,0,0">
       <!-- Sent: the pictures, by day -->
       <!-- (Flex: the lists scroll in the room there is, rather than asking for all their height) -->
       <controls:Flex Grid.Column="0" Min="200">

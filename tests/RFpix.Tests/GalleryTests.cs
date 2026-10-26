@@ -63,6 +63,35 @@ public class GalleryTests
     }
 
     [Fact]
+    public void The_gallery_file_is_hidden_and_an_older_visible_one_is_taken_over()
+    {
+        string folder = NewFolder();
+        try
+        {
+            const string picture = "2026-10-20 1942 W9ABC tower.jp2";
+            File.WriteAllBytes(Path.Combine(folder, picture), new byte[] { 2 });
+            // Written by an older RFpix, under the visible name.
+            File.WriteAllText(Path.Combine(folder, GalleryIndex.OldIndexFileName),
+                """[ { "File": "2026-10-20 1942 W9ABC tower.jp2", "When": "2026-10-20T19:42:05", "Name": "tower.jp2", "Callsign": "W9ABC", "QualityDb": 17.2 } ]""");
+
+            Assert.Equal(17.2, Assert.Single(GalleryIndex.List(folder)).QualityDb);   // its details kept
+            string hidden = Path.Combine(folder, GalleryIndex.IndexFileName);
+            Assert.True(File.Exists(hidden));
+            Assert.False(File.Exists(Path.Combine(folder, GalleryIndex.OldIndexFileName)));
+            Assert.StartsWith(".", GalleryIndex.IndexFileName);   // hidden on the Mac and Linux
+            if (OperatingSystem.IsWindows()) Assert.True(File.GetAttributes(hidden).HasFlag(FileAttributes.Hidden));
+
+            // Writing it again and again works, hidden as it is.
+            GalleryIndex.Add(folder, new GalleryEntry(picture, new DateTime(2026, 10, 20, 19, 42, 5), "tower.jp2", "W9ABC", QualityDb: 18));
+            GalleryIndex.Add(folder, new GalleryEntry(picture, new DateTime(2026, 10, 20, 19, 42, 5), "tower.jp2", "W9ABC", QualityDb: 19));
+            Assert.Equal(19, Assert.Single(GalleryIndex.List(folder)).QualityDb);
+            if (OperatingSystem.IsWindows()) Assert.True(File.GetAttributes(hidden).HasFlag(FileAttributes.Hidden));
+            Assert.False(File.Exists(hidden + ".new"));
+        }
+        finally { Directory.Delete(folder, true); }
+    }
+
+    [Fact]
     public void A_damaged_index_still_lists_the_pictures()
     {
         string folder = NewFolder();

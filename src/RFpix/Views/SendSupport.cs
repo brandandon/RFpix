@@ -143,7 +143,7 @@ internal static class SendSupport
     public static TimeSpan SavedLeadIn => TimeSpan.FromSeconds(AppSettings.Current.SendSettings?.LeadInSeconds ?? Transmission.LeadIn.TotalSeconds);
 
     /// <summary>The Sent folder (Documents\RFpix\Sent).</summary>
-    public static string SentFolder => GalleryIndex.DefaultSentFolder;
+    public static string SentFolder => PictureFolders.Sent;
 
     /// <summary>Raised (on the screen's thread) when a picture is added to the Received or Sent folder.</summary>
     public static event Action? GalleryChanged;

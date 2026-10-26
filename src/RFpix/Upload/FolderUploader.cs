@@ -46,6 +46,20 @@ public sealed class UploadSettings
 
     /// <summary>Upload the pictures that arrive in <see cref="Folder"/>.</summary>
     public bool Upload { get; set; }
+
+    /// <summary>Upload analog pictures found without their VIS code (they start partway down)...</summary>
+    public bool UploadNoVis { get; set; } = true;
+    /// <summary>...when at least this much of the picture arrived (25, 50, 75 or 100 percent).</summary>
+    public int NoVisMinPercent { get; set; } = 50;
+
+    /// <summary>The choices for <see cref="NoVisMinPercent"/>.</summary>
+    public static readonly int[] NoVisPercents = { 25, 50, 75, 100 };
+
+    /// <summary>Whether an analog picture gets a website copy (and so is uploaded). Only pictures
+    /// found without their VIS are held back, and only while uploading is on: then by the two
+    /// settings above. <paramref name="lines"/> of the picture's <paramref name="height"/> arrived.</summary>
+    public bool ShouldCopyAnalog(bool foundWithoutVis, int lines, int height) =>
+        !foundWithoutVis || !Upload || UploadNoVis && height > 0 && lines * 100L >= (long)NoVisMinPercent * height;
     public string ArchiveName { get; set; } = "Archives";
     public string Protocol { get; set; } = "FTP";   // FTP, FTPS or SFTP
     public string Host { get; set; } = "";

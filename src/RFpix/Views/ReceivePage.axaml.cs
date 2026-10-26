@@ -213,7 +213,7 @@ public partial class ReceivePage : UserControl, IDisposable
         finally { _showingLevel = false; }
     }
 
-    private static string LevelHint(double percent) => $"{percent:0}%  ·  for pictures, set the Level to -30 to -20 dB";
+    private static string LevelHint(double percent) => $"{percent:0}%  ·  adjust for best image reception";
 
     private void OnRecordingLevelChanged(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
@@ -655,7 +655,7 @@ public partial class ReceivePage : UserControl, IDisposable
 
     // ---- received files ----
 
-    private static string ReceivedFolder => AppSettings.Current.ReceivedFolder ?? ReceivedFileSaver.DefaultFolder;
+    private static string ReceivedFolder => PictureFolders.Received;
 
     // Digital (HamDRM) and analog SSTV pictures are kept apart, in two folders inside it.
     private static string DigitalFolder => Path.Combine(ReceivedFolder, ReceivedFileSaver.DigitalSubfolder);
@@ -808,7 +808,9 @@ public partial class ReceivePage : UserControl, IDisposable
             _lastAnalog = (AnalogFolder, entry, DateTime.Now);
             SendSupport.RaiseGalleryChanged();
             var picture = got.Picture;
-            _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when, analog: true));
+            // A picture found without its VIS goes to the website only if enough of it arrived (Settings > FTP server).
+            if (AppSettings.Current.Upload.ShouldCopyAnalog(got.JoinedLate, got.Lines, got.Mode.Height))
+                _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when, analog: true));
             _analogCaption = $"Analog SSTV {got.Mode.Name}  ·  {when:HH:mm}{status}";
             PictureCaption.Text = $"{_analogCaption}\nSaved as \"{savedAs}\"";
         }

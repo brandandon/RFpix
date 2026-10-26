@@ -28,6 +28,13 @@
       <StackPanel Spacing="6">
         <TextBlock Text="Upload" FontWeight="SemiBold" />
         <CheckBox x:Name="UploadBox" Content="Upload new pictures from that folder to my website" />
+        <WrapPanel Margin="26,0,0,0">
+          <CheckBox x:Name="NoVisBox" Content="Upload analog pictures found without their VIS code, when at least" Margin="0,0,8,0" />
+          <ComboBox x:Name="NoVisPercentBox" Width="90" VerticalAlignment="Center" />
+          <TextBlock Text="of the picture arrived" VerticalAlignment="Center" Margin="8,0,0,0" />
+        </WrapPanel>
+        <TextBlock Classes="Hint" TextWrapping="Wrap" Margin="52,0,0,0"
+                   Text="A picture whose VIS code was missed (you started listening partway through, or the code was lost in noise) is found from its sync pulses and starts partway down. Pictures that came with their VIS code are always uploaded." />
         <TextBlock Classes="Hint" TextWrapping="Wrap" Margin="26,0,0,0"
                    Text="As the SSTV Auto Uploader does: the newest picture becomes image1.jpg and the others move up (image1 to image2...), so the website shows the latest ones. Digital and analog pictures go to their own folders on the server below, each with its own image1, image2 and so on (as many as Pictures shown, below). Each file is then moved into its folder's Archives subfolder. Don't run both at once." />
       </StackPanel>

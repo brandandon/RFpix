@@ -6,7 +6,8 @@
 //   2. Clicking the picture chooses the topmost item there; dragging moves it; dragging the
 //      square at its lower right corner resizes it. Positions are kept as shares of the
 //      picture, so the template fits any size.
-//   3. The chosen item's settings are made on the right, for its kind: text, box, logo, border.
+//   3. The chosen item's settings are made on the right, for its kind: text, box, logo, border,
+//      received picture.
 //      Every change draws the preview again.
 //   4. Save keeps it in Documents\RFpix\Templates. RFpix's own templates can't be changed:
 //      they open as a copy ("Copy of ...") to save under a name of your own.
@@ -52,7 +53,7 @@ public partial class TemplateEditorWindow : Window
                   : template.BuiltIn ? template.Copy($"Copy of {template.Name}")
                   : template;
         _source = picture;
-        _fields = fields;
+        _fields = fields with { Preview = true };   // a received-picture box shows even with none chosen
         NameBox.Text = _template.Name;
         NameBox.TextChanged += (_, _) => _dirty = true;
         DeleteButton.IsEnabled = _template.Path is not null;
@@ -233,6 +234,10 @@ public partial class TemplateEditorWindow : Window
     private void OnAddBorderClick(object? sender, RoutedEventArgs e) =>
         Add(new OverlayItem { Kind = OverlayKind.Border, X = 0, Y = 0, Width = 1, Height = 1, Fill = "#FFFFFF", Opacity = 1, Thickness = 0.02 });
 
+    private void OnAddReceivedClick(object? sender, RoutedEventArgs e) =>
+        Add(new OverlayItem { Kind = OverlayKind.Received, X = 0.58, Y = 0.04, Width = 0.38, Height = 0.38, Opacity = 1,
+                              Frame = true, Fill = "#FFFFFF", Thickness = 0.006 });
+
     private async void OnAddLogoClick(object? sender, RoutedEventArgs e)
     {
         var data = await ChooseLogoAsync();
@@ -359,6 +364,19 @@ public partial class TemplateEditorWindow : Window
                 panel.Add(SliderRow("Thickness", item.Thickness, 0.005, 0.08, v => item.Thickness = v, v => $"{v * 100:0.0}% of the height"));
                 panel.Add(SliderRow("Solid", item.Opacity, 0, 1, v => item.Opacity = v, v => $"{v * 100:0}%"));
                 panel.Add(SliderRow("Rounded corners", item.Corner, 0, 0.1, v => item.Corner = v, v => v == 0 ? "square" : $"{v * 100:0.0}%"));
+                break;
+
+            case OverlayKind.Received:
+                panel.Add(Hint("Shows a picture you received, so you can send it back with your report. Pick which one on the Send tab " +
+                               "(the newest is picked for you); its sender's callsign fills in the To box."));
+                panel.Add(Check("Keep its shape", item.KeepShape, v => item.KeepShape = v));
+                panel.Add(Check("Frame round it", item.Frame, v => { item.Frame = v; BuildProperties(); }));
+                if (item.Frame)
+                {
+                    panel.Add(ColorRow("Frame colour", item.Fill, v => item.Fill = v));
+                    panel.Add(SliderRow("Frame thickness", item.Thickness, 0.002, 0.03, v => item.Thickness = v, v => $"{v * 100:0.0}% of the height"));
+                }
+                panel.Add(SliderRow("Solid", item.Opacity, 0, 1, v => item.Opacity = v, v => $"{v * 100:0}%"));
                 break;
 
             case OverlayKind.Image:

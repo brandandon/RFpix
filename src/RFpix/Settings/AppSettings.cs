@@ -23,8 +23,13 @@ public sealed class AppSettings
     /// <summary>Folder the "Play recording…" button opened last time.</summary>
     public string? LastRecordingFolder { get; set; }
 
-    /// <summary>Where received files are saved. Null means the default, Documents\RFpix\Received.</summary>
+    /// <summary>Where received files are saved, if set before there was a pictures folder
+    /// (otherwise null: the pictures folder's Received).</summary>
     public string? ReceivedFolder { get; set; }
+
+    /// <summary>The pictures folder, holding Received and Sent (Gallery page, Change folder…).
+    /// Null means the first one, Documents\RFpix.</summary>
+    public string? PicturesFolder { get; set; }
 
     /// <summary>Permanent Windows ID of the radio's playback device (Send page).</summary>
     public string? OutputDeviceId { get; set; }

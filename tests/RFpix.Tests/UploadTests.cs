@@ -131,6 +131,28 @@ public class UploadTests
     }
 
     [Fact]
+    public void Pictures_found_without_their_VIS_upload_only_when_enough_arrived()
+    {
+        var s = new UploadSettings { Upload = true };   // ticked at 50% to start with
+        Assert.True(s.UploadNoVis);
+        Assert.Equal(50, s.NoVisMinPercent);
+        Assert.True(s.ShouldCopyAnalog(foundWithoutVis: false, lines: 10, height: 256));   // with a VIS: always
+        Assert.True(s.ShouldCopyAnalog(true, 128, 256));    // exactly half
+        Assert.False(s.ShouldCopyAnalog(true, 127, 256));   // not quite
+        s.NoVisMinPercent = 100;
+        Assert.False(s.ShouldCopyAnalog(true, 255, 256));
+        Assert.True(s.ShouldCopyAnalog(true, 256, 256));
+        s.NoVisMinPercent = 25;
+        Assert.True(s.ShouldCopyAnalog(true, 64, 256));
+        s.UploadNoVis = false;
+        Assert.False(s.ShouldCopyAnalog(true, 256, 256));   // never, however much arrived
+        Assert.True(s.ShouldCopyAnalog(false, 256, 256));
+        s.Upload = false;
+        Assert.True(s.ShouldCopyAnalog(true, 10, 256));     // not uploading: copies are made as before
+        Assert.Equal(new[] { 25, 50, 75, 100 }, UploadSettings.NoVisPercents);
+    }
+
+    [Fact]
     public void Settings_problems_are_explained()
     {
         Assert.NotNull(new UploadSettings().Problem());   // no server yet

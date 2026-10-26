@@ -48,6 +48,7 @@ public static class OverlayRenderer
             case OverlayKind.Box: DrawBox(canvas, item, rect, h); break;
             case OverlayKind.Border: DrawBorder(canvas, item, w, h); break;
             case OverlayKind.Image: DrawImage(canvas, item, rect); break;
+            case OverlayKind.Received: DrawReceived(canvas, item, rect, h, fields); break;
             default: DrawText(canvas, item, rect, h, fields.Fill(item.Text)); break;
         }
     }
@@ -99,6 +100,53 @@ public static class OverlayRenderer
         using var paint = new SKPaint { IsAntialias = true, FilterQuality = SKFilterQuality.High,
                                         Color = SKColors.White.WithAlpha((byte)Math.Round(Math.Clamp(item.Opacity, 0, 1) * 255)) };
         canvas.DrawBitmap(image, dest, paint);
+    }
+
+    // The received picture chosen on the Send tab, in its box (whole, keeping its shape, unless
+    // that's turned off); with no picture, a grey stand-in in the picker and editor, else nothing.
+    private static void DrawReceived(SKCanvas canvas, OverlayItem item, SKRect rect, int h, TemplateFields fields)
+    {
+        var dest = rect;
+        byte alpha = (byte)Math.Round(Math.Clamp(item.Opacity, 0, 1) * 255);
+        if (fields.Received is { } picture && picture.Width > 0 && picture.Height > 0)
+        {
+            var info = new SKImageInfo(picture.Width, picture.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
+            using var image = new SKBitmap(info);
+            Marshal.Copy(picture.Bgra, 0, image.GetPixels(), Math.Min(picture.Bgra.Length, info.BytesSize));
+            if (item.KeepShape) dest = Fit(rect, picture.Width, picture.Height);
+            using var paint = new SKPaint { IsAntialias = true, FilterQuality = SKFilterQuality.High, Color = SKColors.White.WithAlpha(alpha) };
+            canvas.DrawBitmap(image, dest, paint);
+        }
+        else if (fields.Preview)
+        {
+            if (item.KeepShape) dest = Fit(rect, 4, 3);
+            using var fill = new SKPaint { IsAntialias = true, Color = new SKColor(0x70, 0x78, 0x80, 210) };
+            canvas.DrawRect(dest, fill);
+            using var paint = new SKPaint { IsAntialias = true, Color = SKColors.White, Typeface = SKTypeface.Default,
+                                            TextSize = Math.Max(6, Math.Min(dest.Height * 0.16f, dest.Width * 0.1f)) };
+            foreach (var (line, row) in new[] { ("Received", -0.6f), ("picture", 0.6f) })
+            {
+                float width = paint.MeasureText(line);
+                canvas.DrawText(line, dest.MidX - width / 2, dest.MidY + row * paint.TextSize + paint.TextSize * 0.35f, paint);
+            }
+        }
+        else return;
+
+        if (item.Frame)
+        {
+            float t = (float)Math.Max(1, item.Thickness * h);
+            using var frame = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = t,
+                                            Color = ColorOf(item.Fill, SKColors.White).WithAlpha(alpha) };
+            canvas.DrawRect(new SKRect(dest.Left - t / 2, dest.Top - t / 2, dest.Right + t / 2, dest.Bottom + t / 2), frame);
+        }
+    }
+
+    /// <summary>The largest rectangle of this shape that fits in <paramref name="rect"/>, centred.</summary>
+    private static SKRect Fit(SKRect rect, int width, int height)
+    {
+        float scale = Math.Min(rect.Width / width, rect.Height / height);
+        float dw = width * scale, dh = height * scale;
+        return new SKRect(rect.MidX - dw / 2, rect.MidY - dh / 2, rect.MidX + dw / 2, rect.MidY + dh / 2);
     }
 
     private static void DrawText(SKCanvas canvas, OverlayItem item, SKRect rect, int h, string text)

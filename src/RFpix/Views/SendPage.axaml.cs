@@ -30,6 +30,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using RFpix.Analog;
 using RFpix.Audio;
+using RFpix.Gallery;
 using RFpix.HamDrm;
 using RFpix.Imaging;
 using RFpix.Radio;
@@ -80,6 +81,11 @@ public partial class SendPage : UserControl, IDisposable
     private bool _analog;                        // sending analog SSTV, not HamDRM
     private DecodedPicture? _analogPicture;      // the picture fitted to the analog mode's frame
     private OverlayTemplate? _template;          // drawn on the picture as it goes out (null: none)
+    private List<GalleryEntry> _receivedChoices = new();   // for a template's received-picture box, newest first
+    private string? _receivedPicked;             // the one picked by hand (null: the newest, whatever it is)
+    private string? _receivedShown;              // the one loaded into _received
+    private DecodedPicture? _received;
+    private string? _autoTo;                     // the To callsign filled in from the picture chosen
     private readonly DispatcherTimer _fieldsTimer = new() { Interval = TimeSpan.FromMilliseconds(600) };
 
     public SendPage()
@@ -126,6 +132,8 @@ public partial class SendPage : UserControl, IDisposable
         ShowTemplate();
         foreach (var box in new[] { ToBox, NameBox, RstBox })
             box.TextChanged += (_, _) => { if (!_updating) { _fieldsTimer.Stop(); _fieldsTimer.Start(); } };
+        ReceivedBox.SelectionChanged += (_, _) => OnReceivedPicked();
+        SendSupport.GalleryChanged += () => Dispatcher.UIThread.Post(() => { if (ReceivedField.IsVisible) FillReceivedChoices(); });
         _fieldsTimer.Tick += (_, _) => { _fieldsTimer.Stop(); OnFieldsChanged(); };
         DigitalButton.IsCheckedChanged += (_, _) => { if (DigitalButton.IsChecked == true) OnSendAsChanged(analog: false); };
         AnalogButton.IsCheckedChanged += (_, _) => { if (AnalogButton.IsChecked == true) OnSendAsChanged(analog: true); };
@@ -150,7 +158,7 @@ public partial class SendPage : UserControl, IDisposable
 
     private TemplateFields Fields() => new(SendSupport.Callsign, (ToBox.Text ?? "").Trim().ToUpperInvariant(),
                                            (NameBox.Text ?? "").Trim(), (RstBox.Text ?? "").Trim(), DateTime.Now,
-                                           AppSettings.Current.GridSquare ?? "");
+                                           AppSettings.Current.GridSquare ?? "", _template?.UsesReceivedPicture == true ? _received : null);
 
     /// <summary>Draws the template on a picture (null if there's no template).</summary>
     private Func<DecodedPicture, DecodedPicture>? Decorator()
@@ -167,6 +175,67 @@ public partial class SendPage : UserControl, IDisposable
         ToField.IsVisible = codes.Contains("%to");
         NameField.IsVisible = codes.Contains("%name");
         RstField.IsVisible = codes.Contains("%rst");
+        ReceivedField.IsVisible = _template?.UsesReceivedPicture == true;
+        if (ReceivedField.IsVisible) FillReceivedChoices();
+    }
+
+    // ---- a template's received picture ----
+
+    /// <summary>Lists the newest received pictures (keeping the one picked by hand, if it's still there).</summary>
+    private void FillReceivedChoices()
+    {
+        var received = PictureFolders.Received;
+        try
+        {
+            _receivedChoices = GalleryIndex.List(new[] { received, Path.Combine(received, RFpix.Receive.ReceivedFileSaver.DigitalSubfolder),
+                                                         Path.Combine(received, RFpix.Receive.ReceivedFileSaver.AnalogSubfolder) })
+                                           .Take(40).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { _receivedChoices = new(); }
+        if (_receivedPicked is not null && !_receivedChoices.Any(e => e.FullPath == _receivedPicked)) _receivedPicked = null;
+        _updating = true;
+        ReceivedBox.ItemsSource = _receivedChoices.Count == 0
+            ? new[] { "None received yet" }
+            : _receivedChoices.Select(e => $"{e.When:MMM d HH:mm}  {e.Callsign ?? "(no callsign)"}  ·  {(e.IsAnalog ? "analog" : "digital")}").ToArray();
+        ReceivedBox.SelectedIndex = _receivedChoices.Count == 0 ? 0 : Math.Max(0, _receivedChoices.FindIndex(e => e.FullPath == _receivedPicked));
+        ReceivedBox.IsEnabled = _receivedChoices.Count > 0;
+        _updating = false;
+        _ = ShowReceivedAsync(byHand: false);
+    }
+
+    private void OnReceivedPicked()
+    {
+        if (_updating) return;
+        int i = ReceivedBox.SelectedIndex;
+        if (i < 0 || i >= _receivedChoices.Count) return;
+        _receivedPicked = i == 0 ? null : _receivedChoices[i].FullPath;   // the first is "the newest"
+        _ = ShowReceivedAsync(byHand: true);
+    }
+
+    /// <summary>Loads the chosen received picture for the template, and fills in the To callsign.</summary>
+    private async Task ShowReceivedAsync(bool byHand)
+    {
+        int i = Math.Max(0, ReceivedBox.SelectedIndex);
+        var entry = i < _receivedChoices.Count ? _receivedChoices[i] : null;
+        if (entry?.FullPath == _receivedShown && !byHand) return;
+        _receivedShown = entry?.FullPath;
+        DecodedPicture? picture = null;
+        if (entry is not null)
+        {
+            try { picture = await Task.Run(() => Pictures.Decode(File.ReadAllBytes(entry.FullPath))); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PictureException) { }
+        }
+        if (_receivedShown != entry?.FullPath) return;   // another was chosen meanwhile
+        _received = picture;
+        // Their callsign in the To box: always when picked by hand; otherwise only if the box is
+        // empty or still holds the callsign filled in last time (so a typed one isn't lost).
+        string to = (ToBox.Text ?? "").Trim().ToUpperInvariant();
+        if (entry?.Callsign is { Length: > 0 } call && (byHand || to.Length == 0 || to == _autoTo))
+        {
+            _autoTo = call.ToUpperInvariant();
+            if (to != _autoTo) ToBox.Text = _autoTo;   // (the To box's own change fits the picture again)
+        }
+        if (_template is not null) Refit(auto: true);
     }
 
     private async void OnTemplateClick(object? sender, RoutedEventArgs e)

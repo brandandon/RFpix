@@ -1,8 +1,8 @@
 // GalleryIndex.cs - what the Gallery knows about each picture, beyond the picture itself.
 //
 // Pictures are ordinary files in the Received and Sent folders, so they can be copied,
-// opened or deleted outside RFpix. Alongside them, each folder keeps a small file,
-// "RFpix gallery.json", with what the file itself can't tell: who sent it, when, the
+// opened or deleted outside RFpix. Alongside them, each folder keeps a small hidden file,
+// ".RFpix gallery.json", with what the file itself can't tell: who sent it, when, the
 // settings it came with, the signal quality, and whether a fix (BSR) completed it.
 // A picture with no entry there (copied in by hand, or saved before the Gallery existed)
 // still shows: its date, time and callsign are read from its name where RFpix gave it
@@ -44,7 +44,12 @@ public sealed record GalleryEntry(string File, DateTime When, string? Name = nul
 
 public static class GalleryIndex
 {
-    public const string IndexFileName = "RFpix gallery.json";
+    /// <summary>The hidden file in each folder. The dot hides it on the Mac and Linux; on Windows
+    /// it's given the Hidden attribute too.</summary>
+    public const string IndexFileName = ".RFpix gallery.json";
+
+    /// <summary>Its name before v0.6.0 (not hidden): renamed and hidden the first time it's read.</summary>
+    public const string OldIndexFileName = "RFpix gallery.json";
 
     private static readonly HashSet<string> PictureExtensions = new(StringComparer.OrdinalIgnoreCase)
         { ".jpg", ".jpeg", ".jp2", ".j2k", ".jpc", ".avif", ".png", ".bmp", ".gif", ".webp" };
@@ -52,9 +57,6 @@ public static class GalleryIndex
     private static readonly object Lock = new();
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
-    /// <summary>The default Sent folder: Documents\RFpix\Sent.</summary>
-    public static string DefaultSentFolder =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "RFpix", "Sent");
 
     /// <summary>Is this a picture file the Gallery shows?</summary>
     public static bool IsPicture(string path) => PictureExtensions.Contains(Path.GetExtension(path));
@@ -77,6 +79,29 @@ public static class GalleryIndex
         {
             var entries = Read(folder);
             if (entries.Remove(file)) Write(folder, entries);
+        }
+    }
+
+    /// <summary>What the folder's Gallery file says (no pictures looked at).</summary>
+    internal static List<GalleryEntry> Entries(string folder)
+    {
+        lock (Lock) return Read(folder).Values.ToList();
+    }
+
+    /// <summary>Adds entries from another folder's Gallery file (pictures moved here), with any
+    /// pictures given new names on the way (<paramref name="renamed"/>: old name to new). An entry
+    /// already here for the same name is kept.</summary>
+    internal static void MergeInto(string folder, IEnumerable<GalleryEntry> moved, IReadOnlyDictionary<string, string> renamed)
+    {
+        lock (Lock)
+        {
+            var entries = Read(folder);
+            foreach (var entry in moved)
+            {
+                string file = renamed.TryGetValue(entry.File, out var newName) ? newName : entry.File;
+                if (renamed.ContainsKey(entry.File) || !entries.ContainsKey(file)) entries[file] = entry with { File = file };
+            }
+            Write(folder, entries);
         }
     }
 
@@ -133,11 +158,46 @@ public static class GalleryIndex
         return path;
     }
 
+    /// <summary>Where the folder's hidden file is. An older visible one is renamed and hidden first.</summary>
+    internal static string IndexPath(string folder)
+    {
+        string path = Path.Combine(folder, IndexFileName), old = Path.Combine(folder, OldIndexFileName);
+        try
+        {
+            if (!System.IO.File.Exists(path) && System.IO.File.Exists(old))
+            {
+                System.IO.File.Move(old, path);
+                Hide(path);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }   // read-only folder: leave it
+        return path;
+    }
+
+    /// <summary>Hides the file on Windows (elsewhere its leading dot already does).</summary>
+    internal static void Hide(string path)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        try { System.IO.File.SetAttributes(path, System.IO.File.GetAttributes(path) | FileAttributes.Hidden); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
+    /// <summary>Writes the folder's entries to its hidden file (replacing it safely).</summary>
+    internal static void WriteFile(string path, IEnumerable<GalleryEntry> entries)
+    {
+        System.IO.File.WriteAllText(path + ".new", JsonSerializer.Serialize(entries.ToList(), Json));
+        // Windows won't always replace a hidden file: show it for the moment of replacing.
+        if (OperatingSystem.IsWindows() && System.IO.File.Exists(path))
+            System.IO.File.SetAttributes(path, System.IO.File.GetAttributes(path) & ~(FileAttributes.Hidden | FileAttributes.ReadOnly));
+        System.IO.File.Move(path + ".new", path, overwrite: true);
+        Hide(path);
+    }
+
     private static Dictionary<string, GalleryEntry> Read(string folder)
     {
         try
         {
-            string path = Path.Combine(folder, IndexFileName);
+            string path = IndexPath(folder);
             if (!System.IO.File.Exists(path)) return new();
             var list = JsonSerializer.Deserialize<List<GalleryEntry>>(System.IO.File.ReadAllText(path), Json) ?? new();
             return list.Where(e => !string.IsNullOrEmpty(e.File)).GroupBy(e => e.File).ToDictionary(g => g.Key, g => g.Last());
@@ -155,9 +215,7 @@ public static class GalleryIndex
             Directory.CreateDirectory(folder);
             // Entries for pictures deleted outside RFpix are dropped as the index is written.
             var kept = entries.Values.Where(e => System.IO.File.Exists(Path.Combine(folder, e.File))).OrderBy(e => e.When).ToList();
-            string path = Path.Combine(folder, IndexFileName);
-            System.IO.File.WriteAllText(path + ".new", JsonSerializer.Serialize(kept, Json));
-            System.IO.File.Move(path + ".new", path, overwrite: true);
+            WriteFile(IndexPath(folder), kept);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }   // details are a nicety
     }

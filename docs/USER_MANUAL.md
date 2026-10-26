@@ -134,7 +134,7 @@ Work through these steps in order the first time you run RFpix. Everything is sa
 - [ ] **4. Connect and test the keying.** Click **Connect**: the radio's frequency appears. Then click **Test PTT (2 seconds)**. The radio transmits for 2 seconds with no audio, so use a dummy load, or low power on a clear frequency.
 - [ ] **5. Pick the sound devices.** At the bottom of the **Radio** tab, under **Sound devices**, choose the radio's sound input and output. Radios usually show as *USB Audio CODEC*. Don't pick the computer's own speakers or microphone. Tip: rename the radio's devices in Windows' Sound settings (to *FT-991A*, say) to tell them apart.
 - [ ] **6. Calibrate the sound card.** Back on the **Misc** tab, first check Windows' clock is right (Windows **Settings > Time & language > Date & time > Sync now**). Then click **Measure (2 minutes)** under **Sound-card calibration**. The radio stays receiving; RFpix doesn't key it. This corrects for a sound card that runs a little fast or slow, which would otherwise slant analog pictures and upset digital ones.
-- [ ] **7. Receive something.** Open **TX/RX**, then the **Receive** tab, and click **Start listening**. The level bar should move with the band noise. While a picture is coming in, move the **Receive level** slider until the **Level** reading is between **-30 and -20 dB**: below -30 dB (yellow) pictures may not decode, and orange means too loud. See [Setting the receive level](#setting-the-receive-level). Tune to a frequency where pictures are being sent and wait: pictures appear on the right and are saved automatically.
+- [ ] **7. Receive something.** Open **TX/RX**, then the **Receive** tab, and click **Start listening**. The level bar should move with the band noise. While a picture is coming in, adjust the **Receive level** slider for the best image reception: yellow means too quiet for pictures to decode, and orange means too loud. See [Setting the receive level](#setting-the-receive-level). Tune to a frequency where pictures are being sent and wait: pictures appear on the right and are saved automatically.
 - [ ] **8. Send your first picture.** Open the **Send** tab and click **Open picture…** (or drag a picture onto the tab). Choose **Digital (HamDRM)** or **Analog SSTV**, and set **Transmit time** or the analog mode. Then click **Send**.
 - [ ] **9. Set the transmit level.** While sending, watch the radio's ALC meter and move the **Transmit level** slider until the ALC barely moves. The slider works during a transmission, and RFpix remembers where you leave it.
 
@@ -165,8 +165,8 @@ Open **TX/RX**, then the **Receive** tab, and click **Start listening**. RFpix l
 | **Start listening / Stop** | Starts and stops listening to the radio's sound input. |
 | **Record** | Saves what the radio hears as a sound file, starting 30 seconds *before* you click it, so a picture that's already arriving is caught. Click **Stop recording** to finish. Recordings go to Documents\RFpix\Recordings. |
 | **Play recording…** | Plays a saved recording into RFpix instead of the radio, for testing or for recordings other stations send you. |
-| **Level** | How loud the radio's audio is, in dB. While a picture is coming in, aim for **-30 to -20 dB**: yellow (below -30 dB) is too quiet for pictures to decode, and orange (above -6 dB) is too loud. |
-| **Receive level** | Sets the radio's recording level, to bring the Level to -30 to -20 dB. See [Setting the receive level](#setting-the-receive-level). |
+| **Level** | How loud the radio's audio is, in dB. Yellow means too quiet for pictures to decode; orange means too loud. |
+| **Receive level** | Sets the radio's recording level: adjust it for the best image reception. See [Setting the receive level](#setting-the-receive-level). |
 | **Signal boxes** | Offset, Clock, Strength and Quality of a digital signal (below). |
 | **Settings boxes** | How a digital picture was sent: Mode, Bandwidth, QAM, Interleave, Protection, Reed-Solomon, and who it's From. |
 | **Waterfall** (left) | The sound the radio hears, as a picture that scrolls down. Each signal shows as a coloured trace. |
@@ -177,15 +177,15 @@ The boxes show only while a picture is arriving; the rest of the time their spac
 
 #### Setting the receive level
 
-How loud the radio's sound reaches RFpix matters: too quiet and pictures don't decode, even when you can see them on the waterfall. Set it once, with the **Receive level** slider under the Level bar, while a picture is coming in:
+How loud the radio's sound reaches RFpix matters: too quiet and pictures don't decode, even when you can see them on the waterfall. Set it once, with the **Receive level** slider under the Level bar, while a picture is coming in: adjust it for the best image reception.
 
-- **Aim for -30 to -20 dB** on the **Level** reading (the number beside the Level bar).
-- **Below -30 dB the bar turns yellow:** too quiet, and pictures may not decode. Move the slider right.
-- **Above -6 dB the bar turns orange:** too loud, and the sound gets clipped. Move the slider left.
+- **The bar turns yellow** when the sound is too quiet, and pictures may not decode. Move the slider right.
+- **The bar turns orange** when it's too loud, and the sound gets clipped. Move the slider left.
+- In between, pick the setting where pictures come through best: on a digital picture, watch the **Quality** box.
 
 The slider sets the radio's recording level on the computer itself (the same level as in Windows' Sound settings, or the Mac's input volume), so other programs that listen to the radio, such as WSJT-X and EasyPal, hear the change too. The number beside it is the level in percent.
 
-If the slider is already at the right-hand end and the reading is still below -30 dB, turn up the radio's own USB audio output level, in its menu. If the slider is greyed out, the radio's sound input has no level control on this computer: use the radio's menu instead.
+If the slider is already at the right-hand end and the bar is still yellow, turn up the radio's own USB audio output level, in its menu. If the slider is greyed out, the radio's sound input has no level control on this computer: use the radio's menu instead.
 
 #### The signal boxes (digital)
 
@@ -576,8 +576,8 @@ RFpix says what went wrong in plain words, in orange, near what you were doing. 
 | *Another program has taken over this sound device.* | Close other radio or sound programs (WSJT-X, fldigi, MMSSTV and so on) and try again. |
 | *The sound device disappeared.* | The radio may have been switched off or its USB cable unplugged. Check it, then click **Refresh**. |
 | *Windows refused the sound format for this device.* or *HamDRM decoding needs 48000 Hz sound.* | In Windows **Sound settings**, open the radio's device, then its properties, and set the default format to **16 bit, 48000 Hz**. |
-| The **Level** bar is orange | The radio's sound is too loud: move the **Receive level** slider left until the **Level** reading is -30 to -20 dB while a picture comes in (see [Setting the receive level](#setting-the-receive-level)). |
-| The **Level** bar is yellow (below -30 dB) while a picture comes in | The radio's sound is too quiet, and pictures may not decode: move the **Receive level** slider right, or turn up the radio's USB audio output level in its menu (see [Setting the receive level](#setting-the-receive-level)). |
+| The **Level** bar is orange | The radio's sound is too loud: move the **Receive level** slider left until the bar is no longer orange while a picture comes in (see [Setting the receive level](#setting-the-receive-level)). |
+| The **Level** bar is yellow while a picture comes in | The radio's sound is too quiet, and pictures may not decode: move the **Receive level** slider right, or turn up the radio's USB audio output level in its menu (see [Setting the receive level](#setting-the-receive-level)). |
 | A signal shows on the waterfall but nothing decodes | Check the radio is on USB (on HF) with a filter at least 2.5 kHz wide, and that the signal's three bright lines sit on the marks. If the **Quality** box is red, the signal is too weak for those settings; wait for the end and use **Ask for them (BSR)**. |
 | Analog pictures come out slanted | Your sound card's clock is off: run **Sound-card calibration** on the Misc tab (section 3, step 6). A slant in only one station's pictures is their sound card. |
 | *Couldn't add a test to the test log. Is the file open in Excel?* | Close Test results.csv in Excel; RFpix can't add to it while it's open. |
@@ -676,7 +676,7 @@ If something else goes wrong, click **Record** on the Receive tab before the nex
 | Recordings | Documents\RFpix\Recordings |
 | Templates | Documents\RFpix\Templates |
 | Test results | Documents\RFpix\Test results.csv |
-| What the Gallery knows about each picture | RFpix gallery.json, in each pictures folder |
+| What the Gallery knows about each picture | .RFpix gallery.json, a hidden file in each pictures folder |
 | Copies for the website | C:\FTPIMAGE\Digital and C:\FTPIMAGE\Analog (or the folder you chose), with their Archives folders |
 | Settings (radio, sound devices, callsign, profiles...) | %AppData%\RFpix\settings.json. To open the folder, press Windows key + R, type %AppData%\RFpix and press Enter. |
 | The program (installed) | The folder chosen when installing; normally your own programs folder (%LocalAppData%\Programs\RFpix) |

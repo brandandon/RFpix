@@ -47,12 +47,12 @@
         <Grid ColumnDefinitions="Auto,220,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
           <TextBlock Text="Level" VerticalAlignment="Center" />
           <ProgressBar x:Name="LevelMeter" Grid.Column="1" Minimum="0" Maximum="100" Height="14"
-                       ToolTip.Tip="How loud the radio's sound is. While a picture comes in, aim for -30 to -20 dB: yellow (below -30 dB) is too quiet for pictures to decode; orange (above -6 dB) is too loud. Set it with the Receive level slider below." />
+                       ToolTip.Tip="How loud the radio's sound is. Yellow: too quiet for pictures to decode. Orange: too loud. Set it with the Receive level slider below." />
           <TextBlock x:Name="LevelText" Grid.Column="2" Classes="Hint" VerticalAlignment="Center" MinWidth="60" Text="Not listening" />
           <TextBlock Grid.Row="1" Text="Receive level" VerticalAlignment="Center" />
           <Slider x:Name="RecordingLevelSlider" Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="100"
                   SmallChange="1" LargeChange="5" Margin="0,-6"
-                  ToolTip.Tip="Sets the radio's recording level, for receiving pictures: move it until the Level reads -30 to -20 dB while a picture comes in." />
+                  ToolTip.Tip="Sets the radio's recording level: adjust it for the best image reception." />
           <TextBlock x:Name="RecordingLevelText" Grid.Row="1" Grid.Column="2" Classes="Hint" VerticalAlignment="Center"
                      TextWrapping="Wrap" MaxWidth="260" />
         </Grid>

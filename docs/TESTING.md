@@ -74,9 +74,9 @@ Please try receiving first, then **Test PTT**, then sending, and report anything
    and output (usually *Speakers (USB Audio CODEC)*).
 2. On the **TX/RX** page's **Receive** tab, click **Start listening**. Tune to the agreed
    frequency (USB on HF).
-   **Set the receive level:** while a picture is coming in, move the **Receive level** slider
-   (under the Level bar) until the number beside the **Level** bar reads **-30 to -20 dB**.
-   Yellow (below -30 dB) is too quiet: pictures may not decode.
+   **Set the receive level:** while a picture is coming in, adjust the **Receive level** slider
+   (under the Level bar) for the best image reception. A yellow Level bar is too quiet: pictures
+   may not decode. Orange is too loud.
 3. That's all. When a test transmission ends, RFpix shows a line such as
    **"Test 2 from KD9DD: perfect · quality 24 dB (needs about 11)"**,
    or how many of the picture's pieces arrived if it didn't come through. Each sending is judged

@@ -35,6 +35,37 @@ public class TemplateDrawingTests
         Assert.Equal((128, 128, 128), At(drawn, 0.25, 0.25)); // outside: as it was
     }
 
+    private static DecodedPicture Solid(int w, int h, byte b, byte g, byte r)
+    {
+        var bgra = new byte[4 * w * h];
+        for (int i = 0; i < bgra.Length; i += 4) { bgra[i] = b; bgra[i + 1] = g; bgra[i + 2] = r; bgra[i + 3] = 255; }
+        return new DecodedPicture(w, h, bgra);
+    }
+
+    [Fact]
+    public void A_received_picture_is_drawn_whole_in_its_box()
+    {
+        var t = new OverlayTemplate { Items = { new() { Kind = OverlayKind.Received, X = 0.5, Y = 0, Width = 0.5, Height = 0.5, Opacity = 1 } } };
+        Assert.True(t.UsesReceivedPicture);
+        var theirs = Solid(320, 256, 0, 0, 255);   // a red picture, 5:4
+        var drawn = OverlayRenderer.Draw(Grey(1280, 960), t, Fields with { Received = theirs });
+        Assert.Equal((0, 0, 255), At(drawn, 0.75, 0.25));      // in the box: their picture
+        Assert.Equal((128, 128, 128), At(drawn, 0.25, 0.75));  // elsewhere: as it was
+        // It keeps its shape: the box is 640 x 480 (4:3) and their picture 5:4, so it's as tall as
+        // the box and 600 wide, centred: a 20-pixel strip at each side of the box stays as it was.
+        Assert.Equal((128, 128, 128), At(drawn, 0.505, 0.25));
+        Assert.Equal((0, 0, 255), At(drawn, 0.52, 0.25));
+    }
+
+    [Fact]
+    public void Without_a_received_picture_nothing_is_drawn_except_in_previews()
+    {
+        var t = new OverlayTemplate { Items = { new() { Kind = OverlayKind.Received, X = 0, Y = 0, Width = 1, Height = 1, Opacity = 1, KeepShape = false } } };
+        Assert.Equal((128, 128, 128), At(OverlayRenderer.Draw(Grey(200, 200), t, Fields), 0.3, 0.3));   // sending: nothing
+        var preview = OverlayRenderer.Draw(Grey(200, 200), t, Fields with { Preview = true });
+        Assert.NotEqual((128, 128, 128), At(preview, 0.1, 0.1));                                          // the stand-in
+    }
+
     [Fact]
     public void A_see_through_box_mixes_with_the_picture()
     {

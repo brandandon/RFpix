@@ -26,6 +26,8 @@ public partial class FtpPage : UserControl, IDisposable
         ProtocolBox.ItemsSource = new[] { "FTP (plain)", "FTPS (FTP with encryption)", "SFTP (over SSH)" };
         ProtocolBox.SelectionChanged += (_, _) => OnProtocolChanged();
         SaveCopiesBox.IsCheckedChanged += (_, _) => StampBox.IsEnabled = CopySentBox.IsEnabled = SaveCopiesBox.IsChecked == true;
+        NoVisPercentBox.ItemsSource = UploadSettings.NoVisPercents.Select(p => $"{p}%").ToArray();
+        NoVisBox.IsCheckedChanged += (_, _) => NoVisPercentBox.IsEnabled = NoVisBox.IsChecked == true;
         Show(AppSettings.Current.Upload);
         LogBox.Text = string.Join("\n", UploadService.RecentLog);
         UploadService.Logged += OnLogged;
@@ -39,6 +41,9 @@ public partial class FtpPage : UserControl, IDisposable
         StampBox.IsEnabled = CopySentBox.IsEnabled = s.SaveCopies;
         FolderBox.Text = s.Folder;
         UploadBox.IsChecked = s.Upload;
+        NoVisBox.IsChecked = s.UploadNoVis;
+        NoVisPercentBox.SelectedIndex = Math.Max(0, Array.IndexOf(UploadSettings.NoVisPercents, s.NoVisMinPercent));
+        NoVisPercentBox.IsEnabled = s.UploadNoVis;
         ProtocolBox.SelectedIndex = Math.Max(0, Array.IndexOf(Protocols, s.Protocol));
         HostBox.Text = s.Host;
         PortBox.Text = s.Port.ToString();
@@ -84,6 +89,8 @@ public partial class FtpPage : UserControl, IDisposable
             CopySent = CopySentBox.IsChecked == true,
             Folder = folder,
             Upload = UploadBox.IsChecked == true,
+            UploadNoVis = NoVisBox.IsChecked == true,
+            NoVisMinPercent = UploadSettings.NoVisPercents[Math.Clamp(NoVisPercentBox.SelectedIndex, 0, UploadSettings.NoVisPercents.Length - 1)],
             ArchiveName = archive,
             Protocol = Protocols[Math.Clamp(ProtocolBox.SelectedIndex, 0, 2)],
             Host = (HostBox.Text ?? "").Trim(),

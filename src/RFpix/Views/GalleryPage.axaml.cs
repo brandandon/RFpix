@@ -55,6 +55,7 @@ public partial class GalleryPage : UserControl
         FindBox.TextChanged += (_, _) => { _findTimer.Stop(); _findTimer.Start(); };
         _findTimer.Tick += (_, _) => { _findTimer.Stop(); Reload(); };
         AttachedToVisualTree += (_, _) => { if (_stale) Reload(); };   // the first time it's shown
+        ShowWhere();
     }
 
     // Thumbnails are kept by full path (a received and a sent picture can share a name).
@@ -62,8 +63,7 @@ public partial class GalleryPage : UserControl
 
     private bool ShowingSent => Tabs.SelectedIndex == 1;
 
-    private string Folder => ShowingSent ? SendSupport.SentFolder
-                                         : AppSettings.Current.ReceivedFolder ?? ReceivedFileSaver.DefaultFolder;
+    private string Folder => ShowingSent ? PictureFolders.Sent : PictureFolders.Received;
 
     // Received pictures are in the Received folder's Digital and Analog folders (and, from
     // before they were kept apart, the Received folder itself).
@@ -380,6 +380,106 @@ public partial class GalleryPage : UserControl
         {
             DetailStatus.Text = $"Couldn't open the folder: {ex.Message}";
         }
+    }
+
+    // ---- changing the pictures folder ----
+
+    private string? _newRoot;   // the folder picked, while asking whether to move the pictures there
+
+    private void ShowWhere() => WhereText.Text = $"Pictures are kept in {PictureFolders.Root}";
+
+    private async void OnChangeFolderClick(object? sender, RoutedEventArgs e)
+    {
+        var top = TopLevel.GetTopLevel(this);
+        if (top is null || MovePanel.IsVisible && !MoveButtons.IsEnabled) return;   // a move is under way
+        var start = Directory.Exists(PictureFolders.Root) ? await top.StorageProvider.TryGetFolderFromPathAsync(PictureFolders.Root) : null;
+        var picked = await top.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Choose the folder for your pictures (Received and Sent go inside it)",
+            SuggestedStartLocation = start,
+        });
+        if (picked.Count == 0 || picked[0].TryGetLocalPath() is not { } path) return;
+
+        string oldRoot = PictureFolders.Root;
+        if (PictureFolders.Problem(oldRoot, path) is { } problem)
+        {
+            ShowMovePanel(problem, buttons: false);
+            return;
+        }
+        int count = await Task.Run(() => PictureFolders.CountPictures(oldRoot));
+        if (count == 0)
+        {
+            UseRoot(path);   // nothing to move
+            return;
+        }
+        _newRoot = path;
+        ShowMovePanel($"You have {count} picture{(count == 1 ? "" : "s")} in {oldRoot}. Move them to {path}, " +
+                      "or leave them where they are and start empty there?", buttons: true);
+    }
+
+    private void ShowMovePanel(string text, bool buttons)
+    {
+        MoveQuestion.Text = text;
+        MoveButtons.IsVisible = buttons;
+        MoveButtons.IsEnabled = true;
+        MoveStatus.IsVisible = false;
+        MovePanel.IsVisible = true;
+        if (!buttons) _ = HideMovePanelSoon();
+    }
+
+    private async Task HideMovePanelSoon()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(8));
+        if (!MoveButtons.IsVisible) MovePanel.IsVisible = false;
+    }
+
+    private async void OnMoveClick(object? sender, RoutedEventArgs e)
+    {
+        if (_newRoot is not { } newRoot) return;
+        string oldRoot = PictureFolders.Root;
+        MoveButtons.IsEnabled = false;
+        MoveStatus.IsVisible = true;
+        MoveStatus.Text = "Copying…";
+        var result = await Task.Run(() => PictureFolders.Move(oldRoot, newRoot,
+            (done, total) => Dispatcher.UIThread.Post(() => MoveStatus.Text = $"Copying {done} of {total}…")));
+        if (result.Problem is { } problem)
+        {
+            MoveButtons.IsEnabled = true;
+            MoveStatus.Text = problem;
+            return;
+        }
+        UseRoot(newRoot);
+        MoveButtons.IsVisible = false;
+        MoveQuestion.Text = $"Moved {result.Moved} file{(result.Moved == 1 ? "" : "s")} to {newRoot}." +
+                            (result.Renamed > 0 ? $" {result.Renamed} had the same name as a picture already there, so \"(2)\" was added to their names." : "");
+        MoveStatus.IsVisible = false;
+        _ = HideMovePanelSoon();
+    }
+
+    private void OnStartEmptyClick(object? sender, RoutedEventArgs e)
+    {
+        if (_newRoot is not { } newRoot) return;
+        string oldRoot = PictureFolders.Root;
+        UseRoot(newRoot);
+        ShowMovePanel($"New pictures now go to {newRoot}. Your earlier pictures are still in {oldRoot}.", buttons: false);
+    }
+
+    private void OnMoveCancelClick(object? sender, RoutedEventArgs e)
+    {
+        _newRoot = null;
+        MovePanel.IsVisible = false;
+    }
+
+    // From now on, pictures are saved in (and the Gallery shows) this folder.
+    private void UseRoot(string root)
+    {
+        _newRoot = null;
+        AppSettings.Current.PicturesFolder = root;
+        AppSettings.Current.ReceivedFolder = null;
+        AppSettings.Current.Save();
+        _selected = null;
+        ShowWhere();
+        Reload();
     }
 
     private async void OnOpenFolderClick(object? sender, RoutedEventArgs e)

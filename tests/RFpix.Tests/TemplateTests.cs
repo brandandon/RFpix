@@ -55,7 +55,7 @@ public class TemplateTests
     [Fact]
     public void RFpix_comes_with_five_templates_inside_the_picture()
     {
-        Assert.Equal(5, TemplateStore.BuiltIn.Count);
+        Assert.Equal(6, TemplateStore.BuiltIn.Count);
         foreach (var t in TemplateStore.BuiltIn)
         {
             Assert.True(t.BuiltIn);
@@ -75,25 +75,33 @@ public class TemplateTests
             TemplateStore.Save(mine, folder);
             Assert.True(File.Exists(mine.Path));
 
+            int builtIn = TemplateStore.BuiltIn.Count;
             var all = TemplateStore.All(folder);
-            Assert.Equal(6, all.Count);
+            Assert.Equal(builtIn + 1, all.Count);
             var back = all.Single(t => t.Name == "Net night");
             Assert.False(back.BuiltIn);
             Assert.Equal(0.3, back.Items[0].Opacity);
             Assert.Equal(OverlayKind.Image, back.Items[^1].Kind);
             Assert.Equal(mine.Items.Count, back.Items.Count);
+            Assert.False(back.UsesReceivedPicture);
+            var reply = TemplateStore.BuiltIn.Single(t => t.Name == "Reply with their picture");
+            Assert.True(reply.UsesReceivedPicture);
+            var again = OverlayTemplate.FromJson(reply.ToJson());
+            Assert.Equal(OverlayKind.Received, again.Items[0].Kind);
+            Assert.True(again.Items[0].Frame);
+            Assert.Contains("%to", again.Codes());
 
             // Names must be new: not RFpix's, not another of yours. Saving it again replaces it.
             Assert.Throws<ArgumentException>(() => TemplateStore.Save(TemplateStore.BuiltIn[0].Copy("Reply"), folder));
             Assert.Throws<ArgumentException>(() => TemplateStore.Save(TemplateStore.BuiltIn[0].Copy("net NIGHT"), folder));
             back.Items.RemoveAt(0);
             TemplateStore.Save(back, folder);
-            Assert.Equal(6, TemplateStore.All(folder).Count);
+            Assert.Equal(builtIn + 1, TemplateStore.All(folder).Count);
 
             File.WriteAllText(Path.Combine(folder, "broken" + TemplateStore.Extension), "{ not a template");
-            Assert.Equal(6, TemplateStore.All(folder).Count);   // a damaged file is skipped
+            Assert.Equal(builtIn + 1, TemplateStore.All(folder).Count);   // a damaged file is skipped
             TemplateStore.Delete(back);
-            Assert.Equal(5, TemplateStore.All(folder).Count);
+            Assert.Equal(builtIn, TemplateStore.All(folder).Count);
         }
         finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
     }

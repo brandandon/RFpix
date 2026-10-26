@@ -51,6 +51,12 @@
           <TextBlock Text="RST" VerticalAlignment="Center" />
           <TextBox x:Name="RstBox" Width="60" MaxLength="5" />
         </StackPanel>
+        <!-- For a template with a received-picture box: which picture (the newest to start with) -->
+        <StackPanel x:Name="ReceivedField" Orientation="Horizontal" Spacing="6" Margin="0,0,16,6">
+          <TextBlock Text="Received picture" VerticalAlignment="Center" />
+          <ComboBox x:Name="ReceivedBox" Width="280"
+                    ToolTip.Tip="The received picture shown in the template's box, to send it back with your report. Picking one puts its sender's callsign in the To box." />
+        </StackPanel>
       </WrapPanel>
 
       <Grid Grid.Row="3" ColumnDefinitions="*,300" ColumnSpacing="20">

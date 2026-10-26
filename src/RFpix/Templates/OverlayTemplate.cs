@@ -13,6 +13,9 @@
 //   %date today's date         %time  the time (local), %utc the time in UTC
 //   %qth  your grid square (Settings, Misc tab)
 //
+// A "received picture" item is a box showing a picture you received (picked on the Send tab,
+// the newest to start with), to send it back with your report.
+//
 // Templates are saved as small files (one each) in Documents\RFpix\Templates, logos and all,
 // so they can be copied or shared.
 
@@ -23,7 +26,7 @@ using System.Text.Json.Serialization;
 namespace RFpix.Templates;
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
-public enum OverlayKind { Text, Box, Image, Border }
+public enum OverlayKind { Text, Box, Image, Border, Received }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum OverlayAlign { Left, Center, Right }
@@ -70,6 +73,10 @@ public sealed class OverlayItem
     public string? ImageData { get; set; }
     public bool KeepShape { get; set; } = true;
 
+    // ---- received picture ----
+    /// <summary>A frame round it, in <see cref="Fill"/>'s colour, <see cref="Thickness"/> thick.</summary>
+    public bool Frame { get; set; }
+
     public OverlayItem Copy() => (OverlayItem)MemberwiseClone();
 
     /// <summary>For lists: what the item is.</summary>
@@ -78,6 +85,7 @@ public sealed class OverlayItem
         OverlayKind.Text => $"Text: {(Text.Length > 30 ? Text[..30] + "…" : Text)}",
         OverlayKind.Box => "Box",
         OverlayKind.Image => "Logo",
+        OverlayKind.Received => "Received picture",
         _ => "Border",
     };
 }
@@ -101,6 +109,9 @@ public sealed class OverlayTemplate
              .SelectMany(i => TemplateFields.Codes.Where(c => i.Text.Contains(c, StringComparison.OrdinalIgnoreCase)))
              .ToHashSet();
 
+    /// <summary>Whether it shows a received picture (the Send tab then offers the choice of one).</summary>
+    public bool UsesReceivedPicture => Items.Any(i => i.Kind == OverlayKind.Received);
+
     public OverlayTemplate Copy(string? name = null) => new()
     {
         Name = name ?? Name,
@@ -122,14 +133,18 @@ public sealed class OverlayTemplate
 }
 
 /// <summary>What fills a template's codes when it's used.</summary>
-public sealed record TemplateFields(string MyCall, string To, string Name, string Rst, DateTime When, string Qth = "")
+/// <param name="Received">The received picture for a "received picture" item (null: none chosen).</param>
+/// <param name="Preview">For the template picker and editor: a "received picture" item with no
+/// picture shows where it goes, instead of nothing.</param>
+public sealed record TemplateFields(string MyCall, string To, string Name, string Rst, DateTime When, string Qth = "",
+                                    RFpix.Imaging.DecodedPicture? Received = null, bool Preview = false)
 {
     public static readonly string[] Codes = { "%me", "%to", "%name", "%rst", "%date", "%time", "%utc", "%qth" };
 
     /// <summary>For previews: your own callsign and grid square if they're set, and a made-up contact.</summary>
     public static TemplateFields Sample(string? myCall, string? qth) =>
         new(string.IsNullOrWhiteSpace(myCall) ? "N0CALL" : myCall.Trim().ToUpperInvariant(), "N0ABC", "Op", "595", DateTime.Now,
-            string.IsNullOrWhiteSpace(qth) ? "AA00aa" : qth.Trim());
+            string.IsNullOrWhiteSpace(qth) ? "AA00aa" : qth.Trim(), Preview: true);
 
     /// <summary>The text with its codes filled in. A line left empty by them is dropped, and spaces
     /// tidied ("%to de %me" with no To callsign becomes "de N0CALL").</summary>

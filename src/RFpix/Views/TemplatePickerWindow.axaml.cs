@@ -31,7 +31,7 @@ public partial class TemplatePickerWindow : Window
     {
         InitializeComponent();
         _current = current;
-        _fields = fields;
+        _fields = fields with { Preview = true };   // a received-picture box shows even with none chosen
         _full = picture ?? SamplePicture(1280, 960);
         _sample = SmallCopy(_full);
         Opened += (_, _) => Fill();

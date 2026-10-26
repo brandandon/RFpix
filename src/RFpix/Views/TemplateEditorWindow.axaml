@@ -41,6 +41,8 @@
           <Button Content="+ Box" Click="OnAddBoxClick" Margin="0,0,6,6" />
           <Button Content="+ Logo" Click="OnAddLogoClick" Margin="0,0,6,6" />
           <Button Content="+ Border" Click="OnAddBorderClick" Margin="0,0,6,6" />
+          <Button Content="+ Received picture" Click="OnAddReceivedClick" Margin="0,0,6,6"
+                  ToolTip.Tip="A box showing a picture you received (chosen on the Send tab), to send it back with your report." />
         </WrapPanel>
         <ListBox Grid.Row="2" x:Name="ItemsList" />
         <WrapPanel Grid.Row="3">

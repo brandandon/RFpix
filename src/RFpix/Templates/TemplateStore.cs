@@ -51,6 +51,20 @@ public static class TemplateStore
         },
         new OverlayTemplate
         {
+            Name = "Reply with their picture", BuiltIn = true,
+            Items =
+            {
+                new() { Kind = OverlayKind.Received, X = 0.6, Y = 0.04, Width = 0.37, Height = 0.37, Opacity = 1,
+                        Frame = true, Fill = "#FFFFFF", Thickness = 0.006 },
+                new() { Kind = OverlayKind.Box, X = 0, Y = 0.8, Width = 1, Height = 0.2, Fill = "#000000", Opacity = 0.55 },
+                new() { Kind = OverlayKind.Text, X = 0.03, Y = 0.8, Width = 0.62, Height = 0.2, Text = "%to de %me", Size = 0.11,
+                        Color = "#FFE14D", OutlineColor = null },
+                new() { Kind = OverlayKind.Text, X = 0.62, Y = 0.8, Width = 0.35, Height = 0.2, Text = "RST %rst", Size = 0.08,
+                        Align = OverlayAlign.Right, OutlineColor = null },
+            },
+        },
+        new OverlayTemplate
+        {
             Name = "Framed", BuiltIn = true,
             Items =
             {
