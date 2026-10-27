@@ -108,12 +108,12 @@ The Linux version is new in 0.6.0 beta, and hasn't yet been tried with a radio. 
 
 | File | What it is | For |
 | --- | --- | --- |
-| **rfpix_0.6.0~beta_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
-| **rfpix_0.6.0~beta_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
+| **rfpix_…_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
+| **rfpix_…_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
 | **RFpix-0.6.0-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
 | **RFpix-0.6.0-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
 
-**With the .deb:** download it and open it (double-click it, or right-click it and choose to open it with the software installer), then click **Install**. Or, in a terminal, in the folder where it was downloaded: `sudo apt install ./rfpix_0.6.0~beta_amd64.deb`. RFpix then appears in the menu (under Internet, or Ham Radio), and `rfpix` starts it from a terminal.
+**With the .deb:** download it and open it (double-click it, or right-click it and choose to open it with the software installer), then click **Install**. Or, in a terminal, in the folder where it was downloaded: `sudo apt install ./rfpix_*_amd64.deb` (`arm64` on a Raspberry Pi). RFpix then appears in the menu (under Internet, or Ham Radio), and `rfpix` starts it from a terminal.
 
 **With the AppImage:** download it, then make it runnable: right-click it, choose **Properties > Permissions** and tick **Allow executing file as program** (or, in a terminal: `chmod +x RFpix-*.AppImage`). Then double-click it. Keep it wherever you like.
 

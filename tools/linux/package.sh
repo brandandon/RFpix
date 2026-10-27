@@ -3,7 +3,7 @@
 # both: .github/workflows/build.yml).
 #
 #   tools/linux/package.sh x64     ->  dist/RFpix-<version>-linux-x64.AppImage    (64-bit PCs)
-#                                      dist/rfpix_<version>_amd64.deb
+#                                      dist/rfpix_<version>_amd64.deb (0.6.0-beta: GitHub won't keep a "~" in a name)
 #   tools/linux/package.sh arm64   ->  dist/RFpix-<version>-linux-arm64.AppImage  (Raspberry Pi 4/5, 64-bit)
 #                                      dist/rfpix_<version>_arm64.deb
 #
@@ -159,7 +159,7 @@ Description: Digital (HamDRM) and analog SSTV pictures over ham radio
  pictures to the time you choose, repairs missing pieces (BSR), keeps a gallery,
  and can put pictures on your website. Radio control through Hamlib.
 CONTROL
-DEB_OUT="$DIST/rfpix_${DEB_VERSION}_${DEB_ARCH}.deb"
+DEB_OUT="$DIST/rfpix_${VERSION}_${DEB_ARCH}.deb"
 dpkg-deb --root-owner-group -Zxz --build "$DEB" "$DEB_OUT"
 
 echo "Made $APPIMAGE_OUT ($(du -h "$APPIMAGE_OUT" | cut -f1))"
