@@ -106,11 +106,7 @@ public sealed class RadioConnection : IDisposable
             {
                 Set(rig, "serial_speed", settings.BaudRate.ToString());
                 if (!string.IsNullOrWhiteSpace(settings.CivAddress))
-                {
-                    if (!int.TryParse(settings.CivAddress.Trim().TrimStart('0', 'x', 'X'), System.Globalization.NumberStyles.HexNumber, null, out int civ) || civ is < 1 or > 0xFF)
-                        throw new RadioException($"\"{settings.CivAddress}\" isn't a CI-V address. It's a hex number such as A2.");
-                    Set(rig, "civaddr", civ.ToString());   // Hamlib wants it as a plain number
-                }
+                    Set(rig, "civaddr", IcomCiv.Address(settings.CivAddress).ToString());   // Hamlib wants it as a plain number
                 Set(rig, "ptt_type", settings.Ptt switch
                 {
                     PttMethod.Rts => "RTS",
@@ -528,7 +524,10 @@ public sealed class RadioConnection : IDisposable
         2 => "the settings were refused. Check the COM port and baud rate.",
         5 => "the radio didn't answer. Check it's switched on, the COM port is right, the baud rate matches the radio's menu" +
              " and, for an Icom, the CI-V address.",
-        6 => "the COM port couldn't be opened. Check it's the right port and that no other program (WSJT-X, flrig, QSSTV) is using it.",
+        6 => OperatingSystem.IsLinux()
+            ? "the serial port couldn't be opened. Check it's the right port, that no other program (WSJT-X, flrig, QSSTV) is using it, " +
+              "and that you're in the dialout group (in a terminal: sudo usermod -aG dialout $USER, then log out and back in)."
+            : "the COM port couldn't be opened. Check it's the right port and that no other program (WSJT-X, flrig, QSSTV) is using it.",
         8 => "the radio's answer didn't make sense. Check the radio model and baud rate.",
         9 => "the radio refused the command. It may not allow it in its current mode.",
         11 => "this radio can't do that through Hamlib.",

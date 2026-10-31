@@ -224,9 +224,20 @@ public sealed class MotReceiver
             }
             if (start + length > d.Length) return;
             // Parameter 12, "ContentName": a character-set byte, then the name.
-            if (id == 12 && length > 1) t.Name = Encoding.Latin1.GetString(d, start + 1, length - 1);
+            if (id == 12 && length > 1) t.Name = CleanName(Encoding.Latin1.GetString(d, start + 1, length - 1));
             pos = start + length;
         }
+    }
+
+    /// <summary>A file's name as it came over the air, made fit to show (in the caption, the Gallery and
+    /// the log): zeros at the end dropped, other control characters (which only a damaged or odd
+    /// transmission would have) shown as _, and at most 200 characters. An ordinary name is unchanged.
+    /// (The file saved on disk gets a name of its own: ReceivedFileSaver.Clean.)</summary>
+    public static string CleanName(string name)
+    {
+        name = name.TrimEnd('\0');
+        if (name.Any(char.IsControl)) name = new string(name.Select(c => char.IsControl(c) ? '_' : c).ToArray());
+        return name.Length > 200 ? name[..200] : name;
     }
 
     private static ReceivedFile? TryFinish(int transportId, Transfer t)

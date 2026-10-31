@@ -51,6 +51,19 @@ public static class WavFile
     /// <summary>Reads WAV data already in memory. <paramref name="name"/> is only used in error messages.</summary>
     public static WavAudio Read(byte[] bytes, string name = "the file")
     {
+        try
+        {
+            return ReadChecked(bytes, name);
+        }
+        catch (Exception ex) when (ex is ArgumentException or IndexOutOfRangeException or OverflowException)
+        {
+            // Whatever else a damaged file holds: the same plain message, never an error that closes RFpix.
+            throw new AudioException($"\"{name}\" can't be played: it's damaged.", ex);
+        }
+    }
+
+    private static WavAudio ReadChecked(byte[] bytes, string name)
+    {
         string Problem(string what) => $"\"{name}\" can't be played: {what}";
 
         if (bytes.Length < 12 || Tag(bytes, 0) != "RIFF" || Tag(bytes, 8) != "WAVE")
@@ -60,12 +73,13 @@ public static class WavFile
         int dataStart = -1, dataLength = 0;
 
         // Walk through the chunks: each is a 4-letter label, a 4-byte length, then its contents.
-        int pos = 12;
+        // (Counted in long: a damaged length near 2 GB mustn't wrap round to a negative position.)
+        long pos = 12;
         while (pos + 8 <= bytes.Length)
         {
-            string tag = Tag(bytes, pos);
-            int length = BitConverter.ToInt32(bytes, pos + 4);
-            int body = pos + 8;
+            string tag = Tag(bytes, (int)pos);
+            int length = BitConverter.ToInt32(bytes, (int)pos + 4);
+            int body = (int)pos + 8;
             if (length < 0) break;
 
             if (tag == "fmt " && length >= 16 && body + 16 <= bytes.Length)
@@ -87,11 +101,13 @@ public static class WavFile
                 break;
             }
 
-            pos = body + length + (length & 1);   // chunks are padded to an even length
+            pos = (long)body + length + (length & 1);   // chunks are padded to an even length
         }
 
         if (channels == 0 || sampleRate == 0)
             throw new AudioException(Problem("its sound format description is missing."));
+        if (channels > 32 || sampleRate is < 1000 or > 768_000)
+            throw new AudioException(Problem($"its sound format description is damaged ({sampleRate} samples a second, {channels} channels)."));
         if (dataStart < 0)
             throw new AudioException(Problem("it contains no sound."));
 

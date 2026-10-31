@@ -314,6 +314,18 @@ public class PictureTests
     private static string Original(string recording) =>
         Directory.GetFiles(Path.Combine(Recordings.Folder, "images"), $"img{recording[..2]}.*").Single();
 
+    // Code review, Oct 2026: a name from the air is shown in the caption, the Gallery and the log, so
+    // it's cleaned where it arrives (the file on disk already had a clean name of its own).
+    [Fact]
+    public void Names_from_the_air_are_made_fit_to_show()
+    {
+        Assert.Equal("july4-2024 QSLcopy.jp2", MotReceiver.CleanName("july4-2024 QSLcopy.jp2"));   // ordinary: unchanged
+        Assert.Equal("img04.jpg", MotReceiver.CleanName("img04.jpg\0\0"));                          // zeros at the end
+        Assert.Equal("a_b.jpg", MotReceiver.CleanName("a\u001bb.jpg"));                              // a control character
+        Assert.Equal(200, MotReceiver.CleanName(new string('x', 500) + ".jpg").Length);
+        Assert.Equal(2, RsFile.LevelOf(MotReceiver.CleanName("tower.jpg.rs2\0")));                   // still read as RS2
+    }
+
     /// <summary>Plays audio through a receiver, then (like the app when a recording finishes)
     /// tells it the audio has ended. Returns the first file received, the last file line shown,
     /// and when the file arrived (seconds into the audio).</summary>

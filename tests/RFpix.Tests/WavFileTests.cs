@@ -126,6 +126,23 @@ public class WavFileTests
         Assert.Contains("no-such-file.wav", ex.Message);
     }
 
+    // Code review, Oct 2026: a damaged header could give a confusing error, or (a chunk length near
+    // 2 GB) one that closed RFpix instead of saying the file can't be played.
+    [Fact]
+    public void Explains_damaged_files_instead_of_failing()
+    {
+        // In a plain file, the format description starts at byte 20: the sample rate is at byte 24.
+        var badRate = TestWav.Build(new[] { 0.1f, 0.2f }, 48000);
+        BitConverter.GetBytes(-48000).CopyTo(badRate, 24);
+        var ex = Assert.Throws<AudioException>(() => WavFile.Read(badRate, "odd.wav"));
+        Assert.Contains("damaged", ex.Message);
+
+        var hugeChunk = TestWav.Build(new[] { 0.1f, 0.2f }, 48000);
+        BitConverter.GetBytes(int.MaxValue).CopyTo(hugeChunk, 16);   // the format chunk's length
+        ex = Assert.Throws<AudioException>(() => WavFile.Read(hugeChunk, "broken.wav"));
+        Assert.StartsWith("\"broken.wav\" can't be played", ex.Message);
+    }
+
     private static float Peak(float[] s, int start, int count) =>
         s.Skip(start).Take(count).Max(Math.Abs);
 }
