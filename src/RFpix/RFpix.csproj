@@ -17,7 +17,7 @@
     <RootNamespace>RFpix</RootNamespace>
     <AssemblyName>RFpix</AssemblyName>
     <!-- "-beta" shows as "0.5.2 beta" in the program; Windows' own file version stays 0.5.2. -->
-    <Version>0.6.0-beta</Version>
+    <Version>0.6.1-beta</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>RFpix</Product>
     <Description>Digital SSTV (HamDRM) for ham radio</Description>
