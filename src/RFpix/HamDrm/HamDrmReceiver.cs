@@ -422,7 +422,11 @@ public sealed class HamDrmReceiver
     /// still waiting for the end of the transmission is finished.</summary>
     public void EndOfAudio()
     {
-        lock (_lock) TransmissionEnded();
+        lock (_lock)
+        {
+            TransmissionEnded();
+            CopyProgress();
+        }
     }
 
     private void Finish(ReceivedFile file)
@@ -478,7 +482,17 @@ public sealed class HamDrmReceiver
     public ReceivedFile? LastFile { get; private set; }
 
     /// <summary>The file currently arriving, or null.</summary>
-    public TransferProgress? FileProgress => _mot.Progress;
+    /// <remarks>For the screen, a copy, made each time a piece of audio has been worked through
+    /// (CopyProgress): the screen reads this many times a second while the audio thread may be adding
+    /// to the files being put together, and reading those directly at that moment could fail and close
+    /// RFpix. On the audio thread itself (in the receiver's own events), where the lock is held, it's
+    /// read directly.</remarks>
+    public TransferProgress? FileProgress => Monitor.IsEntered(_lock) ? _mot.Progress : Volatile.Read(ref _progress);
+
+    private TransferProgress? _progress;
+
+    // (Called holding the lock.)
+    private void CopyProgress() => Volatile.Write(ref _progress, _mot.Progress);
 
     /// <summary>Data packets received with a good or bad checksum (one per frame).</summary>
     public int PacketsGood => _mot.PacketsGood;
@@ -726,12 +740,19 @@ public sealed class HamDrmReceiver
         // thread. The lock lets only one of them in at a time.
         lock (_lock)
         {
-            if (sampleRate != _sampleRate) Restart(sampleRate);
-            if (_downconverter is null) return;
+            try
+            {
+                if (sampleRate != _sampleRate) Restart(sampleRate);
+                if (_downconverter is null) return;
 
-            _converted.Clear();
-            _downconverter.Process(samples.AsSpan(0, count), _converted);
-            _detector.AddSamples(_converted);
+                _converted.Clear();
+                _downconverter.Process(samples.AsSpan(0, count), _converted);
+                _detector.AddSamples(_converted);
+            }
+            finally
+            {
+                CopyProgress();   // for the screen (see FileProgress)
+            }
         }
     }
 
@@ -758,6 +779,7 @@ public sealed class HamDrmReceiver
             _endedText = null;
             _goodAtStart = _badAtStart = 0;
             Problem = null;
+            CopyProgress();
         }
     }
 
