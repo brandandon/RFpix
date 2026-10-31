@@ -20,19 +20,19 @@ running EasyPal or QSSTV.
 
 | Date (2026) | Done |
 | --- | --- |
-| Oct 19 | Sound-card calibration (milestone 1 complete); IC-9700 data mode by CI-V; repeater time-out and adjustable lead-in in send profiles; received settings shown in boxes; faster page switching; window size remembered (v0.3.5) |
-| Oct 20 | Missing-piece repair (BSR), working with EasyPal and QSSTV: ask for the pieces a picture is missing, or send them when asked; the Gallery of received and sent pictures (v0.3.6) |
-| Oct 20 | Your own text (WF TXT) and pictures (WF PIC) on the waterfall; the Receive tab can pop out into its own window; signal readings in boxes, quality green or red (v0.3.7) |
-| Oct 20 | Analog SSTV: send and receive Martin, Scottie, Robot and PD (14 modes); JPEG copies stamped with the time, and uploading them to a website by FTP, FTPS or SFTP (v0.4.0) |
-| Oct 20 | Overlay templates: callsign bars, CQ and reply cards, logos and borders drawn on pictures as they go out, at any size; a picker and an editor (v0.4.2 to v0.4.4) |
-| Oct 21 | Digital and analog pictures kept apart: separate Received folders, website copy folders and server folders; signal boxes always showing on the Receive tab (v0.4.5) |
-| Oct 21 | Analog SSTV sent as MMSSTV does (tone preamble, FSK ID callsign, optional CW after); FSK ID read on receive; analog waterfall marks; Receive tab boxes for digital or analog; Gallery split into Digital and Analog; separate website picture counts; grid square and %qth; sound devices moved to the Radio tab (v0.5.0) |
-| Oct 22 | Every page shrinks to fit a small window (down to 60%, then scrolls); Receive boxes show only while a picture arrives (v0.5.1) |
-| Oct 22 | Beta: sharing the radio with Ham Radio Deluxe (PTT, frequency, data mode); analog pictures found without their VIS code; the Alpha Testing page is now Beta Testing (v0.5.2 beta) |
-| Oct 23 | The Mac version: installers for Intel and Apple Silicon Macs with Hamlib inside, the Mac's own sound system (Core Audio), Trash and Finder in the Gallery, and a check for new versions at start-up (v0.5.2 beta) |
-| Oct 24 | Receive level slider on the Receive tab (sets the radio's recording level in Windows or on the Mac); the Level bar turns yellow when too quiet for pictures; new-version notices on Windows too (v0.5.3 beta) |
-| Oct 25 | The Linux version: AppImage and .deb for 64-bit PCs and the Raspberry Pi, with Hamlib inside and PipeWire/PulseAudio sound; the Gallery's pictures can be moved to another folder; templates can show a received picture to send back with the report; uploading no-VIS analog pictures only when enough arrived; the Gallery's file hidden (v0.6.0 beta) |
 | Oct 31 | A log for help with problems (Save log for help on Settings > Misc); RFpix's own picture viewer (double-click the Receive tab's picture); waterfall marks follow the kind of picture being received; a Gallery setting for analog pictures without their VIS code; fixes from three code reviews: un-keying retried, safer sound stops on Windows and Linux, the Mac starts listening after Allow, stricter build checks (v0.6.1 beta) |
+| Oct 25 | The Linux version: AppImage and .deb for 64-bit PCs and the Raspberry Pi, with Hamlib inside and PipeWire/PulseAudio sound; the Gallery's pictures can be moved to another folder; templates can show a received picture to send back with the report; uploading no-VIS analog pictures only when enough arrived; the Gallery's file hidden (v0.6.0 beta) |
+| Oct 24 | Receive level slider on the Receive tab (sets the radio's recording level in Windows or on the Mac); the Level bar turns yellow when too quiet for pictures; new-version notices on Windows too (v0.5.3 beta) |
+| Oct 23 | The Mac version: installers for Intel and Apple Silicon Macs with Hamlib inside, the Mac's own sound system (Core Audio), Trash and Finder in the Gallery, and a check for new versions at start-up (v0.5.2 beta) |
+| Oct 22 | Beta: sharing the radio with Ham Radio Deluxe (PTT, frequency, data mode); analog pictures found without their VIS code; the Alpha Testing page is now Beta Testing (v0.5.2 beta) |
+| Oct 22 | Every page shrinks to fit a small window (down to 60%, then scrolls); Receive boxes show only while a picture arrives (v0.5.1) |
+| Oct 21 | Analog SSTV sent as MMSSTV does (tone preamble, FSK ID callsign, optional CW after); FSK ID read on receive; analog waterfall marks; Receive tab boxes for digital or analog; Gallery split into Digital and Analog; separate website picture counts; grid square and %qth; sound devices moved to the Radio tab (v0.5.0) |
+| Oct 21 | Digital and analog pictures kept apart: separate Received folders, website copy folders and server folders; signal boxes always showing on the Receive tab (v0.4.5) |
+| Oct 20 | Overlay templates: callsign bars, CQ and reply cards, logos and borders drawn on pictures as they go out, at any size; a picker and an editor (v0.4.2 to v0.4.4) |
+| Oct 20 | Analog SSTV: send and receive Martin, Scottie, Robot and PD (14 modes); JPEG copies stamped with the time, and uploading them to a website by FTP, FTPS or SFTP (v0.4.0) |
+| Oct 20 | Your own text (WF TXT) and pictures (WF PIC) on the waterfall; the Receive tab can pop out into its own window; signal readings in boxes, quality green or red (v0.3.7) |
+| Oct 20 | Missing-piece repair (BSR), working with EasyPal and QSSTV: ask for the pieces a picture is missing, or send them when asked; the Gallery of received and sent pictures (v0.3.6) |
+| Oct 19 | Sound-card calibration (milestone 1 complete); IC-9700 data mode by CI-V; repeater time-out and adjustable lead-in in send profiles; received settings shown in boxes; faster page switching; window size remembered (v0.3.5) |
 | Oct 18 | Waterfall text before and after each picture; CW and ID buttons; Settings in Audio, Radio and Misc tabs; Send tab laid out to fit any window size (v0.3.4) |
 | Oct 18 | Sending your own pictures (v0.3.3): image optimizer fits a picture to the transmit time (Auto or Manual), original and as-sent side by side with zoom, JPEG 2000, JPEG or AVIF (RFpix-only, smaller), settings drop-downs and saved profiles; test transmissions on their own Alpha Testing page; transparent logo; key frequency marks on the waterfall |
 | Oct 17 | TX/RX page with Receive and Send tabs; sound devices on the Settings page; wider picture area; logo above the menu (v0.3.0) |
@@ -64,7 +64,3 @@ running EasyPal or QSSTV.
 
 HamDRM support follows the open-source [QSSTV](https://github.com/ON4QZ/QSSTV)
 implementation by Johan Maes, ON4QZ.
-
-## License
-
-RFpix is licensed under the GNU General Public License, version 3. See [LICENSE](LICENSE).
