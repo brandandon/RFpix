@@ -98,7 +98,11 @@ public static class UploadService
     /// taken). It's written under a name of its own first (the uploader only takes .jpg files, so it never
     /// sees half a file), then given its real name. Two copies made in the same second (a picture received
     /// as one is sent, say) each get their own: before, both could pick the same name, and one failed,
-    /// leaving its ".part" file behind.</summary>
+    /// leaving its ".part" file behind.
+    /// The name is claimed by making an empty file that must be new (the system does that in one step,
+    /// so two copies can't both have it), and the picture then takes its place. (Moving straight to the
+    /// name isn't enough: on Linux, "move unless it's there" can check, then move, with a gap between.)
+    /// The uploader passes over an empty file, so it never sees the placeholder either.</summary>
     internal static string SaveAs(string folder, string name, byte[] jpeg)
     {
         string part = Path.Combine(folder, $"{name}.{Guid.NewGuid():N}.part");
@@ -108,13 +112,18 @@ public static class UploadService
             for (int n = 1; n <= 1000; n++)
             {
                 string path = Path.Combine(folder, n == 1 ? name + ".jpg" : $"{name}_{n}.jpg");
-                if (File.Exists(path)) continue;
+                try { using (new FileStream(path, FileMode.CreateNew, FileAccess.Write)) { } }
+                catch (IOException) when (File.Exists(path)) { continue; }   // taken: the next number
                 try
                 {
-                    File.Move(part, path);   // fails if another copy took the name a moment ago
-                    return path;
+                    File.Move(part, path, overwrite: true);   // the picture replaces our own placeholder
                 }
-                catch (IOException) when (File.Exists(path) && File.Exists(part)) { /* the next number */ }
+                catch
+                {
+                    try { File.Delete(path); } catch (IOException) { }   // no empty placeholder left behind
+                    throw;
+                }
+                return path;
             }
             throw new IOException($"Too many copies named {name} in {folder}.");
         }

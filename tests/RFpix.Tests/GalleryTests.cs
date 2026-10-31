@@ -164,14 +164,16 @@ public class GalleryTests
     }
 
     [Fact]
-    public async Task A_Gallery_file_open_for_a_moment_elsewhere_is_waited_for()
+    public void A_Gallery_file_open_for_a_moment_elsewhere_is_waited_for()
     {
         var (folder, index) = FolderWithTwoPictures();
         var held = new FileStream(index, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-        var letGo = Task.Run(async () => { await Task.Delay(200); held.Dispose(); });
+        // Let go after 150 ms, on a thread of its own (a busy test machine can start pooled work late).
+        var letGo = new Thread(() => { Thread.Sleep(150); held.Dispose(); });
+        letGo.Start();
 
         GalleryIndex.Add(folder, new GalleryEntry("b.jpg", new DateTime(2026, 10, 30, 19, 5, 0), "b.jpg", "N0BBB"));   // tries again
-        await letGo;
+        letGo.Join();
 
         var entries = GalleryIndex.Entries(folder);
         Assert.Contains(entries, e => e.Callsign == "N0AAA");

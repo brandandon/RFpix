@@ -243,7 +243,12 @@ public class RadioTests
         var noRadio = Assert.Throws<RadioException>(() => RadioConnection.Open(
             new RadioSettings { Choice = "ft991a", Port = missingPort, BaudRate = 38400 }));
         Assert.StartsWith("Couldn't connect to the radio:", noRadio.Message);
-        Assert.Contains("COM port", noRadio.Message);
+        if (OperatingSystem.IsLinux())
+        {
+            Assert.Contains("serial port", noRadio.Message);
+            Assert.Contains("dialout", noRadio.Message);   // Linux's own reason a port won't open
+        }
+        else Assert.Contains("COM port", noRadio.Message);
     }
 
     [Theory]
