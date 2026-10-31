@@ -30,7 +30,8 @@ public sealed record GalleryEntry(string File, DateTime When, string? Name = nul
     /// <summary>The folder it's in (set when listed; not saved).</summary>
     [System.Text.Json.Serialization.JsonIgnore] public string? Folder { get; init; }
 
-    /// <summary>Where the picture is.</summary>
+    /// <summary>Where the picture is (not saved: the file's name and its folder say).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public string FullPath => System.IO.Path.Combine(Folder ?? "", File);
 
     /// <summary>An analog SSTV picture (else HamDRM): it's in an Analog folder, or was noted as analog
@@ -57,6 +58,10 @@ public static class GalleryIndex
     private static readonly object Lock = new();
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
+    // A virus scanner or backup program can have the file open for a moment: try again, a few times.
+    private const int Attempts = 5;
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(100);
+
 
     /// <summary>Is this a picture file the Gallery shows?</summary>
     public static bool IsPicture(string path) => PictureExtensions.Contains(Path.GetExtension(path));
@@ -66,7 +71,7 @@ public static class GalleryIndex
     {
         lock (Lock)
         {
-            var entries = Read(folder);
+            if (ReadForChange(folder) is not { } entries) return;
             entries[entry.File] = entry;
             Write(folder, entries);
         }
@@ -77,8 +82,7 @@ public static class GalleryIndex
     {
         lock (Lock)
         {
-            var entries = Read(folder);
-            if (entries.Remove(file)) Write(folder, entries);
+            if (ReadForChange(folder) is { } entries && entries.Remove(file)) Write(folder, entries);
         }
     }
 
@@ -95,7 +99,7 @@ public static class GalleryIndex
     {
         lock (Lock)
         {
-            var entries = Read(folder);
+            if (ReadForChange(folder) is not { } entries) return;
             foreach (var entry in moved)
             {
                 string file = renamed.TryGetValue(entry.File, out var newName) ? newName : entry.File;
@@ -193,30 +197,64 @@ public static class GalleryIndex
         Hide(path);
     }
 
-    private static Dictionary<string, GalleryEntry> Read(string folder)
+    /// <summary>For listing: what the file says (nothing, if it's damaged or can't be read; the
+    /// pictures still show).</summary>
+    private static Dictionary<string, GalleryEntry> Read(string folder) => TryRead(folder) ?? new();
+
+    /// <summary>For adding or removing: the same, but null if the file is there and couldn't be read
+    /// even after trying again. Then it isn't written either: writing it from nothing would lose the
+    /// details of every other picture in the folder.</summary>
+    private static Dictionary<string, GalleryEntry>? ReadForChange(string folder)
     {
-        try
+        var entries = TryRead(folder);
+        if (entries is null)
+            RFpix.Diagnostics.AppLog.Error("Gallery", $"Couldn't read the Gallery's file in {folder} (another program has it open?), " +
+                                                      "so this change to it was left out. The pictures themselves are fine.");
+        return entries;
+    }
+
+    private static Dictionary<string, GalleryEntry>? TryRead(string folder)
+    {
+        string path = IndexPath(folder);
+        for (int attempt = 1; ; attempt++)
         {
-            string path = IndexPath(folder);
-            if (!System.IO.File.Exists(path)) return new();
-            var list = JsonSerializer.Deserialize<List<GalleryEntry>>(System.IO.File.ReadAllText(path), Json) ?? new();
-            return list.Where(e => !string.IsNullOrEmpty(e.File)).GroupBy(e => e.File).ToDictionary(g => g.Key, g => g.Last());
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-        {
-            return new();   // a damaged index only loses the extra details; the pictures still show
+            try
+            {
+                if (!System.IO.File.Exists(path)) return new();
+                var list = JsonSerializer.Deserialize<List<GalleryEntry>>(System.IO.File.ReadAllText(path), Json) ?? new();
+                return list.Where(e => !string.IsNullOrEmpty(e.File)).GroupBy(e => e.File).ToDictionary(g => g.Key, g => g.Last());
+            }
+            catch (JsonException)
+            {
+                return new();   // damaged: only the extra details are lost; the pictures still show
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt == Attempts) return null;
+                Thread.Sleep(RetryDelay);
+            }
         }
     }
 
     private static void Write(string folder, Dictionary<string, GalleryEntry> entries)
     {
-        try
+        for (int attempt = 1; ; attempt++)
         {
-            Directory.CreateDirectory(folder);
-            // Entries for pictures deleted outside RFpix are dropped as the index is written.
-            var kept = entries.Values.Where(e => System.IO.File.Exists(Path.Combine(folder, e.File))).OrderBy(e => e.When).ToList();
-            WriteFile(IndexPath(folder), kept);
+            try
+            {
+                Directory.CreateDirectory(folder);
+                // Entries for pictures deleted outside RFpix are dropped as the index is written.
+                var kept = entries.Values.Where(e => System.IO.File.Exists(Path.Combine(folder, e.File))).OrderBy(e => e.When).ToList();
+                WriteFile(IndexPath(folder), kept);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt < Attempts) { Thread.Sleep(RetryDelay); continue; }
+                // Details are a nicety: the pictures themselves are saved already.
+                RFpix.Diagnostics.AppLog.Error("Gallery", $"Couldn't write the Gallery's file in {folder}: {ex.Message}");
+                return;
+            }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }   // details are a nicety
     }
 }

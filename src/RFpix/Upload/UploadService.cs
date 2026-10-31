@@ -85,18 +85,42 @@ public static class UploadService
             Directory.CreateDirectory(folder);
             var stamped = s.StampCopies ? TimeStamp.Stamp(picture, TimeStamp.Text(when)) : picture;
             var jpeg = Pictures.EncodeJpeg(stamped, 90);
-            string name = $"{when:yyyyMMdd_HHmmss}";
-            string path = Path.Combine(folder, name + ".jpg");
-            for (int n = 2; File.Exists(path); n++) path = Path.Combine(folder, $"{name}_{n}.jpg");
-            // Written under another name first, so the uploader never sees half a file.
-            File.WriteAllBytes(path + ".part", jpeg);
-            File.Move(path + ".part", path);
-            return path;
+            return SaveAs(folder, $"{when:yyyyMMdd_HHmmss}", jpeg);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PictureException)
         {
             Add($"Couldn't save a copy in {folder}: {ex.Message}");
             return null;
+        }
+    }
+
+    /// <summary>Saves a copy as "<paramref name="name"/>.jpg" (or name_2.jpg, name_3.jpg... if that's
+    /// taken). It's written under a name of its own first (the uploader only takes .jpg files, so it never
+    /// sees half a file), then given its real name. Two copies made in the same second (a picture received
+    /// as one is sent, say) each get their own: before, both could pick the same name, and one failed,
+    /// leaving its ".part" file behind.</summary>
+    internal static string SaveAs(string folder, string name, byte[] jpeg)
+    {
+        string part = Path.Combine(folder, $"{name}.{Guid.NewGuid():N}.part");
+        File.WriteAllBytes(part, jpeg);
+        try
+        {
+            for (int n = 1; n <= 1000; n++)
+            {
+                string path = Path.Combine(folder, n == 1 ? name + ".jpg" : $"{name}_{n}.jpg");
+                if (File.Exists(path)) continue;
+                try
+                {
+                    File.Move(part, path);   // fails if another copy took the name a moment ago
+                    return path;
+                }
+                catch (IOException) when (File.Exists(path) && File.Exists(part)) { /* the next number */ }
+            }
+            throw new IOException($"Too many copies named {name} in {folder}.");
+        }
+        finally
+        {
+            if (File.Exists(part)) File.Delete(part);   // nothing left behind if it couldn't be saved
         }
     }
 

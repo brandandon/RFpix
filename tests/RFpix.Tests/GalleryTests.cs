@@ -151,4 +151,50 @@ public class GalleryTests
         Assert.True(GalleryIndex.FromName("2026-10-20 1942 SSTV Martin 1.png", DateTime.MinValue).IsAnalog);
         Assert.False(GalleryIndex.FromName("2026-10-20 1942 N0ABC tower.jp2", DateTime.MinValue).IsAnalog);
     }
+
+    // Code review, Oct 2026: if another program (a virus scanner, a backup) had the Gallery's file
+    // open at that moment, it was read as empty, and writing it back lost every other picture's details.
+    private static (string Folder, string Index) FolderWithTwoPictures()
+    {
+        string folder = NewFolder();
+        File.WriteAllBytes(Path.Combine(folder, "a.jpg"), new byte[] { 1 });
+        File.WriteAllBytes(Path.Combine(folder, "b.jpg"), new byte[] { 2 });
+        GalleryIndex.Add(folder, new GalleryEntry("a.jpg", new DateTime(2026, 10, 30, 19, 0, 0), "a.jpg", "N0AAA"));
+        return (folder, Path.Combine(folder, GalleryIndex.IndexFileName));
+    }
+
+    [Fact]
+    public async Task A_Gallery_file_open_for_a_moment_elsewhere_is_waited_for()
+    {
+        var (folder, index) = FolderWithTwoPictures();
+        var held = new FileStream(index, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        var letGo = Task.Run(async () => { await Task.Delay(200); held.Dispose(); });
+
+        GalleryIndex.Add(folder, new GalleryEntry("b.jpg", new DateTime(2026, 10, 30, 19, 5, 0), "b.jpg", "N0BBB"));   // tries again
+        await letGo;
+
+        var entries = GalleryIndex.Entries(folder);
+        Assert.Contains(entries, e => e.Callsign == "N0AAA");
+        Assert.Contains(entries, e => e.Callsign == "N0BBB");
+    }
+
+    [Fact]
+    public void A_Gallery_file_that_cant_be_read_is_not_written_over()
+    {
+        var (folder, index) = FolderWithTwoPictures();
+        using (new FileStream(index, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            GalleryIndex.Add(folder, new GalleryEntry("b.jpg", new DateTime(2026, 10, 30, 19, 5, 0), "b.jpg", "N0BBB"));   // gives up
+
+        var entries = GalleryIndex.Entries(folder);
+        Assert.Contains(entries, e => e.Callsign == "N0AAA");   // the other picture's details are still there
+    }
+
+    [Fact]
+    public void The_Gallery_file_doesnt_store_where_each_picture_is()
+    {
+        var (_, index) = FolderWithTwoPictures();
+        string json = File.ReadAllText(index);
+        Assert.Contains("N0AAA", json);
+        Assert.DoesNotContain("FullPath", json);
+    }
 }

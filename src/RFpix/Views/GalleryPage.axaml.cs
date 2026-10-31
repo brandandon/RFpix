@@ -150,7 +150,20 @@ public partial class GalleryPage : UserControl
         }
         if (_selected is not null && _entries.FirstOrDefault(e => e.FullPath == _selected.FullPath) is { } still) Select(still);
         else ShowDetails(null);
-        await LoadThumbnailsAsync(generation, folder);
+        ForgetUnlistedThumbnails();
+        await LoadThumbnailsAsync(generation);
+    }
+
+    // Thumbnails are kept only for the pictures listed now (each is about 270 kB; without this,
+    // a long session, or a Change folder…, kept every one ever shown).
+    private void ForgetUnlistedThumbnails()
+    {
+        var listed = _entries.Select(Key).ToHashSet();
+        foreach (string path in _thumbnails.Keys.Where(p => !listed.Contains(p)).ToList())
+        {
+            _thumbnails.Remove(path, out var gone);
+            if (gone.Bitmap is { } bitmap && !ReferenceEquals(DetailImage.Source, bitmap)) bitmap.Dispose();
+        }
     }
 
     private static bool Contains(string? text, string find) =>
@@ -217,8 +230,8 @@ public partial class GalleryPage : UserControl
         return tile;
     }
 
-    // The thumbnails, one at a time in the background (kept for next time).
-    private async Task LoadThumbnailsAsync(int generation, string folder)
+    // The thumbnails, one at a time in the background (kept while they're listed).
+    private async Task LoadThumbnailsAsync(int generation)
     {
         foreach (var entry in _entries.ToList())
         {

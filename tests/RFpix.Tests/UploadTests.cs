@@ -191,4 +191,29 @@ public class UploadTests
         Assert.Equal("/sstv/analog", s.For(analog: true).RemoteFolder);
         Assert.Equal(@"D:\Copies", s.Folder);   // the settings themselves are unchanged
     }
+
+    // Code review, Oct 2026: two copies saved in the same second could pick the same name; one
+    // failed and left a ".part" file behind.
+    [Fact]
+    public async Task Copies_saved_at_the_same_moment_each_get_a_name_and_leave_nothing_behind()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "rfpix-copies-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var saved = await Task.WhenAll(Enumerable.Range(0, 20).Select(i =>
+                Task.Run(() => UploadService.SaveAs(folder, "20261030_210000", new byte[] { (byte)i }))));
+
+            Assert.Equal(20, saved.Distinct().Count());
+            Assert.Contains(Path.Combine(folder, "20261030_210000.jpg"), saved);
+            Assert.Equal(20, Directory.GetFiles(folder, "*.jpg").Length);
+            Assert.Empty(Directory.GetFiles(folder, "*.part"));
+            // Each holds its own picture.
+            Assert.Equal(20, saved.Select(p => File.ReadAllBytes(p)[0]).Distinct().Count());
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
 }
