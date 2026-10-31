@@ -64,6 +64,11 @@ Source: "..\publish-folder\*"; DestDir: "{app}"; Flags: ignoreversion recursesub
 ; Tidy up after earlier single-file versions of RFpix.exe, which unpacked a copy of
 ; their parts here every time a new version first ran.
 Type: filesandordirs; Name: "{%TEMP}\.net\RFpix"
+; Before updating, remove the .dll files an earlier version left, so a part that a newer RFpix
+; no longer uses (or has replaced) can't be picked up by mistake. Only in RFpix's own folder: one
+; named RFpix that already holds RFpix.exe (never, say, a whole Program Files folder chosen by
+; mistake). The new version's .dll files are installed straight after.
+Type: files; Name: "{app}\*.dll"; Check: IsOwnFolder
 
 [Icons]
 Name: "{autoprograms}\RFpix"; Filename: "{app}\RFpix.exe"
@@ -73,6 +78,15 @@ Name: "{autodesktop}\RFpix"; Filename: "{app}\RFpix.exe"; Tasks: desktopicon
 Filename: "{app}\RFpix.exe"; Description: "Start RFpix now"; Flags: nowait postinstall skipifsilent
 
 [Code]
+// True when the install folder is RFpix's own: named RFpix and already holding RFpix.exe.
+function IsOwnFolder: Boolean;
+var
+  App: String;
+begin
+  App := RemoveBackslashUnlessRoot(ExpandConstant('{app}'));
+  Result := (CompareText(ExtractFileName(App), 'RFpix') = 0) and FileExists(App + '\RFpix.exe');
+end;
+
 // After uninstalling: offer to remove the settings too (radio, sound devices, callsign...).
 // Documents\RFpix (pictures, recordings, test results) is always kept.
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

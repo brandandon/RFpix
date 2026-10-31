@@ -35,7 +35,7 @@ DIST="$ROOT/dist"
 MIN_MACOS=14.0   # the oldest macOS .NET 10 runs on (Sonoma)
 
 # The version, from RFpix.csproj: "0.5.2-beta" (shown), "0.5.2" (macOS wants numbers only).
-VERSION="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/RFpix/RFpix.csproj | head -1)"
+VERSION="$(tools/version.sh)"
 NUMERIC="${VERSION%%-*}"
 echo "RFpix $VERSION for $KIND Macs"
 
@@ -46,30 +46,17 @@ mkdir -p "$WORK" "$DIST"
 dotnet publish src/RFpix/RFpix.csproj -c Release -r "$RID" --self-contained true -o "$WORK/publish"
 
 # ---- 2. Hamlib ----
-HAMLIB_VERSION=4.7.2
-HAMLIB_SHA256=ae1fcf2dbc80ea0786ea8f047b09399c3f7737d1930442f61a031708ed33e88f
-HAMLIB_TAR="$ROOT/build/hamlib-$HAMLIB_VERSION.tar.gz"
-if [ ! -f "$HAMLIB_TAR" ]; then
-  curl -fsSL --retry 3 -o "$HAMLIB_TAR" \
-    "https://github.com/Hamlib/Hamlib/releases/download/$HAMLIB_VERSION/hamlib-$HAMLIB_VERSION.tar.gz"
-fi
-echo "$HAMLIB_SHA256  $HAMLIB_TAR" | shasum -a 256 -c -
-tar xzf "$HAMLIB_TAR" -C "$WORK"
+# Built by tools/hamlib/build.sh (the version is set in tools/hamlib/Hamlib.props), with only what
+# RFpix needs and nothing from Homebrew, so it runs on any Mac.
 (
-  cd "$WORK/hamlib-$HAMLIB_VERSION"
-  # Only what RFpix needs: the library, with nothing from Homebrew (so it runs on any Mac).
   export CC="clang -arch $CLANG_ARCH" CFLAGS="-O2 -mmacosx-version-min=$MIN_MACOS" LDFLAGS="-mmacosx-version-min=$MIN_MACOS"
   export PKG_CONFIG_PATH="" PKG_CONFIG_LIBDIR=""
-  ./configure --prefix="$WORK/hamlib" --disable-static --enable-shared \
-    --without-libusb --without-readline --without-indi --without-cxx-binding --without-xml-support \
-    --disable-html-matrix --disable-winradio --disable-parallel --disable-dependency-tracking --enable-silent-rules
-  make -j"$(sysctl -n hw.ncpu)"
-  make install
+  tools/hamlib/build.sh "$WORK"
 )
 HAMLIB_LIB="$WORK/hamlib/lib/libhamlib.4.dylib"
 cp "$HAMLIB_LIB" "$WORK/publish/libhamlib.4.dylib"
 install_name_tool -id "@loader_path/libhamlib.4.dylib" "$WORK/publish/libhamlib.4.dylib"
-cp "$WORK/hamlib-$HAMLIB_VERSION/COPYING.LIB" "$WORK/publish/hamlib-licence.txt"
+cp "$WORK/hamlib/COPYING.LIB" "$WORK/publish/hamlib-licence.txt"
 # It must use only macOS's own libraries.
 if otool -L "$WORK/publish/libhamlib.4.dylib" | tail -n +2 | grep -v -E '^\s+(/usr/lib/|/System/|@loader_path/libhamlib)'; then
   echo "Hamlib depends on a library that isn't part of macOS (above)." >&2; exit 1
@@ -98,7 +85,13 @@ plutil -lint "$APP/Contents/Info.plist"
 
 # ---- 4. sign (ad hoc): every file beside the program first (.NET's .dll files too: macOS
 # counts everything in Contents/MacOS as part of the program), then the program, then the app ----
-find "$APP/Contents/MacOS" -type f ! -name RFpix -print0 | xargs -0 -n 50 codesign --force --sign - 2>&1 | grep -v "replacing existing signature" || true
+# codesign says "replacing existing signature" for each file that was already signed; that's kept
+# out of the way in sign.log, but if signing fails, its messages are shown here.
+if ! find "$APP/Contents/MacOS" -type f ! -name RFpix -print0 | xargs -0 -n 50 codesign --force --sign - 2> "$WORK/sign.log"; then
+  grep -v "replacing existing signature" "$WORK/sign.log" >&2 || true
+  echo "Signing the files inside RFpix.app failed (the messages above say which)." >&2
+  exit 1
+fi
 codesign --force --sign - --entitlements tools/mac/RFpix.entitlements "$APP/Contents/MacOS/RFpix"
 codesign --force --sign - --entitlements tools/mac/RFpix.entitlements "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"

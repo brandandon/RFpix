@@ -1,0 +1,16 @@
+<!--
+  Hamlib.props - which Hamlib (the radio-control library) RFpix is built with, written once.
+
+  RFpix.csproj reads this for Windows (Hamlib's official Windows package, downloaded by the build),
+  and tools/hamlib/build.sh reads it for the Mac and Linux (Hamlib built from its official source).
+  To move to a newer Hamlib, change the version and both fingerprints (SHA-256) here, nowhere else.
+-->
+<Project>
+  <PropertyGroup>
+    <HamlibVersion>4.7.2</HamlibVersion>
+    <!-- hamlib-w64-<version>.zip, the Windows package -->
+    <HamlibSha256>8553bc6c5c6032e8debf99c017e98f58fed7e07e7c25d04815dc3e8bbe3304c7</HamlibSha256>
+    <!-- hamlib-<version>.tar.gz, the source -->
+    <HamlibSourceSha256>ae1fcf2dbc80ea0786ea8f047b09399c3f7737d1930442f61a031708ed33e88f</HamlibSourceSha256>
+  </PropertyGroup>
+</Project>

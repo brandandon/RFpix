@@ -35,30 +35,10 @@ jobs:
       - name: Run the tests (uses the recordings in tests/recordings)
         run: dotnet test tests/RFpix.Tests/RFpix.Tests.csproj -c Release --logger "trx;LogFileName=results.trx" --results-directory test-results
 
-      # How many tests ran and passed, at the top of the run's page.
+      # How many tests ran and passed, and any that failed, at the top of the run's page.
       - name: Count the tests
         if: always()
-        shell: pwsh
-        run: |
-          foreach ($file in Get-ChildItem test-results -Filter *.trx -Recurse) {
-            [xml]$trx = Get-Content $file.FullName
-            $c = $trx.TestRun.ResultSummary.Counters
-            $layout = @($trx.TestRun.Results.UnitTestResult | Where-Object { $_.testName -like '*FitToWindowTests*' -and $_.outcome -eq 'Passed' }).Count
-            Write-Output "::notice title=Tests::$($c.passed) of $($c.total) passed ($layout screen-layout tests)"
-          }
-
-      # If a test failed, list it (with its message) at the top of the run's page.
-      - name: Show failed tests
-        if: failure()
-        shell: pwsh
-        run: |
-          foreach ($file in Get-ChildItem test-results -Filter *.trx -Recurse) {
-            [xml]$trx = Get-Content $file.FullName
-            foreach ($r in $trx.TestRun.Results.UnitTestResult | Where-Object { $_.outcome -eq 'Failed' }) {
-              $message = ($r.Output.ErrorInfo.Message -replace '\r?\n', ' ')
-              Write-Output "::error title=Test failed: $($r.testName)::$message"
-            }
-          }
+        run: python tools/ci/count-tests.py "Windows"
 
       - name: Build RFpix (one self-contained RFpix.exe, for running without installing)
         run: >
@@ -74,27 +54,41 @@ jobs:
           -c Release -r win-x64 --self-contained true
           -o publish-folder
 
+      # The version comes from RFpix.csproj, read by the same script the Mac and Linux builds use.
+      - name: Read RFpix's version
+        shell: bash
+        run: echo "RFPIX_VERSION=$(bash tools/version.sh)" >> "$GITHUB_ENV"
+
       - name: Build the installer (Inno Setup)
         shell: pwsh
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
-          $version = ([xml](Get-Content src/RFpix/RFpix.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-          & $iscc /Q "/DAppVersion=$version" installer/RFpix.iss
+          & $iscc /Q "/DAppVersion=$env:RFPIX_VERSION" installer/RFpix.iss
           if ($LASTEXITCODE -ne 0) { throw "The installer didn't build." }
           Get-ChildItem installer-output
 
-      # Install into a test folder, check the files arrived, then uninstall and check they're gone.
+      # Install into a test folder and check the files arrived. Then leave an old .dll there (as an
+      # earlier version might have), install again on top (as an update does), and check the old
+      # .dll was removed and RFpix's own are back. Then uninstall and check they're gone.
       - name: Test the installer and uninstaller
         shell: pwsh
         run: |
           $setup = (Get-ChildItem installer-output -Filter RFpix-Setup-*.exe).FullName
-          $dir = Join-Path $env:RUNNER_TEMP "RFpix install test"
-          Start-Process $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/CURRENTUSER", "/NORESTART", "/DIR=`"$dir`"" -Wait
+          $dir = Join-Path $env:RUNNER_TEMP "RFpix"
+          $install = "/VERYSILENT", "/SUPPRESSMSGBOXES", "/CURRENTUSER", "/NORESTART", "/DIR=`"$dir`""
+          Start-Process $setup -ArgumentList $install -Wait
           foreach ($f in "RFpix.exe", "libhamlib-4.dll", "unins000.exe") {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "After installing, $f is missing." }
           }
           Write-Output "Installed: $((Get-ChildItem $dir -Recurse -File).Count) files"
+          Set-Content -Path (Join-Path $dir "left-over-from-an-old-version.dll") -Value "old"
+          Start-Process $setup -ArgumentList $install -Wait
+          if (Test-Path (Join-Path $dir "left-over-from-an-old-version.dll")) { throw "Installing again (an update) didn't remove an old .dll." }
+          foreach ($f in "RFpix.exe", "RFpix.dll", "libhamlib-4.dll") {
+            if (-not (Test-Path (Join-Path $dir $f))) { throw "After installing again, $f is missing." }
+          }
+          Write-Output "Installed again on top: old .dll files removed, RFpix's own in place."
           Start-Process (Join-Path $dir "unins000.exe") -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait
           # The uninstaller finishes in a copy of itself, so allow it a little time.
           for ($i = 0; $i -lt 60 -and (Test-Path (Join-Path $dir "RFpix.exe")); $i++) { Start-Sleep 1 }
@@ -114,8 +108,9 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = $env:TAG
           $files = @((Get-ChildItem installer-output -Filter RFpix-Setup-*.exe).FullName, "publish/RFpix.exe")
           # The release may already exist (made on GitHub's Releases page, which also makes the
           # tag): then attach the files, and add the tester instructions below its own description.
@@ -155,19 +150,13 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # Publishes RFpix, builds Hamlib 4.7.2 from source, makes RFpix.app and the installer.
+      # Publishes RFpix, builds Hamlib from source, makes RFpix.app and the installer.
       # If it fails, the last lines of its output are shown at the top of the run's page.
       - name: Build the Mac installer
         run: |
           set -o pipefail
           tools/mac/package.sh ${{ matrix.arch }} 2>&1 | tee package.log || {
-            tail -n 60 package.log | python3 -c '
-          import sys
-          lines = [l.rstrip() for l in sys.stdin]
-          for i in range(0, len(lines), 15):
-              text = "\n".join(lines[i:i + 15]).replace("%", "%25").replace("\r", "").replace("\n", "%0A")
-              print(f"::error title=Mac build failed (lines {i + 1}-{i + 15} of the last 60)::{text}")
-          '
+            python3 tools/ci/log-tail.py "Mac build failed" package.log
             exit 1
           }
 
@@ -180,19 +169,7 @@ jobs:
 
       - name: Count the tests
         if: always()
-        shell: python3 {0}
-        run: |
-          import glob, xml.etree.ElementTree as ET
-          ns = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
-          for f in glob.glob("test-results/**/*.trx", recursive=True):
-              root = ET.parse(f).getroot()
-              c = root.find("t:ResultSummary/t:Counters", ns)
-              failed = [r for r in root.iterfind(".//t:UnitTestResult", ns) if r.get("outcome") == "Failed"]
-              print(f"::notice title=Mac (${{ matrix.kind }}) tests::{c.get('passed')} of {c.get('total')} passed")
-              for r in failed:
-                  m = r.find(".//t:Message", ns)
-                  text = (m.text or "").replace("\n", " ") if m is not None else ""
-                  print(f"::error title=Mac test failed: {r.get('testName')}::{text}")
+        run: python3 tools/ci/count-tests.py "Mac (${{ matrix.kind }})"
 
       # Install it, check RFpix.app arrived, start it for a moment, then install it again on
       # top (as an update does) and check it's still there.
@@ -207,7 +184,7 @@ jobs:
           /Applications/RFpix.app/Contents/MacOS/RFpix > rfpix-start.log 2>&1 &
           sleep 20
           if kill -0 $! 2>/dev/null; then echo "RFpix started and kept running."; kill $!; sleep 2
-          else echo "::warning title=Mac start-up::RFpix stopped within 20 seconds (this runner may have no screen):"; cat rfpix-start.log; fi
+          else echo "::error title=Mac start-up::RFpix stopped within 20 seconds of starting:"; cat rfpix-start.log; exit 1; fi
           sudo installer -pkg "$pkg" -target /
           test -f /Applications/RFpix.app/Contents/MacOS/RFpix || { echo "::error::Installing again (an update) lost RFpix.app."; exit 1; }
           echo "Installed twice cleanly."
@@ -224,13 +201,17 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
-          tag="${{ github.ref_name }}"
-          for i in $(seq 1 60); do
-            gh release view "$tag" > /dev/null 2>&1 && break
-            echo "Waiting for the release $tag to exist..."; sleep 30
+          for i in $(seq 1 30); do
+            gh release view "$TAG" > /dev/null 2>&1 && break
+            echo "Waiting for the release $TAG to exist..."; sleep 30
           done
-          gh release upload "$tag" dist/RFpix-*-mac-${{ matrix.kind }}.pkg --clobber
+          gh release view "$TAG" > /dev/null 2>&1 || {
+            echo "::error title=No release::After 15 minutes there's still no release $TAG (normally the Windows job makes it). Make it on GitHub's Releases page, then re-run this job."
+            exit 1
+          }
+          gh release upload "$TAG" dist/RFpix-*-mac-${{ matrix.kind }}.pkg --clobber
 
   # Linux: an AppImage and a .deb for 64-bit PCs and for the Raspberry Pi (64-bit), each built and
   # tested on a computer of that kind. Built on Ubuntu 22.04, so they run on it and anything newer.
@@ -261,48 +242,34 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q build-essential pulseaudio xvfb libfontconfig1 libice6 libsm6 libx11-6
 
-      # Publishes RFpix, builds Hamlib 4.7.2 from source, makes the AppImage and the .deb.
+      # Publishes RFpix, builds Hamlib from source, makes the AppImage and the .deb.
       # If it fails, the last lines of its output are shown at the top of the run's page.
       - name: Build the AppImage and the .deb
         run: |
           set -o pipefail
           tools/linux/package.sh ${{ matrix.arch }} 2>&1 | tee package.log || {
-            tail -n 60 package.log | python3 -c '
-          import sys
-          lines = [l.rstrip() for l in sys.stdin]
-          for i in range(0, len(lines), 15):
-              text = "\n".join(lines[i:i + 15]).replace("%", "%25").replace("\r", "").replace("\n", "%0A")
-              print(f"::error title=Linux build failed (lines {i + 1}-{i + 15} of the last 60)::{text}")
-          '
+            python3 tools/ci/log-tail.py "Linux build failed" package.log
             exit 1
           }
 
       # The tests use the same Hamlib that goes into the packages, and a real sound server with a
-      # test output and a test input that hears it (for the Linux sound tests).
+      # test output and a test input that hears it (for the Linux sound tests). They run without
+      # language data (invariant globalization), as the Linux packages do.
       - name: Run the tests
+        env:
+          RFPIX_PULSE_TEST: "1"
+          DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "1"
         run: |
           pulseaudio -D --exit-idle-time=-1 -n -L module-native-protocol-unix \
             -L "module-null-sink sink_name=rfpix_test_out" \
             -L "module-remap-source source_name=rfpix_test_in master=rfpix_test_out.monitor"
           dotnet build tests/RFpix.Tests/RFpix.Tests.csproj -c Release
           for dir in tests/RFpix.Tests/bin/Release/*/; do cp build/linux-${{ matrix.arch }}/publish/libhamlib.so.4 "$dir"; done
-          RFPIX_PULSE_TEST=1 dotnet test tests/RFpix.Tests/RFpix.Tests.csproj -c Release --no-build --logger "trx;LogFileName=results.trx" --results-directory test-results
+          dotnet test tests/RFpix.Tests/RFpix.Tests.csproj -c Release --no-build --logger "trx;LogFileName=results.trx" --results-directory test-results
 
       - name: Count the tests
         if: always()
-        shell: python3 {0}
-        run: |
-          import glob, xml.etree.ElementTree as ET
-          ns = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
-          for f in glob.glob("test-results/**/*.trx", recursive=True):
-              root = ET.parse(f).getroot()
-              c = root.find("t:ResultSummary/t:Counters", ns)
-              failed = [r for r in root.iterfind(".//t:UnitTestResult", ns) if r.get("outcome") == "Failed"]
-              print(f"::notice title=Linux (${{ matrix.arch }}) tests::{c.get('passed')} of {c.get('total')} passed")
-              for r in failed:
-                  m = r.find(".//t:Message", ns)
-                  text = (m.text or "").replace("\n", " ") if m is not None else ""
-                  print(f"::error title=Linux test failed: {r.get('testName')}::{text}")
+        run: python3 tools/ci/count-tests.py "Linux (${{ matrix.arch }})"
 
       # Install the .deb, start RFpix for 20 seconds on a screen of its own, install it again on
       # top (as an update does); then start the AppImage the same way.
@@ -318,7 +285,7 @@ jobs:
             what="$1"; shift
             set +e; xvfb-run -a timeout 20 "$@" > start.log 2>&1; code=$?; set -e
             if [ $code -eq 124 ]; then echo "$what started and kept running."
-            else echo "::warning title=Linux start-up ($what)::RFpix stopped within 20 seconds (exit $code):"; cat start.log; fi
+            else echo "::error title=Linux start-up ($what)::RFpix stopped within 20 seconds of starting (exit $code):"; cat start.log; exit 1; fi
           }
           started ".deb" rfpix
           sudo dpkg -i "$deb"
@@ -339,10 +306,14 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
-          tag="${{ github.ref_name }}"
-          for i in $(seq 1 60); do
-            gh release view "$tag" > /dev/null 2>&1 && break
-            echo "Waiting for the release $tag to exist..."; sleep 30
+          for i in $(seq 1 30); do
+            gh release view "$TAG" > /dev/null 2>&1 && break
+            echo "Waiting for the release $TAG to exist..."; sleep 30
           done
-          gh release upload "$tag" dist/RFpix-*-linux-${{ matrix.arch }}.AppImage dist/rfpix_*_${{ matrix.deb }}.deb --clobber
+          gh release view "$TAG" > /dev/null 2>&1 || {
+            echo "::error title=No release::After 15 minutes there's still no release $TAG (normally the Windows job makes it). Make it on GitHub's Releases page, then re-run this job."
+            exit 1
+          }
+          gh release upload "$TAG" dist/RFpix-*-linux-${{ matrix.arch }}.AppImage dist/rfpix_*_${{ matrix.deb }}.deb --clobber

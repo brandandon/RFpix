@@ -34,7 +34,7 @@ DIST="$ROOT/dist"
 
 # The version, from RFpix.csproj: "0.6.0-beta"; Debian writes a test version with "~" (0.6.0~beta
 # comes before 0.6.0).
-VERSION="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/RFpix/RFpix.csproj | head -1)"
+VERSION="$(tools/version.sh)"
 DEB_VERSION="${VERSION//-/\~}"
 echo "RFpix $VERSION for Linux ($ARCH)"
 
@@ -53,27 +53,13 @@ fi
 rm -f "$PUBLISH"/*.pdb
 
 # ---- 2. Hamlib ----
-HAMLIB_VERSION=4.7.2
-HAMLIB_SHA256=ae1fcf2dbc80ea0786ea8f047b09399c3f7737d1930442f61a031708ed33e88f
-HAMLIB_TAR="$ROOT/build/hamlib-$HAMLIB_VERSION.tar.gz"
-if [ ! -f "$HAMLIB_TAR" ]; then
-  curl -fsSL --retry 3 -o "$HAMLIB_TAR" \
-    "https://github.com/Hamlib/Hamlib/releases/download/$HAMLIB_VERSION/hamlib-$HAMLIB_VERSION.tar.gz"
-fi
-echo "$HAMLIB_SHA256  $HAMLIB_TAR" | sha256sum -c -
-tar xzf "$HAMLIB_TAR" -C "$WORK"
-(
-  cd "$WORK/hamlib-$HAMLIB_VERSION"
-  # Only what RFpix needs: the library, using nothing but the C library (so it runs on any Linux).
-  CFLAGS="-O2" ./configure --prefix="$WORK/hamlib" --disable-static --enable-shared \
-    --without-libusb --without-readline --without-indi --without-cxx-binding --without-xml-support \
-    --disable-html-matrix --disable-winradio --disable-parallel --disable-dependency-tracking --enable-silent-rules
-  make -j"$(nproc)"
-  make install
-)
+# Built by tools/hamlib/build.sh (the version is set in tools/hamlib/Hamlib.props), with only what
+# RFpix needs, using nothing but the C library, so it runs on any Linux.
+CFLAGS="-O2" tools/hamlib/build.sh "$WORK"
+HAMLIB_VERSION="$(cat "$WORK/hamlib/VERSION")"
 cp -L "$WORK/hamlib/lib/libhamlib.so.4" "$PUBLISH/libhamlib.so.4"
 strip --strip-unneeded "$PUBLISH/libhamlib.so.4"
-cp "$WORK/hamlib-$HAMLIB_VERSION/COPYING.LIB" "$PUBLISH/hamlib-licence.txt"
+cp "$WORK/hamlib/COPYING.LIB" "$PUBLISH/hamlib-licence.txt"
 NEEDED="$(readelf -d "$PUBLISH/libhamlib.so.4" | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p')"
 echo "Hamlib needs: $(echo $NEEDED)"
 for lib in $NEEDED; do

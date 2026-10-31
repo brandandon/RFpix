@@ -35,12 +35,12 @@
     Hamlib, the radio-control library (LGPL licence), for Windows.
     The first build downloads Hamlib's official Windows package from GitHub, checks it's
     exactly the expected file (its SHA-256 fingerprint), and unpacks it under obj\.
-    Its DLLs are then copied next to RFpix.exe. The Mac package carries its own copy, built
-    from Hamlib's source by tools/mac/package.sh. On Linux, RFpix uses the system's hamlib.
+    Its DLLs are then copied next to RFpix.exe. The Mac and Linux packages carry their own copy,
+    built from Hamlib's source by tools/hamlib/build.sh. The version and fingerprints are written
+    once, in tools/hamlib/Hamlib.props.
   -->
+  <Import Project="..\..\tools\hamlib\Hamlib.props" />
   <PropertyGroup>
-    <HamlibVersion>4.7.2</HamlibVersion>
-    <HamlibSha256>8553bc6c5c6032e8debf99c017e98f58fed7e07e7c25d04815dc3e8bbe3304c7</HamlibSha256>
     <HamlibDir>$(MSBuildProjectDirectory)\obj\hamlib\</HamlibDir>
     <HamlibBin>$(HamlibDir)hamlib-w64-$(HamlibVersion)\bin\</HamlibBin>
     <!-- A one-file RFpix.exe carries the Hamlib DLLs inside and unpacks them when it starts. -->
