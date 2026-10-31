@@ -806,6 +806,26 @@ public partial class ReceivePage : UserControl, IDisposable
         }
     }
 
+    // ---- the picture viewer ----
+
+    private PictureViewerWindow? _viewer;
+
+    /// <summary>Double-click the picture: open the picture viewer, which follows this tab's picture
+    /// and caption; if it's open already, bring it to the front.</summary>
+    private void OnPictureDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (_viewer is not null)
+        {
+            if (_viewer.WindowState == WindowState.Minimized) _viewer.WindowState = WindowState.Normal;
+            _viewer.Activate();
+            return;
+        }
+        _viewer = new PictureViewerWindow(PictureImage, PictureCaption);
+        _viewer.Closed += (_, _) => _viewer = null;
+        _viewer.Show();
+        AppLog.Info("Receive", "Picture viewer opened.");
+    }
+
     // ---- analog SSTV ----
 
     /// <summary>How long the analog boxes stay after a picture ends (its FSK ID comes in the first two seconds).</summary>
@@ -1017,6 +1037,7 @@ public partial class ReceivePage : UserControl, IDisposable
 
     public void Dispose()
     {
+        _viewer?.Close();   // closing RFpix: the viewer remembers its place
         _meterTimer.Stop();
         AppSettings.SoundDevicesChanged -= OnSoundDevicesChanged;
         MicrophoneAccess.Answered -= OnMicrophoneAnswered;

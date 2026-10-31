@@ -101,6 +101,9 @@ public sealed class AppSettings
     public WindowPlacement? ReceiveWindow { get; set; }
     public bool ReceivePoppedOut { get; set; }
 
+    /// <summary>Where the picture viewer (double-click the Receive tab's picture) was last time.</summary>
+    public WindowPlacement? PictureViewer { get; set; }
+
 
     // ---- sound-card calibration (Settings, Misc tab) ----
 

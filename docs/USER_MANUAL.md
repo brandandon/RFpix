@@ -204,7 +204,7 @@ Open **TX/RX**, then the **Receive** tab, and click **Start listening**. RFpix l
 | **Signal boxes** | Offset, Clock, Strength and Quality of a digital signal (below). |
 | **Settings boxes** | How a digital picture was sent: Mode, Bandwidth, QAM, Interleave, Protection, Reed-Solomon, and who it's From. |
 | **Waterfall** (left) | The sound the radio hears, as a picture that scrolls down. Each signal shows as a coloured trace. |
-| **Picture** (right) | The last picture received, with its name, who sent it, and where it was saved. |
+| **Picture** (right) | The last picture received, with its name, who sent it, and where it was saved. **Double-click it** to show pictures in a window of their own (below). |
 | **Open received folder** | Opens the folder where pictures are saved. |
 
 The boxes show only while a picture is arriving; the rest of the time their space is left empty.
@@ -260,6 +260,16 @@ A digital picture arrives in pieces. When some are lost to noise or fading, a **
 3. If the sender's program answers (RFpix, EasyPal and QSSTV all do), only the missing pieces are sent again, and the picture completes on its own.
 
 When someone asks *you* for pieces of one of your pictures, a bar appears at the top of the TX/RX page: click **Send the pieces**, or **Not now**.
+
+#### The picture in its own window
+
+**Double-click the picture** on the Receive tab to open it in RFpix's own picture viewer, a window you can make as big as you like (on a second monitor, say, during a net).
+
+- **It follows the Receive tab:** each new picture appears in it as it arrives, filling in, with the Receive tab's caption underneath (the mode, who it's from, the time).
+- **The picture fills the window and keeps its shape:** make the window bigger and the picture grows with it.
+- There's only one viewer: double-clicking again brings it to the front.
+- It opens where you last left it, at the size you left it.
+- To zoom in, save a copy or send a picture back, use the **Gallery** (section 8), where double-clicking a picture opens it in your computer's own picture viewer.
 
 #### The Receive tab in its own window
 

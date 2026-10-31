@@ -123,7 +123,9 @@
       <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto,Auto" RowSpacing="6">
         <!-- Flex: the picture takes the room there is, rather than asking for its full size -->
         <controls:Flex Grid.Row="0" Min="120">
-        <Border CornerRadius="6" ClipToBounds="True"
+        <!-- Double-click: the picture in a window of its own (PictureViewerWindow) -->
+        <Border CornerRadius="6" ClipToBounds="True" DoubleTapped="OnPictureDoubleTapped"
+                Background="Transparent" ToolTip.Tip="Double-click to show pictures in a window of their own, as big as you like"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
           <Panel>
             <TextBlock x:Name="PicturePlaceholder" Classes="Hint" TextWrapping="Wrap" TextAlignment="Center"
