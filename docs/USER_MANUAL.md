@@ -236,8 +236,10 @@ While an analog picture arrives, these are replaced by **Mode**, **Line \_\_\_ o
 
 The thin vertical lines on the waterfall show where a good signal should sit. Point at the waterfall to see the frequency, and what a mark is.
 
-- **Digital** (when the Send tab is set to Digital): three lines at 725, 1475 and 1850 Hz. Every HamDRM signal has a steady tone on each of them, so its three bright lines should sit on the marks.
-- **Analog** (when the Send tab is set to Analog, or an analog picture is arriving): **S** 1200 Hz (sync), **B** 1500 Hz (black), **V** 1900 Hz (the VIS start code) and **W** 2300 Hz (white). An analog picture is one tone sweeping between B and W, with a sync pulse at S at the start of every line.
+There are two sets of marks, digital and analog. **They follow what's being received:** when RFpix starts they match the Send tab; when a picture of the other kind starts arriving, they switch to its marks, and they stay that way after it ends, until a picture of the other kind arrives. Changing the Send tab between Digital and Analog puts them back to match it.
+
+- **Digital:** three lines at 725, 1475 and 1850 Hz. Every HamDRM signal has a steady tone on each of them, so its three bright lines should sit on the marks.
+- **Analog:** **S** 1200 Hz (sync), **B** 1500 Hz (black), **V** 1900 Hz (the VIS start code) and **W** 2300 Hz (white). An analog picture is one tone sweeping between B and W, with a sync pulse at S at the start of every line.
 
 #### Where pictures are saved
 

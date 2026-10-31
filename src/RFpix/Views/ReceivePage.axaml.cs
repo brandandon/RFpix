@@ -63,6 +63,7 @@ public partial class ReceivePage : UserControl, IDisposable
     private DateTime _analogBoxesUntil = DateTime.MinValue;    // the analog boxes stay a little after it ends
     private (string Folder, GalleryEntry Entry, DateTime Saved)? _lastAnalog;   // for the FSK ID that follows
     private string _analogCaption = "";
+    private readonly WaterfallMarks _marks = new(AppSettings.Current.SendAnalog);   // analog or HamDRM marks
     private (string Note, DateTime At)? _unkeptAnalog;   // a picture shown but not kept in the Gallery, for its FSK ID
     private readonly IAudioOutput _output = AudioSystem.CreateOutput();   // for BSR requests
     private CancellationTokenSource? _asking;          // a BSR request going out
@@ -532,10 +533,13 @@ public partial class ReceivePage : UserControl, IDisposable
         // An analog picture arriving (or just ended): only its boxes. Otherwise the digital ones.
         // The boxes show only while a picture is arriving; their space stays, empty, otherwise.
         bool analog = ShowingAnalog;
-        bool digital = !analog && (_receiver.Signal is not null || _receiver.Heard is not null);
+        var heard = analog ? null : _receiver.Heard;
+        bool digital = !analog && (heard is not null || _receiver.Signal is not null);
         Show(DigitalBoxes, digital);
         Show(AnalogBoxes, analog);
-        Waterfall.Analog = analog || AppSettings.Current.SendAnalog;   // the marks follow Send as
+        // The marks follow the kind last received (a HamDRM transmission counts once its FAC, the
+        // settings it sends, has been read, so noise doesn't switch them), or Send when it changes.
+        Waterfall.Analog = _marks.Update(AppSettings.Current.SendAnalog, analog, heard is { Fac: not null });
         if (analog)
         {
             AnalogMode.Text = _analogMode?.Name ?? Empty;
