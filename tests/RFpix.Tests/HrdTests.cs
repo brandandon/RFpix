@@ -215,12 +215,16 @@ public class HrdTests
         Assert.True(radio.IsKeyed);   // still transmitting, as far as RFpix knows
 
         // Long before the 60-second limit, RFpix tries again (every 2 seconds) until it's un-keyed.
+        // The retry runs on a thread of its own: wait for all of it (un-keyed, data mode put back,
+        // and noted), not just the first part, as the radio changes a moment before RFpix notes it.
+        const string putBack = "FM → FM-D → FM";
         var until = DateTime.UtcNow + RadioConnection.UnkeyRetryEvery * 4;
-        while (hrd.Tx && DateTime.UtcNow < until) Thread.Sleep(50);
+        while ((hrd.Tx || hrd.Data || radio.IsKeyed || radio.LastDataModeReport != putBack) && DateTime.UtcNow < until)
+            Thread.Sleep(50);
         Assert.False(hrd.Tx);
         Assert.False(radio.IsKeyed);
         Assert.False(hrd.Data);   // and the radio's mode was put back
-        Assert.Equal("FM → FM-D → FM", radio.LastDataModeReport);
+        Assert.Equal(putBack, radio.LastDataModeReport);
     }
 
     [Fact]
