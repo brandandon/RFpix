@@ -289,6 +289,45 @@ public class RadioTests
         Assert.Null(HamlibModels.NumberFrom("0"));
     }
 
+    // Code review, Oct 2026: two pages connecting at the same moment could open two connections.
+    [Fact]
+    public async Task Connecting_twice_at_once_takes_turns_and_leaves_one_connection()
+    {
+        try
+        {
+            var both = await Task.WhenAll(Task.Run(() => RadioService.ConnectAsync(Dummy())), Task.Run(() => RadioService.ConnectAsync(Dummy())));
+            var current = RadioService.Current;
+            Assert.NotNull(current);
+            Assert.Contains(current, both);
+            var other = both.Single(r => !ReferenceEquals(r, current));
+            Assert.Throws<RadioException>(() => other.ReadFrequency());   // the first was closed by the second
+            current!.SetFrequency(7_171_000);
+            Assert.Equal(7_171_000, current.ReadFrequency());
+        }
+        finally
+        {
+            await RadioService.DisconnectAsync();
+        }
+        Assert.Null(RadioService.Current);
+    }
+
+    [Fact]
+    public async Task Sending_while_the_Radio_page_connects_uses_the_same_connection()
+    {
+        try
+        {
+            var both = await Task.WhenAll(Task.Run(() => RadioService.ConnectIfNeededAsync(Dummy())),
+                                          Task.Run(() => RadioService.ConnectIfNeededAsync(Dummy())));
+            Assert.Same(both[0], both[1]);
+            Assert.Same(RadioService.Current, both[0]);
+            Assert.Same(both[0], await RadioService.ConnectIfNeededAsync(Dummy()));   // and again later
+        }
+        finally
+        {
+            await RadioService.DisconnectAsync();
+        }
+    }
+
     // Hamlib's own messages for the log (Diagnostics/HamlibLog.cs) come from C, as a format and the
     // values to fill in. This checks they're put together right on each kind of computer: a
     // name (%s) and a frequency (%.0f, a floating-point number, handled differently from the others).

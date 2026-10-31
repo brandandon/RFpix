@@ -98,7 +98,7 @@ internal static class SendSupport
         if (radio is null && hasControl)
         {
             status("Connecting to the radio…");
-            radio = await RadioService.ConnectAsync(radioSettings);
+            radio = await RadioService.ConnectIfNeededAsync(radioSettings);   // (if Settings connected meanwhile, that one)
         }
 
         // The IC-9700's data-mode switch, if it's on, is shown with the progress ("IC-9700 in FM-D").
