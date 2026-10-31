@@ -34,6 +34,9 @@ public static class LogSummary
                 $", transmit level {s.TransmitLevelDb:0} dB",
             $"Pictures folder: {picturesFolder}",
             $"Website copies: {(s.Upload.SaveCopies ? "on" : "off")}  ·  uploading: {(s.Upload.Upload ? $"on, by {s.Upload.Protocol}" : "off")}",
+            "Analog pictures without their VIS code: " +
+                (s.KeepNoVis ? $"kept in the Gallery from {s.KeepNoVisMinPercent}%" : "not kept in the Gallery") + ", " +
+                (s.Upload.UploadNoVis ? $"uploaded from {s.Upload.NoVisMinPercent}%" : "not uploaded"),
         };
         return lines;
     }

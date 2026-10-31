@@ -55,6 +55,18 @@
               </Grid>
             </StackPanel>
 
+            <!-- Gallery: analog pictures found without their VIS code (AppSettings.ShouldKeepAnalog). -->
+            <StackPanel Spacing="6">
+              <TextBlock Text="Analog pictures without their VIS code" FontWeight="SemiBold" />
+              <StackPanel Orientation="Horizontal">
+                <CheckBox x:Name="KeepNoVisBox" Content="Keep analog pictures found without their VIS code in the Gallery, when at least" Margin="0,0,8,0" />
+                <ComboBox x:Name="KeepNoVisPercentBox" Width="90" VerticalAlignment="Center" />
+                <TextBlock Text="was received" VerticalAlignment="Center" Margin="8,0,0,0" />
+              </StackPanel>
+              <TextBlock Classes="Hint" TextWrapping="Wrap"
+                         Text="When Receive is left running, RFpix also picks up pictures partway through (their VIS code at the start was missed), and noise can look like one. These settings keep the small scraps out of the Gallery. A picture that isn't kept still shows on the Receive tab until the next one. Pictures that started with their VIS code are always kept. Whether pictures go to your website is set separately, on the FTP server tab." />
+            </StackPanel>
+
             <StackPanel Spacing="6">
               <TextBlock Text="Theme" FontWeight="SemiBold" />
               <!-- Picking an item runs OnThemeChanged in SettingsPage.axaml.cs. -->

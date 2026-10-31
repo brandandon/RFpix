@@ -37,6 +37,24 @@ public partial class SettingsPage : UserControl, IDisposable
         // New versions: checked for wherever RFpix was installed from a download.
         UpdatesPanel.IsVisible = RFpix.Update.UpdateCheck.InstallerPattern(OperatingSystem.IsWindows(), OperatingSystem.IsMacOS(),
             System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture, RFpix.Update.UpdateCheck.LinuxKind()) is not null;
+        // Analog pictures found without their VIS code: kept in the Gallery or not.
+        var percents = RFpix.Upload.UploadSettings.NoVisPercents;
+        KeepNoVisPercentBox.ItemsSource = percents.Select(p => $"{p}%").ToArray();
+        KeepNoVisBox.IsChecked = AppSettings.Current.KeepNoVis;
+        KeepNoVisPercentBox.SelectedIndex = Math.Max(0, Array.IndexOf(percents, AppSettings.Current.KeepNoVisMinPercent));
+        KeepNoVisPercentBox.IsEnabled = AppSettings.Current.KeepNoVis;
+        KeepNoVisBox.IsCheckedChanged += (_, _) =>
+        {
+            AppSettings.Current.KeepNoVis = KeepNoVisBox.IsChecked == true;
+            KeepNoVisPercentBox.IsEnabled = AppSettings.Current.KeepNoVis;
+            AppSettings.Current.Save();
+        };
+        KeepNoVisPercentBox.SelectionChanged += (_, _) =>
+        {
+            AppSettings.Current.KeepNoVisMinPercent = percents[Math.Clamp(KeepNoVisPercentBox.SelectedIndex, 0, percents.Length - 1)];
+            AppSettings.Current.Save();
+        };
+
         CheckForUpdatesBox.IsChecked = AppSettings.Current.CheckForUpdates;
         CheckForUpdatesBox.IsCheckedChanged += (_, _) =>
         {

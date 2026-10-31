@@ -154,6 +154,12 @@ public sealed class LogTests : IDisposable
         Assert.Contains("Sound input (receive): USB Audio CODEC", text);
         Assert.Contains("Sound output (send): (the one chosen isn't connected now)", text);
         Assert.Contains("uploading: on, by SFTP", text);
+        Assert.Contains("Analog pictures without their VIS code: kept in the Gallery from 50%, uploaded from 50%", text);
+        var off = Settings();
+        off.KeepNoVis = false;
+        off.Upload.NoVisMinPercent = 75;
+        Assert.Contains("Analog pictures without their VIS code: not kept in the Gallery, uploaded from 75%",
+            string.Join("\n", Summary(off)));
     }
 
     [Fact]

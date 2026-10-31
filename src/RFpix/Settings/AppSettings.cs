@@ -78,6 +78,19 @@ public sealed class AppSettings
     public string TemplateToName { get; set; } = "";
     public string TemplateRst { get; set; } = "595";
 
+    /// <summary>Keep analog pictures found without their VIS code (they start partway down) in the
+    /// Gallery... (Settings, Misc tab; separate from the website rule on the FTP server tab).</summary>
+    public bool KeepNoVis { get; set; } = true;
+    /// <summary>...when at least this much of the picture arrived (25, 50, 75 or 100 percent, as
+    /// <see cref="RFpix.Upload.UploadSettings.NoVisPercents"/>).</summary>
+    public int KeepNoVisMinPercent { get; set; } = 50;
+
+    /// <summary>Whether an analog picture is saved to the Gallery. Pictures that started with their
+    /// VIS code always are, even cut short; one found without it only by the two settings above.
+    /// <paramref name="lines"/> of the picture's <paramref name="height"/> arrived.</summary>
+    public bool ShouldKeepAnalog(bool foundWithoutVis, int lines, int height) =>
+        !foundWithoutVis || KeepNoVis && height > 0 && lines * 100L >= (long)KeepNoVisMinPercent * height;
+
     /// <summary>Copies for the website, and uploading them (Settings, FTP server tab).</summary>
     public RFpix.Upload.UploadSettings Upload { get; set; } = new();
 

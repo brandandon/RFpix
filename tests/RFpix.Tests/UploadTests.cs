@@ -153,6 +153,44 @@ public class UploadTests
     }
 
     [Fact]
+    public void Pictures_found_without_their_VIS_are_kept_in_the_Gallery_only_when_enough_arrived()
+    {
+        var s = new RFpix.Settings.AppSettings();   // ticked at 50% to start with
+        Assert.True(s.KeepNoVis);
+        Assert.Equal(50, s.KeepNoVisMinPercent);
+        Assert.True(s.ShouldKeepAnalog(foundWithoutVis: false, lines: 10, height: 256));   // with a VIS: always, even cut short
+        Assert.True(s.ShouldKeepAnalog(true, 128, 256));    // exactly half
+        Assert.False(s.ShouldKeepAnalog(true, 127, 256));   // not quite
+        s.KeepNoVisMinPercent = 100;
+        Assert.False(s.ShouldKeepAnalog(true, 255, 256));
+        Assert.True(s.ShouldKeepAnalog(true, 256, 256));
+        s.KeepNoVisMinPercent = 25;
+        Assert.True(s.ShouldKeepAnalog(true, 64, 256));
+        Assert.False(s.ShouldKeepAnalog(true, 63, 256));
+        Assert.False(s.ShouldKeepAnalog(true, 0, 0));       // nothing to measure: not kept
+        s.KeepNoVis = false;
+        Assert.False(s.ShouldKeepAnalog(true, 256, 256));   // never, however much arrived
+        Assert.True(s.ShouldKeepAnalog(false, 3, 256));
+
+        // Separate from the website rule: uploading off doesn't change it, and it doesn't change uploading.
+        s.KeepNoVis = true;
+        s.KeepNoVisMinPercent = 75;
+        s.Upload = new UploadSettings { Upload = false };
+        Assert.False(s.ShouldKeepAnalog(true, 100, 256));
+        s.Upload.Upload = true;
+        Assert.True(s.Upload.ShouldCopyAnalog(true, 128, 256));   // the website still takes it at 50%
+        Assert.False(s.ShouldKeepAnalog(true, 128, 256));
+    }
+
+    [Fact]
+    public void A_picture_not_kept_says_why_under_it()
+    {
+        Assert.Equal("Not saved to the Gallery: only 30% received", RFpix.Views.ReceivePage.NotKeptNote(true, 77, 256));
+        Assert.Equal("Not saved to the Gallery: only 0% received", RFpix.Views.ReceivePage.NotKeptNote(true, 5, 0));
+        Assert.Contains("aren't kept (Settings > Misc)", RFpix.Views.ReceivePage.NotKeptNote(false, 200, 256));
+    }
+
+    [Fact]
     public void Settings_problems_are_explained()
     {
         Assert.NotNull(new UploadSettings().Problem());   // no server yet

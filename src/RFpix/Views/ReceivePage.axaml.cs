@@ -63,6 +63,7 @@ public partial class ReceivePage : UserControl, IDisposable
     private DateTime _analogBoxesUntil = DateTime.MinValue;    // the analog boxes stay a little after it ends
     private (string Folder, GalleryEntry Entry, DateTime Saved)? _lastAnalog;   // for the FSK ID that follows
     private string _analogCaption = "";
+    private (string Note, DateTime At)? _unkeptAnalog;   // a picture shown but not kept in the Gallery, for its FSK ID
     private readonly IAudioOutput _output = AudioSystem.CreateOutput();   // for BSR requests
     private CancellationTokenSource? _asking;          // a BSR request going out
     private readonly HashSet<int> _askedFor = new();   // pictures asked for (transport IDs)
@@ -812,6 +813,7 @@ public partial class ReceivePage : UserControl, IDisposable
         _analogMode = mode;
         _analogFrom = "";
         _lastAnalog = null;
+        _unkeptAnalog = null;
         _analogBoxesUntil = DateTime.MaxValue;
         PictureCaption.Text = $"Receiving analog SSTV: {mode.Name} ({mode.Width} × {mode.Height})" +
                               (_sstv.ReceivingLate ? ", joined partway (its VIS code was missed)" : "");
@@ -833,6 +835,24 @@ public partial class ReceivePage : UserControl, IDisposable
         var when = got.Ended;
         string status = got.JoinedLate ? "  ·  joined partway (no VIS code)"
                       : got.Complete ? "" : $"  ·  cut short: {got.Lines} of {got.Mode.Height} lines";
+        _analogCaption = $"Analog SSTV {got.Mode.Name}  ·  {when:HH:mm}{status}";
+
+        // A picture found without its VIS goes to the Gallery only if enough of it arrived
+        // (Settings > Misc), and to the website only by its own rule (Settings > FTP server).
+        var settings = AppSettings.Current;
+        if (settings.Upload.ShouldCopyAnalog(got.JoinedLate, got.Lines, got.Mode.Height))
+        {
+            var copy = got.Picture;
+            _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(copy, when, analog: true));
+        }
+        if (!settings.ShouldKeepAnalog(got.JoinedLate, got.Lines, got.Mode.Height))
+        {
+            string note = NotKeptNote(settings.KeepNoVis, got.Lines, got.Mode.Height);
+            _unkeptAnalog = (note, DateTime.Now);
+            PictureCaption.Text = $"{_analogCaption}\n{note}";
+            AppLog.Info("Receive", $"Analog SSTV {got.Mode.Name}: {got.Lines} of {got.Mode.Height} lines, without its VIS code; not kept in the Gallery (Settings > Misc).");
+            return;
+        }
         try
         {
             var png = await Task.Run(() => Pictures.EncodePng(got.Picture));
@@ -842,11 +862,6 @@ public partial class ReceivePage : UserControl, IDisposable
             GalleryIndex.Add(AnalogFolder, entry);
             _lastAnalog = (AnalogFolder, entry, DateTime.Now);
             SendSupport.RaiseGalleryChanged();
-            var picture = got.Picture;
-            // A picture found without its VIS goes to the website only if enough of it arrived (Settings > FTP server).
-            if (AppSettings.Current.Upload.ShouldCopyAnalog(got.JoinedLate, got.Lines, got.Mode.Height))
-                _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when, analog: true));
-            _analogCaption = $"Analog SSTV {got.Mode.Name}  ·  {when:HH:mm}{status}";
             PictureCaption.Text = $"{_analogCaption}\nSaved as \"{savedAs}\"";
             AppLog.Info("Receive", $"Analog SSTV {got.Mode.Name}: {got.Lines} of {got.Mode.Height} lines" +
                                    (got.JoinedLate ? ", without its VIS code" : "") + $", saved as \"{savedAs}\".");
@@ -857,12 +872,25 @@ public partial class ReceivePage : UserControl, IDisposable
         }
     }
 
+    /// <summary>The note under a picture that isn't kept in the Gallery: "Not saved to the Gallery:
+    /// only 30% received", or, with the setting off, that pictures without their VIS aren't kept.</summary>
+    internal static string NotKeptNote(bool keepingSome, int lines, int height) =>
+        keepingSome
+            ? $"Not saved to the Gallery: only {(height > 0 ? lines * 100L / height : 0)}% received"
+            : "Not saved to the Gallery: pictures without their VIS code aren't kept (Settings > Misc)";
+
     /// <summary>An FSK ID: the sender's callsign, shown in the From box and added to the picture just saved.</summary>
     private void ShowAnalogId(string call)
     {
         AppLog.Info("Receive", $"FSK ID heard: {call}");
         _analogFrom = call;
         if (_sstv.Receiving is null && DateTime.Now < _analogBoxesUntil) _analogBoxesUntil = DateTime.Now + AnalogBoxesLinger;
+        if (_lastAnalog is null && _unkeptAnalog is { } unkept && DateTime.Now - unkept.At <= TimeSpan.FromSeconds(20))
+        {
+            _unkeptAnalog = null;
+            PictureCaption.Text = $"{_analogCaption}  ·  from {call}\n{unkept.Note}";
+            return;
+        }
         if (_lastAnalog is not { } last || DateTime.Now - last.Saved > TimeSpan.FromSeconds(20)) return;
         var (folder, entry, _) = last;
         _lastAnalog = null;
