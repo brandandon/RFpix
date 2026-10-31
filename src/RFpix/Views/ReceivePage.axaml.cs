@@ -665,8 +665,8 @@ public partial class ReceivePage : UserControl, IDisposable
     private static string ReceivedFolder => PictureFolders.Received;
 
     // Digital (HamDRM) and analog SSTV pictures are kept apart, in two folders inside it.
-    private static string DigitalFolder => Path.Combine(ReceivedFolder, ReceivedFileSaver.DigitalSubfolder);
-    private static string AnalogFolder => Path.Combine(ReceivedFolder, ReceivedFileSaver.AnalogSubfolder);
+    private static string DigitalFolder => PictureFolders.ReceivedDigital;
+    private static string AnalogFolder => PictureFolders.ReceivedAnalog;
 
     // Counts received pictures, so a slow decode can't replace a newer picture on the screen.
     private int _pictureCount;
@@ -929,13 +929,7 @@ public partial class ReceivePage : UserControl, IDisposable
         }
     }
 
-    private void ShowAskStatus(string message, bool problem)
-    {
-        if (problem) AppLog.Error("Receive", message);
-        AskText.Text = message;
-        if (problem) AskText.Foreground = Brushes.OrangeRed;
-        else AskText.ClearValue(TextBlock.ForegroundProperty);
-    }
+    private void ShowAskStatus(string message, bool problem) => StatusLine.Show(AskText, message, problem, "Receive");
 
     // ---- messages ----
 

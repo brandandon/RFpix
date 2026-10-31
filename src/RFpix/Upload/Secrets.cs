@@ -69,8 +69,18 @@ public static class Secrets
         return plain;
     }
 
+    // One at a time: the digital and analog uploaders can read the key at the same moment as the FTP
+    // tab's Save makes it, and a key read half-written (or two made at once) would leave a password
+    // that can't be read back.
+    private static readonly object KeyLock = new();
+
     /// <summary>The key, read from its file; made (readable by this account only) if asked and missing.</summary>
     private static byte[]? Key(bool create)
+    {
+        lock (KeyLock) return KeyUnlocked(create);
+    }
+
+    private static byte[]? KeyUnlocked(bool create)
     {
         string file = KeyFile;
         if (File.Exists(file))

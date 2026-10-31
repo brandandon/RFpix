@@ -32,6 +32,14 @@ public static class PictureFolders
     /// <summary>Where received pictures go (in its Digital and Analog folders).</summary>
     public static string Received => AppSettings.Current.ReceivedFolder is { Length: > 0 } older ? older : Path.Combine(Root, ReceivedName);
 
+    /// <summary>Where received digital (HamDRM) and analog SSTV pictures go: the Received folder's own two.</summary>
+    public static string ReceivedDigital => Path.Combine(Received, RFpix.Receive.ReceivedFileSaver.DigitalSubfolder);
+    public static string ReceivedAnalog => Path.Combine(Received, RFpix.Receive.ReceivedFileSaver.AnalogSubfolder);
+
+    /// <summary>Every folder received pictures are in: the Digital and Analog folders, and the Received
+    /// folder itself (pictures from before they were kept apart).</summary>
+    public static string[] AllReceived => new[] { Received, ReceivedDigital, ReceivedAnalog };
+
     /// <summary>Where copies of the pictures you send go.</summary>
     public static string Sent => Path.Combine(Root, SentName);
 

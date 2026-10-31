@@ -194,7 +194,7 @@ public sealed class SstvReceiver
             _pulses.Clear();
             // The picture starts at the line of the first of those syncs. (For Scottie the sync is in
             // the middle of the line, and Image adds one sync length for the extra one VIS starts with.)
-            bool scottie = mode.Mode is SstvMode.Scottie1 or SstvMode.Scottie2 or SstvMode.ScottieDX;
+            bool scottie = mode.IsScottie;
             double offset = scottie ? (2 * (mode.GapMs + mode.ScanMs) + mode.SyncMs) * TrackRate / 1000 : 0;
             return (mode, first - (long)Math.Round(offset));
         }
@@ -303,7 +303,7 @@ public sealed class SstvReceiver
             _rx = rx;
             Mode = mode;
             JoinedLate = joinedLate;
-            bool scottie = mode.Mode is SstvMode.Scottie1 or SstvMode.Scottie2 or SstvMode.ScottieDX;
+            bool scottie = mode.IsScottie;
             // Scottie starts with one extra sync; its lines' own syncs come between blue and red.
             _start = start + (scottie ? (long)Math.Round(mode.SyncMs * TrackRate / 1000) : 0);
             _syncOffset = scottie ? 2 * (mode.GapMs + mode.ScanMs) : 0;

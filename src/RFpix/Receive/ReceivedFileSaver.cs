@@ -17,10 +17,6 @@ public static class ReceivedFileSaver
     /// <summary>Inside the Received folder, digital (HamDRM) and analog SSTV pictures each have their own.</summary>
     public const string DigitalSubfolder = "Digital", AnalogSubfolder = "Analog";
 
-    /// <summary>The default folder: Documents\RFpix\Received.</summary>
-    public static string DefaultFolder =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "RFpix", "Received");
-
     /// <summary>Saves a received file and returns the full path it was saved to.</summary>
     public static string Save(ReceivedFile file, string folder, string? callsign, DateTime when)
     {

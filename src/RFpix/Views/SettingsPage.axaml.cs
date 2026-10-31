@@ -318,13 +318,7 @@ public partial class SettingsPage : UserControl, IDisposable
         ShowCalibrationStatus("No correction now.", problem: false);
     }
 
-    private void ShowCalibrationStatus(string message, bool problem)
-    {
-        if (problem) AppLog.Error("Settings", $"Sound-card calibration: {message}");
-        CalibrationStatus.Text = message;
-        if (problem) CalibrationStatus.Foreground = Avalonia.Media.Brushes.OrangeRed;
-        else CalibrationStatus.ClearValue(TextBlock.ForegroundProperty);
-    }
+    private void ShowCalibrationStatus(string message, bool problem) => StatusLine.Show(CalibrationStatus, message, problem, "Calibration");
 
     // ---- the log (Diagnostics/AppLog.cs) ----
 
@@ -378,13 +372,7 @@ public partial class SettingsPage : UserControl, IDisposable
         }
     }
 
-    private void ShowLogStatus(string message, bool problem)
-    {
-        if (problem) AppLog.Error("Settings", message);
-        LogStatus.Text = message;
-        if (problem) LogStatus.Foreground = Avalonia.Media.Brushes.OrangeRed;
-        else LogStatus.ClearValue(TextBlock.ForegroundProperty);
-    }
+    private void ShowLogStatus(string message, bool problem) => StatusLine.Show(LogStatus, message, problem, "Settings");
 
     // ---- theme ----
 

@@ -30,8 +30,16 @@ internal static class PulseNative
     private const int OperationRunning = 0;
     private const uint InvalidIndex = uint.MaxValue;
 
-    // pa_source_info and pa_sink_info: where the fields RFpix reads are.
+    // pa_source_info and pa_sink_info: where the fields RFpix reads are. These positions are for 64-bit
+    // programs (checked against PulseAudio's headers), which is all RFpix is built as; a 32-bit build
+    // would need its own, so Need64Bit stops one reading the wrong places.
     private const int InfoName = 0, InfoDescription = 16, InfoVolume = 172, SourceMonitorOf = 308;
+
+    private static void Need64Bit()
+    {
+        if (!Environment.Is64BitProcess)
+            throw new AudioException("RFpix's Linux sound code is for 64-bit computers (PCs, and the Raspberry Pi with 64-bit Raspberry Pi OS).");
+    }
     private const int CVolumeSize = 132, CVolumeValues = 4, ChannelsMax = 32;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -159,6 +167,7 @@ internal static class PulseNative
     /// <summary>The recording devices (not the "monitor of" ones), or the playback devices.</summary>
     public static List<AudioDeviceInfo> ListDevices(bool input)
     {
+        Need64Bit();
         var devices = new List<AudioDeviceInfo>();
         InfoCallback callback = (_, info, eol, _) =>
         {
@@ -177,6 +186,7 @@ internal static class PulseNative
     /// <summary>A recording device's level, 0 to 1 (the loudest of its channels), or null if it isn't there.</summary>
     public static double? SourceVolume(string name)
     {
+        Need64Bit();
         double? level = null;
         InfoCallback callback = (_, info, eol, _) =>
         {
@@ -195,6 +205,7 @@ internal static class PulseNative
     /// <summary>Sets a recording device's level (all its channels) to 0 to 1.</summary>
     public static bool SetSourceVolume(string name, double level)
     {
+        Need64Bit();
         // Its channel count first, as the level is set channel by channel.
         int channels = 0;
         InfoCallback callback = (_, info, eol, _) =>

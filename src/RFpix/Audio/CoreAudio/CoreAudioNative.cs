@@ -31,7 +31,6 @@ internal static class CoreAudioNative
     public static readonly uint Name = Code("lnam");             // kAudioObjectPropertyName
     public static readonly uint DeviceUid = Code("uid ");        // kAudioDevicePropertyDeviceUID
     public static readonly uint StreamConfiguration = Code("slay");
-    public static readonly uint NominalSampleRate = Code("nsrt");
     public static readonly uint TranslateUidToDevice = Code("uidd");   // kAudioHardwarePropertyTranslateUIDToDevice
     public static readonly uint VolumeScalar = Code("volm");           // kAudioDevicePropertyVolumeScalar
     public static readonly uint ScopeGlobal = Code("glob"), ScopeInput = Code("inpt"), ScopeOutput = Code("outp");

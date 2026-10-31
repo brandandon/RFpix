@@ -171,13 +171,7 @@ public partial class AlphaTestingPage : UserControl, IDisposable
         }
     }
 
-    private void ShowStatus(string message, bool problem)
-    {
-        if (problem) RFpix.Diagnostics.AppLog.Error("Testing", message);
-        StatusText.Text = message;
-        if (problem) StatusText.Foreground = Brushes.OrangeRed;
-        else StatusText.ClearValue(TextBlock.ForegroundProperty);
-    }
+    private void ShowStatus(string message, bool problem) => StatusLine.Show(StatusText, message, problem, "Testing");
 
     public void Dispose()
     {

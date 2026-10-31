@@ -40,8 +40,11 @@ public sealed record SstvModeInfo(SstvMode Mode, string Name, int Vis, SstvColor
     /// <summary>Lines of sound (PD sends two picture lines per sync).</summary>
     public int SoundLines => Color == SstvColor.PD ? Height / 2 : Height;
 
+    /// <summary>A Scottie mode: one extra sync before the first line, and each line's sync between blue and red.</summary>
+    public bool IsScottie => Mode is SstvMode.Scottie1 or SstvMode.Scottie2 or SstvMode.ScottieDX;
+
     /// <summary>The picture's time on the air, without the VIS code.</summary>
-    public TimeSpan PictureTime => TimeSpan.FromMilliseconds(SoundLines * LineMs + (Mode is SstvMode.Scottie1 or SstvMode.Scottie2 or SstvMode.ScottieDX ? SyncMs : 0));
+    public TimeSpan PictureTime => TimeSpan.FromMilliseconds(SoundLines * LineMs + (IsScottie ? SyncMs : 0));
 
     public override string ToString() => Name;
 }

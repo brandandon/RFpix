@@ -140,7 +140,7 @@ public static class SstvEncoder
 
     private static void WriteGbr(ToneWriter t, SstvModeInfo m, Channels c)
     {
-        bool scottie = m.Mode is SstvMode.Scottie1 or SstvMode.Scottie2 or SstvMode.ScottieDX;
+        bool scottie = m.IsScottie;
         if (scottie) t.Tone(SstvModes.SyncHz, m.SyncMs);   // Scottie: one sync before the first line
         for (int y = 0; y < m.Height; y++)
         {

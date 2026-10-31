@@ -66,14 +66,6 @@ public static class HamDrmModes
         _ => 31,
     };
 
-    /// <summary>The three steady pilot carriers (always at 725, 1475 and 1850 Hz).</summary>
-    public static int[] PilotCarriers(HamDrmMode mode) => mode switch
-    {
-        HamDrmMode.A => new[] { 9, 27, 36 },
-        HamDrmMode.B => new[] { 8, 24, 32 },
-        _ => new[] { 5, 15, 20 },
-    };
-
     /// <summary>The "time reference cells": carriers sent with fixed, known phase angles in
     /// the first symbol of every frame, so a receiver can find where frames start.
     /// Angles are in 1024ths of a full turn. From QSSTV's transmitter tables (TableCarMap.h).</summary>

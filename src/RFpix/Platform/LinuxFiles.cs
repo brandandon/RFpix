@@ -1,7 +1,9 @@
 // LinuxFiles.cs - two things the Gallery does with files on Linux:
-//   - putting a picture in the Trash, the way Linux desktops share it (the freedesktop.org
-//     Trash: the file goes in ~/.local/share/Trash/files, with a note in .../info saying where
-//     it came from and when), so the file manager can put it back;
+//   - putting a picture in the Trash, so the file manager can put it back: the desktop's own
+//     "gio trash" first (it knows each drive's own Trash, for pictures kept on another drive
+//     with Change folder…); if that isn't there, RFpix does it the way Linux desktops share it
+//     (the freedesktop.org Trash: the file goes in ~/.local/share/Trash/files, with a note in
+//     .../info saying where it came from and when);
 //   - showing a picture in the file manager, with it selected where the file manager can
 //     (most can, through "FileManager1" on D-Bus); otherwise its folder is opened.
 
@@ -15,7 +17,9 @@ namespace RFpix.Platform;
 public static class LinuxFiles
 {
     /// <summary>The Trash folder: $XDG_DATA_HOME/Trash, usually ~/.local/share/Trash. Tests point it elsewhere.</summary>
-    internal static string TrashFolder { get; set; } = Path.Combine(
+    internal static string TrashFolder { get; set; } = DefaultTrashFolder;
+
+    private static string DefaultTrashFolder => Path.Combine(
         Environment.GetEnvironmentVariable("XDG_DATA_HOME") is { Length: > 0 } data ? data
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share"),
         "Trash");
@@ -24,6 +28,7 @@ public static class LinuxFiles
     public static void MoveToTrash(string path)
     {
         string full = Path.GetFullPath(path);
+        if (TrashFolder == DefaultTrashFolder && DesktopTrash(full)) return;   // (not in the tests: their own Trash)
         string files = Path.Combine(TrashFolder, "files"), info = Path.Combine(TrashFolder, "info");
         Directory.CreateDirectory(files);
         Directory.CreateDirectory(info);
@@ -44,6 +49,31 @@ public static class LinuxFiles
         {
             File.Delete(note);
             throw;
+        }
+    }
+
+    /// <summary>The desktop's own "gio trash" (GNOME, Cinnamon, MATE, Xfce and Raspberry Pi OS have it; most
+    /// others too). False if it isn't there or didn't work: then RFpix does it itself.</summary>
+    private static bool DesktopTrash(string full)
+    {
+        try
+        {
+            var start = new ProcessStartInfo("gio") { UseShellExecute = false };
+            start.ArgumentList.Add("trash");
+            start.ArgumentList.Add("--");
+            start.ArgumentList.Add(full);
+            using var process = Process.Start(start);
+            if (process is null) return false;
+            if (!process.WaitForExit(10_000))
+            {
+                try { process.Kill(); } catch (InvalidOperationException) { }
+                return false;
+            }
+            return process.ExitCode == 0 && !File.Exists(full);
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            return false;   // no gio on this computer
         }
     }
 

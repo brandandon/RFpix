@@ -67,8 +67,7 @@ public partial class GalleryPage : UserControl
 
     // Received pictures are in the Received folder's Digital and Analog folders (and, from
     // before they were kept apart, the Received folder itself).
-    private string[] Folders => ShowingSent ? new[] { Folder }
-        : new[] { Folder, Path.Combine(Folder, ReceivedFileSaver.DigitalSubfolder), Path.Combine(Folder, ReceivedFileSaver.AnalogSubfolder) };
+    private string[] Folders => ShowingSent ? new[] { Folder } : PictureFolders.AllReceived;
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {

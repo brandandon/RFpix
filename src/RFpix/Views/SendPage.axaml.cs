@@ -184,12 +184,9 @@ public partial class SendPage : UserControl, IDisposable
     /// <summary>Lists the newest received pictures (keeping the one picked by hand, if it's still there).</summary>
     private void FillReceivedChoices()
     {
-        var received = PictureFolders.Received;
         try
         {
-            _receivedChoices = GalleryIndex.List(new[] { received, Path.Combine(received, RFpix.Receive.ReceivedFileSaver.DigitalSubfolder),
-                                                         Path.Combine(received, RFpix.Receive.ReceivedFileSaver.AnalogSubfolder) })
-                                           .Take(40).ToList();
+            _receivedChoices = GalleryIndex.List(PictureFolders.AllReceived).Take(40).ToList();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { _receivedChoices = new(); }
         if (_receivedPicked is not null && !_receivedChoices.Any(e => e.FullPath == _receivedPicked)) _receivedPicked = null;
@@ -1048,13 +1045,7 @@ public partial class SendPage : UserControl, IDisposable
         }
     }
 
-    private void ShowStatus(string message, bool problem)
-    {
-        if (problem) RFpix.Diagnostics.AppLog.Error("Send", message);
-        StatusText.Text = message;
-        if (problem) StatusText.Foreground = Brushes.OrangeRed;
-        else StatusText.ClearValue(TextBlock.ForegroundProperty);
-    }
+    private void ShowStatus(string message, bool problem) => StatusLine.Show(StatusText, message, problem, "Send");
 
     public void Dispose()
     {

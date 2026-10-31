@@ -504,11 +504,5 @@ public partial class TemplateEditorWindow : Window
         Close();
     }
 
-    private void Status(string message, bool problem = false)
-    {
-        if (problem) RFpix.Diagnostics.AppLog.Error("Template", message);
-        StatusText.Text = message;
-        if (problem) StatusText.Foreground = Brushes.OrangeRed;
-        else StatusText.ClearValue(TextBlock.ForegroundProperty);
-    }
+    private void Status(string message, bool problem = false) => StatusLine.Show(StatusText, message, problem, "Template");
 }
