@@ -194,6 +194,78 @@ public class PictureTests
         }
     }
 
+    // Code review, Oct 2026: also at the very edge, and just past it.
+    [Theory]
+    [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)]
+    public void Reed_Solomon_at_its_limits_repairs_or_says_it_cant_and_changes_nothing(int level)
+    {
+        int k = RsFile.DataBytes(level), parity = 255 - k;
+        var rs = new ReedSolomon(k);
+        var random = new Random(100 + level);
+        for (int trial = 0; trial < 6; trial++)
+        {
+            var original = new byte[255];
+            random.NextBytes(original.AsSpan(0, k));
+            rs.Encode(original);
+            var places = Enumerable.Range(0, 255).OrderBy(_ => random.Next()).ToArray();
+
+            // Missing and wrong bytes together, exactly at the limit (a wrong byte costs two repair bytes).
+            int wrong = parity / 4, gone = parity - 2 * wrong;
+            var mixed = (byte[])original.Clone();
+            foreach (int at in places.Take(gone)) mixed[at] = 0;
+            foreach (int at in places.Skip(gone).Take(wrong)) mixed[at] ^= (byte)random.Next(1, 256);
+            Assert.True(rs.Decode(mixed, 0, places.Take(gone).ToArray()) >= 0);
+            Assert.Equal(original, mixed);
+
+            // One missing byte more than there are repair bytes: past repair, and left as it was.
+            var erased = (byte[])original.Clone();
+            foreach (int at in places.Take(parity + 1)) erased[at] = 0;
+            var before = (byte[])erased.Clone();
+            Assert.Equal(-1, rs.Decode(erased, 0, places.Take(parity + 1).ToArray()));
+            Assert.Equal(before, erased);
+
+            // One wrong byte more than half the repair bytes, at unknown places: the same.
+            var damaged = (byte[])original.Clone();
+            foreach (int at in places.Take(parity / 2 + 1)) damaged[at] ^= (byte)random.Next(1, 256);
+            before = (byte[])damaged.Clone();
+            Assert.Equal(-1, rs.Decode(damaged, 0, Array.Empty<int>()));
+            Assert.Equal(before, damaged);
+        }
+    }
+
+    // An AVIF that came Reed-Solomon wrapped loses the padding zeros after its last "box" (each box
+    // starts with its length). Code review, Oct 2026: with damaged lengths too.
+    [Fact]
+    public void AVIF_padding_is_trimmed_and_damaged_lengths_leave_the_file_as_it_came()
+    {
+        static byte[] Box(uint length, byte fill)
+        {
+            var box = new byte[length];
+            box[0] = (byte)(length >> 24); box[1] = (byte)(length >> 16); box[2] = (byte)(length >> 8); box[3] = (byte)length;
+            box[4] = (byte)'t'; box[5] = (byte)'e'; box[6] = (byte)'s'; box[7] = (byte)'t';
+            for (int i = 8; i < box.Length; i++) box[i] = fill;
+            return box;
+        }
+        var boxes = Box(24, 1).Concat(Box(40, 2)).ToArray();
+        var padded = boxes.Concat(new byte[100]).ToArray();
+        Assert.Equal(boxes, RsFile.WithoutPadding(padded));      // trimmed to the last box's end
+        Assert.Equal(boxes, RsFile.WithoutPadding(boxes));       // nothing to trim
+
+        foreach (uint damaged in new uint[] { 0, 3, 7, 10_000, uint.MaxValue })
+        {
+            var file = (byte[])padded.Clone();
+            file[24] = (byte)(damaged >> 24); file[25] = (byte)(damaged >> 16); file[26] = (byte)(damaged >> 8); file[27] = (byte)damaged;
+            var result = RsFile.WithoutPadding(file);
+            // Never past the file, never into a box: either untouched or cut at the first box's end.
+            Assert.True(result.Length == file.Length || result.Length == 24, $"length {damaged} gave {result.Length} bytes");
+            Assert.Equal(file[..result.Length], result);
+        }
+
+        var notPadding = boxes.Concat(new byte[] { 0, 0, 9, 0 }).ToArray();
+        Assert.Equal(notPadding, RsFile.WithoutPadding(notPadding));   // something after the end that isn't zeros: kept
+        Assert.Equal(new byte[] { 1, 2, 3 }, RsFile.WithoutPadding(new byte[] { 1, 2, 3 }));   // too short to be boxes
+    }
+
     [Theory]
     [InlineData(1, 5926)] [InlineData(4, 6057)] [InlineData(2, 1)] [InlineData(3, 160 * 3 - 7)]
     public void RS_wrapping_matches_QSSTV_and_unwraps(int level, int size)
@@ -274,6 +346,38 @@ public class PictureTests
         // Original frame 2 needs sent frames 2-6: a fifth of its cells came in frame 6, now missing.
         Assert.Equal(20, outFrames[2].Weights.Count(w => w == 0));
         Assert.All(outFrames[1].Weights, w => Assert.Equal(1.0, w));
+    }
+
+    // Code review, Oct 2026: a round trip through the sender's interleaver, with a short dropout and a
+    // long one. Every cell that comes back must be the right one in the right place, and exactly the
+    // cells sent in the lost frames must be marked missing; frames come out in order, each once.
+    [Fact]
+    public void Deinterleaver_after_dropouts_puts_every_cell_back_and_marks_exactly_whats_lost()
+    {
+        const int cells = 120, frames = 40;   // 120 cells: 24 sent in each of the 5 frames
+        var tx = new TimeInterleaver(cells, HamDrmInterleave.Long);
+        var rx = new TimeDeinterleaver(cells, HamDrmInterleave.Long);
+        var sent = Enumerable.Range(0, frames)
+            .Select(n => tx.Add(Enumerable.Range(0, cells).Select(j => new Complex(n * 1000 + j, 0)).ToArray())).ToList();
+        var dropped = new HashSet<long> { 7, 8 };   // under a second
+        for (long f = 20; f < 30; f++) dropped.Add(f);   // 4 seconds
+        var ones = Enumerable.Repeat(1.0, cells).ToArray();
+
+        var outFrames = new List<(long Frame, Complex[] Cells, double[] Weights)>();
+        for (long f = 0; f < frames; f++)
+            if (!dropped.Contains(f)) outFrames.AddRange(rx.Add(f, sent[(int)f], ones));
+        Assert.Empty(rx.Add(33, sent[33], ones));   // a frame heard again late is ignored
+
+        var numbers = outFrames.Select(o => o.Frame).ToList();
+        Assert.Equal(numbers.OrderBy(n => n).Distinct(), numbers);   // in order, each once
+        Assert.Contains(35L, numbers);                                // and it carried on to the end
+        foreach (var (frame, got, weights) in outFrames)
+        {
+            for (int j = 0; j < cells; j++)
+                if (weights[j] != 0) Assert.Equal((double)(frame * 1000 + j), got[j].Real);   // the right cell
+            int lostParts = Enumerable.Range(0, TimeDeinterleaver.LongDepth).Count(d => dropped.Contains(frame + d));
+            Assert.Equal(lostParts * cells / TimeDeinterleaver.LongDepth, weights.Count(w => w == 0));
+        }
     }
 
     [Theory]

@@ -114,7 +114,7 @@ public static class RsFile
     /// block of padding on the end; JPEG and JPEG 2000 readers ignore it, but an AVIF
     /// reader could take the zeros for a broken extra section.) An AVIF is a row of
     /// "boxes", each starting with its length, so its true end is where the last box ends.</summary>
-    private static byte[] WithoutPadding(byte[] file)
+    internal static byte[] WithoutPadding(byte[] file)
     {
         long end = 0;
         while (end + 8 <= file.Length)
