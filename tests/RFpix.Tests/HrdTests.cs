@@ -21,6 +21,8 @@ public class HrdTests
         public bool Tx, Data;
         public ulong Frequency = 145_500_000;
         public bool DataButton = true;
+        public int RefuseUnkey, RefuseDataOff;   // how many times to answer "Failed" to these
+        public bool RefuseKey;
 
         public FakeHrd()
         {
@@ -82,10 +84,16 @@ public class HrdTests
                 case "get dropdown-text {Mode}": return $"Mode: {Mode}";
                 case "get button-select TX": return Tx ? "1" : "0";
                 case "get button-select Data": return Data ? "1" : "0";
-                case "set button-select TX 1": Tx = true; return "OK";
-                case "set button-select TX 0": Tx = false; return "OK";
+                case "set button-select TX 1":
+                    if (RefuseKey) return "Failed";
+                    Tx = true; return "OK";
+                case "set button-select TX 0":
+                    if (RefuseUnkey > 0) { RefuseUnkey--; return "Failed"; }
+                    Tx = false; return "OK";
                 case "set button-select Data 1": Data = true; return "OK";
-                case "set button-select Data 0": Data = false; return "OK";
+                case "set button-select Data 0":
+                    if (RefuseDataOff > 0) { RefuseDataOff--; return "Failed"; }
+                    Data = false; return "OK";
             }
             if (c.StartsWith("set frequency-hz ")) { Frequency = ulong.Parse(c[17..]); return "OK"; }
             return "Unknown command";
@@ -190,6 +198,55 @@ public class HrdTests
         Thread.Sleep(1000);
         Assert.False(hrd2.Tx);            // released by the time limit
         Assert.False(keyed.IsKeyed);
+    }
+
+    // Code review, Oct 2026: if un-keying failed, nothing tried again, and the radio could be left
+    // transmitting (and in data mode).
+    [Fact]
+    public void If_un_keying_fails_it_is_tried_again_until_it_works_and_data_mode_is_put_back()
+    {
+        using var hrd = new FakeHrd { Mode = "FM", RefuseUnkey = 4 };   // refused twice now, twice more on the first retry
+        using var radio = RadioConnection.Open(Hrd(hrd, dataMode: true));
+        radio.Key(TimeSpan.FromSeconds(60));
+        Assert.True(hrd.Tx && hrd.Data);
+
+        var ex = Assert.Throws<RadioException>(radio.Unkey);
+        Assert.Contains("Un-key the radio by hand", ex.Message);
+        Assert.True(radio.IsKeyed);   // still transmitting, as far as RFpix knows
+
+        // Long before the 60-second limit, RFpix tries again (every 2 seconds) until it's un-keyed.
+        var until = DateTime.UtcNow + RadioConnection.UnkeyRetryEvery * 4;
+        while (hrd.Tx && DateTime.UtcNow < until) Thread.Sleep(50);
+        Assert.False(hrd.Tx);
+        Assert.False(radio.IsKeyed);
+        Assert.False(hrd.Data);   // and the radio's mode was put back
+        Assert.Equal("FM → FM-D → FM", radio.LastDataModeReport);
+    }
+
+    [Fact]
+    public void If_switching_data_mode_back_fails_closing_tries_again()
+    {
+        using var hrd = new FakeHrd { Mode = "FM", RefuseDataOff = 1 };
+        var radio = RadioConnection.Open(Hrd(hrd, dataMode: true));
+        radio.Key(TimeSpan.FromSeconds(60));
+        Assert.Throws<RadioException>(radio.Unkey);   // un-keyed, but data mode wouldn't switch off
+        Assert.False(hrd.Tx);
+        Assert.False(radio.IsKeyed);
+        Assert.True(hrd.Data);
+
+        radio.Dispose();   // closing RFpix (or disconnecting)
+        Assert.False(hrd.Data);
+    }
+
+    [Fact]
+    public void If_keying_fails_data_mode_is_switched_back()
+    {
+        using var hrd = new FakeHrd { Mode = "FM", DataButton = true };
+        using var radio = RadioConnection.Open(Hrd(hrd, dataMode: true));
+        hrd.RefuseKey = true;
+        Assert.Throws<RadioException>(() => radio.Key(TimeSpan.FromSeconds(60)));
+        Assert.False(radio.IsKeyed);
+        Assert.False(hrd.Data);   // not left in data mode
     }
 
     [Fact]

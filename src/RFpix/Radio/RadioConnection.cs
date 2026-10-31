@@ -6,8 +6,10 @@
 // from a background task. A lock lets only one command reach the radio at a time.
 //
 // Safety: keying is always given a time limit. If nothing un-keys the radio in time
-// (a fault, a crash in the sending code), a watcher thread un-keys it. Closing the connection
-// un-keys it too, and switches data mode back off if it was switched on for transmitting.
+// (a fault, a crash in the sending code), a watcher thread un-keys it. If un-keying fails, the
+// watcher keeps trying every 2 seconds until it works. Closing the connection un-keys it too,
+// and switches data mode back off if it was switched on for transmitting (and if switching back
+// failed earlier, closing tries again).
 //
 // Data mode (IC-9700 only): before keying, RFpix turns the radio's DATA setting on with
 // Icom's own command (IcomCiv.cs), keeping its mode and filter, checks that it took, and
@@ -27,8 +29,9 @@ public sealed class RadioConnection : IDisposable
     private readonly RadioSettings _settings;
     private IntPtr _rig;
     private HrdClient? _hrd;   // set when Ham Radio Deluxe has the radio (no Hamlib then)
-    private ManualResetEventSlim? _pttLimit;   // set = keying ended in time
+    private KeyGuard? _guard;   // the time limit's watcher, while keyed
     private string? _modeBeforeTransmit;   // set while data mode was switched on for transmitting, e.g. "FM"
+                                           // (until it's been switched back)
 
     /// <summary>Switch an IC-9700 to data mode while transmitting. Starts as saved in the settings;
     /// the Radio tab changes it at once when its box is ticked or cleared.</summary>
@@ -197,56 +200,143 @@ public sealed class RadioConnection : IDisposable
 
             if (_settings.Ptt != PttMethod.Vox)
             {
-                if (_hrd is { } hrd) hrd.SetPtt(true);
-                else Check(HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOn), "Couldn't key the transmitter");
+                try
+                {
+                    if (_hrd is { } hrd) hrd.SetPtt(true);
+                    else Check(HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOn), "Couldn't key the transmitter");
+                }
+                catch (RadioException)
+                {
+                    // Not keyed: put the radio's mode back as it was (if data mode was switched on).
+                    if (_modeBeforeTransmit is not null)
+                        try { DataModeOff(); } catch (RadioException) { /* closing tries again */ }
+                    throw;
+                }
             }
             IsKeyed = true;
             AppLog.Info("Radio", _settings.Ptt == PttMethod.Vox
                 ? $"Transmitting by VOX (no key command), time limit {limit.TotalSeconds:0} s."
                 : $"Keyed the transmitter, time limit {limit.TotalSeconds:0} s.");
 
-            // The time limit has its own thread, so a busy computer can't delay it.
-            var ended = new ManualResetEventSlim();
-            _pttLimit = ended;
-            new Thread(() =>
-            {
-                if (ended.Wait(limit) || !UnkeyIfKeyed()) return;
-                AppLog.Error("Radio", $"The transmit time limit ({limit.TotalSeconds:0} s) was reached, so RFpix released the transmitter.");
-                KeyedTooLong?.Invoke();
-            }) { IsBackground = true, Name = "RFpix transmit time limit" }.Start();
+            var guard = new KeyGuard();
+            _guard = guard;
+            new Thread(() => Watch(guard, limit)) { IsBackground = true, Name = "RFpix transmit time limit" }.Start();
         }
     }
 
-    /// <summary>Un-keys the transmitter and, if data mode was switched on for transmitting, switches back.</summary>
+    /// <summary>How often un-keying is tried again once it has failed.</summary>
+    public static TimeSpan UnkeyRetryEvery { get; } = TimeSpan.FromSeconds(2);
+
+    /// <summary>The time limit's watcher: <see cref="Released"/> once un-keyed (nothing more to do);
+    /// <see cref="Retry"/> when un-keying failed (try again now, and every few seconds).</summary>
+    private sealed class KeyGuard
+    {
+        public readonly ManualResetEventSlim Released = new();
+        public readonly ManualResetEventSlim Retry = new();
+        public bool Failing;   // un-keying has failed (said once in the log)
+    }
+
+    // On its own thread, so a busy computer can't delay it. Waits for the time limit (or for un-keying
+    // to fail); then un-keys, and if that fails keeps trying every few seconds until it works or
+    // the connection is closed. The radio is never left transmitting because one try failed.
+    private void Watch(KeyGuard guard, TimeSpan limit)
+    {
+        int woken = WaitHandle.WaitAny(new[] { guard.Released.WaitHandle, guard.Retry.WaitHandle }, limit);
+        if (woken == 0) return;   // un-keyed in time
+        bool atLimit = woken == WaitHandle.WaitTimeout;
+        while (true)
+        {
+            switch (TryUnkey())
+            {
+                case UnkeyTry.Released:
+                    if (atLimit)
+                    {
+                        AppLog.Error("Radio", $"The transmit time limit ({limit.TotalSeconds:0} s) was reached, so RFpix released the transmitter.");
+                        KeyedTooLong?.Invoke();
+                    }
+                    else AppLog.Info("Radio", "Un-keyed the transmitter on a later try.");
+                    return;
+                case UnkeyTry.NothingToDo:
+                    return;
+            }
+            if (guard.Released.Wait(UnkeyRetryEvery)) return;   // un-keyed meanwhile (or closed)
+        }
+    }
+
+    private enum UnkeyTry { Released, StillKeyed, NothingToDo }
+
+    private UnkeyTry TryUnkey()
+    {
+        try
+        {
+            lock (_lock)
+            {
+                if (!IsKeyed || _rig == IntPtr.Zero && _hrd is null) return UnkeyTry.NothingToDo;
+                Unkey();
+                return UnkeyTry.Released;
+            }
+        }
+        catch (RadioException)
+        {
+            // Un-keyed, but the radio's mode couldn't be put back (closing tries again); or still keyed.
+            return IsKeyed ? UnkeyTry.StillKeyed : UnkeyTry.Released;
+        }
+    }
+
+    /// <summary>Un-keys the transmitter and, if data mode was switched on for transmitting, switches back.
+    /// If un-keying fails, the radio stays marked as keyed and the time limit's watcher keeps trying
+    /// every few seconds (closing the connection tries once more). If switching back fails, that's
+    /// tried again next time (closing too).</summary>
     public void Unkey()
     {
         lock (_lock)
         {
-            if (!IsKeyed) return;
-            _pttLimit?.Set();
-            _pttLimit = null;
-            // Un-key (try twice before giving up). With VOX there's nothing to un-key.
-            int result = 0;
-            if (_settings.Ptt != PttMethod.Vox && _hrd is { } hrd)
+            if (IsKeyed)
             {
-                try { hrd.SetPtt(false); }
-                catch (RadioException)
+                // Un-key (try twice before giving up). With VOX there's nothing to un-key.
+                if (_settings.Ptt != PttMethod.Vox && _hrd is { } hrd)
                 {
                     try { hrd.SetPtt(false); }
-                    catch (RadioException ex) { throw new RadioException("Couldn't un-key the transmitter through Ham Radio Deluxe. Un-key the radio by hand. " + ex.Message); }
+                    catch (RadioException)
+                    {
+                        try { hrd.SetPtt(false); }
+                        catch (RadioException ex)
+                        {
+                            StillKeyed();
+                            throw new RadioException("Couldn't un-key the transmitter through Ham Radio Deluxe. Un-key the radio by hand. " + ex.Message);
+                        }
+                    }
                 }
+                else if (_settings.Ptt != PttMethod.Vox)
+                {
+                    int result = HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOff);
+                    if (result != 0) result = HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOff);
+                    if (result != 0)
+                    {
+                        StillKeyed();
+                        Check(result, "Couldn't un-key the transmitter. Un-key the radio by hand");
+                    }
+                }
+                IsKeyed = false;
+                _guard?.Released.Set();   // only now: the watcher has nothing left to do
+                _guard = null;
+                AppLog.Info("Radio", _settings.Ptt == PttMethod.Vox ? "Transmission over (VOX)." : "Released the transmitter.");
             }
-            else if (_settings.Ptt != PttMethod.Vox)
-            {
-                result = HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOff);
-                if (result != 0) result = HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOff);
-            }
-            IsKeyed = result != 0;
-            Check(result, "Couldn't un-key the transmitter. Un-key the radio by hand");
-            AppLog.Info("Radio", _settings.Ptt == PttMethod.Vox ? "Transmission over (VOX)." : "Released the transmitter.");
 
             if (_modeBeforeTransmit is not null) WithHamlibDetail(DataModeOff);
         }
+    }
+
+    // Un-keying failed: the watcher tries again now, and every few seconds.
+    private void StillKeyed()
+    {
+        if (_guard is not { } guard) return;
+        if (!guard.Failing)
+        {
+            guard.Failing = true;
+            AppLog.Error("Radio", $"Un-keying failed: RFpix will keep trying every {UnkeyRetryEvery.TotalSeconds:0} seconds until it works.");
+        }
+        guard.Retry.Set();
     }
 
     /// <summary>Data mode is switched with commands RFpix checks itself: if it goes wrong, the
@@ -255,23 +345,6 @@ public sealed class RadioConnection : IDisposable
     {
         try { action(); }
         catch (RadioException) { HamlibLog.WriteRecent(); throw; }
-    }
-
-    private bool UnkeyIfKeyed()
-    {
-        try
-        {
-            lock (_lock)
-            {
-                if (!IsKeyed || _rig == IntPtr.Zero && _hrd is null) return false;
-                Unkey();
-                return true;
-            }
-        }
-        catch (RadioException)
-        {
-            return true;
-        }
     }
 
     /// <summary>Is the radio transmitting, by its own report?</summary>
@@ -306,9 +379,9 @@ public sealed class RadioConnection : IDisposable
     private void DataModeOff()
     {
         string mode = _modeBeforeTransmit!;
-        _modeBeforeTransmit = null;
         if (_hrd is { } hrd) hrd.SetDataMode(false);
         else DataMode.Off(mode);
+        _modeBeforeTransmit = null;   // only once it's back (if it failed, it's tried again later)
         LastDataModeReport += $" → {mode}";
         AppLog.Info("Radio", $"Data mode: {_hrd?.RadioName ?? "IC-9700"} back to {mode}.");
         DataModeSwitched?.Invoke($"{_hrd?.RadioName ?? "IC-9700"} back to {mode}");
@@ -404,9 +477,11 @@ public sealed class RadioConnection : IDisposable
     {
         lock (_lock)
         {
+            // Un-keyed, and the mode put back, if that hasn't happened yet (one more try).
             if (_hrd is { } hrd)
             {
                 try { Unkey(); } catch (RadioException) { }
+                StopWatching();
                 hrd.Dispose();
                 _hrd = null;
                 AppLog.Info("Radio", "Disconnected from Ham Radio Deluxe.");
@@ -414,6 +489,7 @@ public sealed class RadioConnection : IDisposable
             }
             if (_rig == IntPtr.Zero) return;
             try { Unkey(); } catch (RadioException) { }
+            StopWatching();
             HamlibNative.rig_close(_rig);
             HamlibNative.rig_cleanup(_rig);
             _rig = IntPtr.Zero;
@@ -422,6 +498,13 @@ public sealed class RadioConnection : IDisposable
     }
 
     // ---- helpers ----
+
+    // (Closing.) The watcher stops; it has nothing to talk to any more.
+    private void StopWatching()
+    {
+        _guard?.Released.Set();
+        _guard = null;
+    }
 
     private IntPtr Rig => _rig != IntPtr.Zero ? _rig : throw new RadioException("Not connected to the radio.");
 
