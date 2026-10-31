@@ -358,6 +358,7 @@ public partial class GalleryPage : UserControl
         catch (Exception ex)
         {
             DetailStatus.Text = $"Couldn't open it: {ex.Message}";
+            RFpix.Diagnostics.AppLog.Error("Gallery", DetailStatus.Text);
         }
     }
 
@@ -380,6 +381,7 @@ public partial class GalleryPage : UserControl
         catch (Exception ex)
         {
             DetailStatus.Text = $"Couldn't open the folder: {ex.Message}";
+            RFpix.Diagnostics.AppLog.Error("Gallery", DetailStatus.Text);
         }
     }
 
@@ -404,6 +406,7 @@ public partial class GalleryPage : UserControl
         string oldRoot = PictureFolders.Root;
         if (PictureFolders.Problem(oldRoot, path) is { } problem)
         {
+            RFpix.Diagnostics.AppLog.Error("Gallery", problem);
             ShowMovePanel(problem, buttons: false);
             return;
         }
@@ -447,9 +450,11 @@ public partial class GalleryPage : UserControl
         {
             MoveButtons.IsEnabled = true;
             MoveStatus.Text = problem;
+            RFpix.Diagnostics.AppLog.Error("Gallery", $"Moving the pictures to {newRoot}: {problem}");
             return;
         }
         UseRoot(newRoot);
+        RFpix.Diagnostics.AppLog.Info("Gallery", $"Moved {result.Moved} files from {oldRoot} to {newRoot}; pictures now go there.");
         MoveButtons.IsVisible = false;
         MoveQuestion.Text = $"Moved {result.Moved} file{(result.Moved == 1 ? "" : "s")} to {newRoot}." +
                             (result.Renamed > 0 ? $" {result.Renamed} had the same name as a picture already there, so \"(2)\" was added to their names." : "");
@@ -462,6 +467,7 @@ public partial class GalleryPage : UserControl
         if (_newRoot is not { } newRoot) return;
         string oldRoot = PictureFolders.Root;
         UseRoot(newRoot);
+        RFpix.Diagnostics.AppLog.Info("Gallery", $"Pictures now go to {newRoot} (the earlier ones stay in {oldRoot}).");
         ShowMovePanel($"New pictures now go to {newRoot}. Your earlier pictures are still in {oldRoot}.", buttons: false);
     }
 
@@ -494,6 +500,7 @@ public partial class GalleryPage : UserControl
         catch (Exception ex)
         {
             EmptyText.Text = $"Couldn't open {Folder}: {ex.Message}";
+            RFpix.Diagnostics.AppLog.Error("Gallery", EmptyText.Text);
             EmptyText.IsVisible = true;
         }
     }
@@ -531,6 +538,7 @@ public partial class GalleryPage : UserControl
             _deleteArmed = false;
             DeleteButton.Content = "Delete";
             DetailStatus.Text = $"Couldn't delete it: {ex.Message}";
+            RFpix.Diagnostics.AppLog.Error("Gallery", DetailStatus.Text);
         }
     }
 }

@@ -1050,6 +1050,7 @@ public partial class SendPage : UserControl, IDisposable
 
     private void ShowStatus(string message, bool problem)
     {
+        if (problem) RFpix.Diagnostics.AppLog.Error("Send", message);
         StatusText.Text = message;
         if (problem) StatusText.Foreground = Brushes.OrangeRed;
         else StatusText.ClearValue(TextBlock.ForegroundProperty);

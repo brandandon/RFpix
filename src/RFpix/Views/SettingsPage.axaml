@@ -2,7 +2,8 @@
   SettingsPage.axaml - the Settings page, in three tabs:
     Radio - how RFpix reaches and keys the radio (the RadioPage control), and below that the
             radio's sound devices (receive input and send output)
-    Misc  - your callsign, waterfall text, the colour theme, and sound-card calibration
+    Misc  - your callsign, waterfall text, the colour theme, sound-card calibration, and the log
+            (Save log for help, Open log folder)
     FTP server - copies of pictures for a website, and uploading them (the FtpPage control)
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
@@ -88,6 +89,18 @@
               </StackPanel>
               <ProgressBar x:Name="CalibrationProgress" Width="360" HorizontalAlignment="Left" Minimum="0" Maximum="1" IsVisible="False" />
               <TextBlock x:Name="CalibrationStatus" TextWrapping="Wrap" />
+            </StackPanel>
+
+            <!-- The log (Diagnostics/AppLog.cs) -->
+            <StackPanel Spacing="8">
+              <TextBlock Text="Log, for help with problems" FontWeight="SemiBold" />
+              <TextBlock Classes="Hint" TextWrapping="Wrap"
+                         Text="RFpix keeps a log of what it does: the radio connecting, the sound devices, pictures sent and received, uploads, and every problem. If something goes wrong, click Save log for help and email the file it puts on your desktop to whoever is helping you. The log holds no passwords." />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="SaveLogButton" Content="Save log for help" Click="OnSaveLogClick" />
+                <Button Content="Open log folder" Click="OnOpenLogFolderClick" FontSize="12" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock x:Name="LogStatus" TextWrapping="Wrap" />
             </StackPanel>
           </StackPanel>
         </ScrollViewer>

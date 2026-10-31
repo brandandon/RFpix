@@ -4,6 +4,7 @@
 
 using RFpix.Analog;
 using RFpix.Audio;
+using RFpix.Diagnostics;
 using RFpix.Gallery;
 using RFpix.Imaging;
 using RFpix.HamDrm;
@@ -107,12 +108,25 @@ internal static class SendSupport
         try
         {
             status($"Transmitting {what} ({seconds:0} s)…");
+            AppLog.Info("Send", $"Transmitting {what} ({seconds:0} s) through {device.Name}, " +
+                                $"{(keyed ? "keyed by RFpix" : "by VOX")}, level {LevelLabel(AppSettings.Current.TransmitLevelDb)}.");
             var shown = new Progress<double>(f =>
             {
                 progress.Report(f);
                 status($"Transmitting {what}: {f * seconds:0} of {seconds:0} s{mode}");
             });
             await Transmission.SendAsync(sound, output, device.Id, radio, level, shown, cancel);
+            AppLog.Info("Send", $"Finished transmitting {what}.");
+        }
+        catch (OperationCanceledException)
+        {
+            AppLog.Info("Send", $"Stopped transmitting {what} (stopped by hand).");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Send", $"Transmitting {what} went wrong: {ex.Message}");
+            throw;
         }
         finally
         {

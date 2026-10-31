@@ -169,6 +169,7 @@ public partial class FtpPage : UserControl, IDisposable
 
     private void ShowStatus(string message, bool problem)
     {
+        if (problem) RFpix.Diagnostics.AppLog.Error("FTP", message);
         StatusText.Text = message;
         if (problem) StatusText.Foreground = Brushes.OrangeRed;
         else StatusText.ClearValue(TextBlock.ForegroundProperty);

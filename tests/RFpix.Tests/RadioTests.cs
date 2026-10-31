@@ -288,4 +288,57 @@ public class RadioTests
         Assert.Null(HamlibModels.NumberFrom(""));
         Assert.Null(HamlibModels.NumberFrom("0"));
     }
+
+    // Hamlib's own messages for the log (Diagnostics/HamlibLog.cs) come from C, as a format and the
+    // values to fill in. This checks they're put together right on each kind of computer: a
+    // name (%s) and a frequency (%.0f, a floating-point number, handled differently from the others).
+    [Fact]
+    public void Hamlibs_messages_reach_the_log_with_their_values_filled_in()
+    {
+        var lines = new List<string>();
+        var before = RFpix.Diagnostics.HamlibLog.Detail;
+        RFpix.Diagnostics.HamlibLog.Detail = new RFpix.Diagnostics.HamlibDetail(400, () => DateTime.Now, got =>
+        {
+            lock (lines) lines.AddRange(got.Select(l => l.Text));
+        });
+        try
+        {
+            using (var radio = RadioConnection.Open(Dummy()))   // connecting: Hamlib's lines are written as they come
+                radio.SetFrequency(14_230_000);
+            string[] all;
+            lock (lines) all = lines.ToArray();
+            Assert.Contains(all, l => l.Contains("rig_open", StringComparison.Ordinal));
+            Assert.Contains(all, l => l.Contains("rig_set_freq", StringComparison.Ordinal) && l.Contains("freq=14230000", StringComparison.Ordinal));
+        }
+        finally
+        {
+            RFpix.Diagnostics.HamlibLog.Detail = before;
+        }
+    }
+
+    [Fact]
+    public void When_talking_to_the_radio_fails_Hamlibs_last_lines_go_to_the_log()
+    {
+        var lines = new List<string>();
+        var before = RFpix.Diagnostics.HamlibLog.Detail;
+        RFpix.Diagnostics.HamlibLog.Detail = new RFpix.Diagnostics.HamlibDetail(400, () => DateTime.Now, got =>
+        {
+            lock (lines) lines.AddRange(got.Select(l => l.Text));
+        });
+        try
+        {
+            // A serial port that doesn't exist: Hamlib can't open it, and says why.
+            string port = OperatingSystem.IsWindows() ? "COM250" : "/dev/rfpix-no-such-port";
+            var ex = Assert.Throws<RadioException>(() => RadioConnection.Open(
+                new RadioSettings { Choice = "ft991a", Port = port, BaudRate = 38400, Ptt = PttMethod.Cat }));
+            Assert.StartsWith("Couldn't connect to the radio", ex.Message);
+            string[] all;
+            lock (lines) all = lines.ToArray();
+            Assert.Contains(all, l => l.Contains("rig_open", StringComparison.Ordinal));
+        }
+        finally
+        {
+            RFpix.Diagnostics.HamlibLog.Detail = before;
+        }
+    }
 }

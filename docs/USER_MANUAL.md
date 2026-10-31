@@ -147,8 +147,9 @@ In Windows, open **Settings > Apps**, find **RFpix**, and choose **Uninstall**. 
 | Templates | Documents\RFpix\Templates |
 | Test results | Documents\RFpix\Test results.csv |
 | Settings | %AppData%\RFpix\settings.json |
+| Log (for help with problems) | %AppData%\RFpix\Logs |
 
-On a Mac the same folders are in **Documents/RFpix**, and the settings are in **~/Library/Application Support/RFpix/settings.json** (in Finder: **Go > Go to Folder**). On Linux they're in **Documents/RFpix** too, and the settings in **~/.config/RFpix/settings.json**.
+On a Mac the same folders are in **Documents/RFpix**, and the settings are in **~/Library/Application Support/RFpix/settings.json** (in Finder: **Go > Go to Folder**), with the log in the **Logs** folder beside it. On Linux they're in **Documents/RFpix** too, and the settings in **~/.config/RFpix/settings.json**, with the log in **~/.config/RFpix/Logs**.
 
 The Received and Sent folders can be moved somewhere else (a bigger drive, say) with **Change folder…** on the Gallery page (section 8).
 
@@ -590,6 +591,7 @@ The **Settings** page has three tabs: **Radio**, **Misc** and **FTP server**. Ev
 | **Theme** | **Follow Windows**, **Light** or **Dark**. |
 | **New versions** | **Check for new versions of RFpix when it starts**: when ticked, RFpix asks GitHub for newer versions as it starts, and shows a notice with a **Download** button if there is one. |
 | **Sound-card calibration** | Shows how fast or slow each sound device's clock runs, and when it was measured. **Measure (2 minutes)** measures both against the computer's clock while the radio stays receiving (RFpix doesn't key it); set Windows' clock right first. **Set back to none** forgets the measurements. A measurement belongs to one device: pick a different device and it needs measuring again. |
+| **Log, for help with problems** | **Save log for help** puts RFpix's logs into one zip file on your desktop and opens its folder, ready to attach to an email to whoever is helping you. **Open log folder** opens the folder where they're kept. See [Getting help: the log](#getting-help-the-log). |
 
 #### FTP server tab
 
@@ -614,6 +616,15 @@ Section 9 explains setting it up and how the upload works. In short:
 ### 12. Troubleshooting
 
 RFpix says what went wrong in plain words, in orange, near what you were doing. This section lists those messages and the most common problems, grouped by what you were trying to do.
+
+#### Getting help: the log
+
+RFpix keeps a log of what it does, always: the settings that matter (the radio, its COM port and baud rate, the sound devices), the radio connecting and keying, with the radio's own replies while connecting and just before any radio error, the sound devices starting and stopping, pictures sent and received, website uploads, and every message RFpix shows in orange. If RFpix closes because of an error, the details are the log's last lines.
+
+When something goes wrong and you'd like help, open **Settings > Misc** and click **Save log for help**. RFpix puts its logs into one zip file on your desktop (named like *RFpix log 2026-10-30 2155.zip*) and opens the folder. Attach that file to an email to whoever is helping you.
+
+- The log never holds a password, or the FTP server's user name.
+- There's one log for each time RFpix runs, and the last 10 are kept, so the one from a run that went wrong is still there after you restart. Each stops growing at about 5 MB.
 
 #### Receiving
 
@@ -656,6 +667,7 @@ RFpix says what went wrong in plain words, in orange, near what you were doing. 
 | *Ham Radio Deluxe isn't connected to a radio.* | Connect HRD to the radio first. |
 | *Ham Radio Deluxe has no TX button for this radio.* | HRD can't key this radio for RFpix: choose **VOX** under Transmit keying. |
 | *Lost contact with the radio.* | The cable was unplugged, the radio switched off, or the sharing program closed. Fix that, then click **Connect** again. |
+| **Connect** seems to work, then goes back to **Connect** | The COM port opened, but the radio didn't answer: the message under the button says so. On an FT-991A, pick the port ending in **Enhanced COM Port**, not *Standard COM Port*, and check the baud rate matches the radio's menu 031 **CAT RATE**. If it still won't stay connected, click **Save log for help** (see [Getting help: the log](#getting-help-the-log)): the log shows what was sent to the radio and whether it answered. |
 
 #### Website upload
 
@@ -732,4 +744,5 @@ If something else goes wrong, click **Record** on the Receive tab before the nex
 | What the Gallery knows about each picture | .RFpix gallery.json, a hidden file in each pictures folder |
 | Copies for the website | C:\FTPIMAGE\Digital and C:\FTPIMAGE\Analog (or the folder you chose), with their Archives folders |
 | Settings (radio, sound devices, callsign, profiles...) | %AppData%\RFpix\settings.json. To open the folder, press Windows key + R, type %AppData%\RFpix and press Enter. (Mac: ~/Library/Application Support/RFpix; Linux: ~/.config/RFpix.) |
+| Log (one for each run, the last 10) | %AppData%\RFpix\Logs (Mac: ~/Library/Application Support/RFpix/Logs; Linux: ~/.config/RFpix/Logs). **Open log folder** on **Settings > Misc** opens it. |
 | The program (installed) | The folder chosen when installing; normally your own programs folder (%LocalAppData%\Programs\RFpix). Mac: Applications. Linux: /opt/rfpix (from the .deb), or wherever you keep the AppImage. |

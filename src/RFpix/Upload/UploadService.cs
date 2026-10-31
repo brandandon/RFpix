@@ -23,6 +23,11 @@ public static class UploadService
 
     public static void Add(string message)
     {
+        // Into RFpix's log too; the lines saying something went wrong as errors.
+        if (message.Contains("Couldn't", StringComparison.Ordinal) || message.Contains("Problem", StringComparison.Ordinal) ||
+            message.StartsWith("Not uploading", StringComparison.Ordinal))
+            RFpix.Diagnostics.AppLog.Error("Upload", message);
+        else RFpix.Diagnostics.AppLog.Info("Upload", message);
         string line = $"[{DateTime.Now:HH:mm:ss}] {message}";
         lock (Lock)
         {

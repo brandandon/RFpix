@@ -506,6 +506,7 @@ public partial class TemplateEditorWindow : Window
 
     private void Status(string message, bool problem = false)
     {
+        if (problem) RFpix.Diagnostics.AppLog.Error("Template", message);
         StatusText.Text = message;
         if (problem) StatusText.Foreground = Brushes.OrangeRed;
         else StatusText.ClearValue(TextBlock.ForegroundProperty);

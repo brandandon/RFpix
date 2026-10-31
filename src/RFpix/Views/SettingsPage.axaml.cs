@@ -9,10 +9,13 @@
 // sent before and after each picture, the theme, and sound-card calibration: for 2 minutes the
 // radio's sound input is listened to and silence played to its output, both counted against
 // the computer's clock (SoundCardClock.cs); the results are saved, and used from then on.
+// Also on Misc: the log (Diagnostics/AppLog.cs). Save log for help puts all the logs in one zip
+// file on the desktop and shows it; Open log folder opens the folder they're kept in.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using RFpix.Audio;
+using RFpix.Diagnostics;
 using RFpix.Send;
 using RFpix.Settings;
 using RFpix.Templates;
@@ -90,6 +93,7 @@ public partial class SettingsPage : UserControl, IDisposable
         _loading = false;
         DeviceProblemText.Text = string.Join("\n", problems.Distinct());
         DeviceProblemText.IsVisible = problems.Count > 0;
+        foreach (string problem in problems.Distinct()) AppLog.Error("Settings", problem);
     }
 
     private void OnRefreshClick(object? sender, RoutedEventArgs e)
@@ -103,6 +107,7 @@ public partial class SettingsPage : UserControl, IDisposable
         if (_loading || InputBox.SelectedItem is not AudioDeviceInfo device) return;
         AppSettings.Current.InputDeviceId = device.Id;
         AppSettings.Current.Save();
+        AppLog.Info("Settings", $"Sound input (receive) chosen: {device.Name}");
         AppSettings.RaiseSoundDevicesChanged();
         ShowCalibration();   // a measurement belongs to one device
     }
@@ -112,6 +117,7 @@ public partial class SettingsPage : UserControl, IDisposable
         if (_loading || OutputBox.SelectedItem is not AudioDeviceInfo device) return;
         AppSettings.Current.OutputDeviceId = device.Id;
         AppSettings.Current.Save();
+        AppLog.Info("Settings", $"Sound output (send) chosen: {device.Name}");
         AppSettings.RaiseSoundDevicesChanged();
         ShowCalibration();
     }
@@ -313,9 +319,70 @@ public partial class SettingsPage : UserControl, IDisposable
 
     private void ShowCalibrationStatus(string message, bool problem)
     {
+        if (problem) AppLog.Error("Settings", $"Sound-card calibration: {message}");
         CalibrationStatus.Text = message;
         if (problem) CalibrationStatus.Foreground = Avalonia.Media.Brushes.OrangeRed;
         else CalibrationStatus.ClearValue(TextBlock.ForegroundProperty);
+    }
+
+    // ---- the log (Diagnostics/AppLog.cs) ----
+
+    // All the logs in one zip file on the desktop, shown in its folder, ready to attach to an email.
+    private async void OnSaveLogClick(object? sender, RoutedEventArgs e)
+    {
+        SaveLogButton.IsEnabled = false;
+        try
+        {
+            string folder = AppLog.HelpFolder();
+            string zip = await Task.Run(() => AppLog.SaveForHelp(folder));
+            ShowLogStatus($"Saved \"{Path.GetFileName(zip)}\" in {folder}. Attach it to an email to whoever is helping you.", problem: false);
+            ShowInFolder(zip);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            ShowLogStatus($"Couldn't save the log: {ex.Message}", problem: true);
+        }
+        finally
+        {
+            SaveLogButton.IsEnabled = true;
+        }
+    }
+
+    private async void OnOpenLogFolderClick(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Directory.CreateDirectory(AppLog.Folder);
+            var launcher = TopLevel.GetTopLevel(this)?.Launcher;
+            if (launcher is not null) await launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(AppLog.Folder));
+        }
+        catch (Exception ex)
+        {
+            ShowLogStatus($"Couldn't open {AppLog.Folder}: {ex.Message}", problem: true);
+        }
+    }
+
+    /// <summary>Opens the file's folder with the file picked out (Explorer, Finder, the Linux file manager).</summary>
+    private void ShowInFolder(string path)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows()) System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\"");
+            else if (OperatingSystem.IsMacOS()) RFpix.Platform.MacFiles.ShowInFinder(path);
+            else if (OperatingSystem.IsLinux()) RFpix.Platform.LinuxFiles.ShowInFileManager(path);
+        }
+        catch (Exception)
+        {
+            // The message says where it is.
+        }
+    }
+
+    private void ShowLogStatus(string message, bool problem)
+    {
+        if (problem) AppLog.Error("Settings", message);
+        LogStatus.Text = message;
+        if (problem) LogStatus.Foreground = Avalonia.Media.Brushes.OrangeRed;
+        else LogStatus.ClearValue(TextBlock.ForegroundProperty);
     }
 
     // ---- theme ----

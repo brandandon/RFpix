@@ -42,6 +42,58 @@ internal static class HamlibNative
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     public static extern void rig_set_debug(int level);
 
+    /// <summary>How much Hamlib says about what it's doing: 5 (RIG_DEBUG_TRACE) includes every byte
+    /// sent to the radio and every byte that came back.</summary>
+    public const int DebugTrace = 5;
+
+    // Hamlib's messages, handed to RFpix one at a time instead of being printed (Diagnostics/HamlibLog.cs).
+    // Each comes as a C format ("%s called vfo=%s") and the values to fill in (a C "va_list"),
+    // which only the C library can put together: see Format below.
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate int DebugCallback(int level, IntPtr data, IntPtr format, IntPtr values);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr rig_set_debug_callback(DebugCallback? callback, IntPtr data);
+
+    // ---- the C library, to put Hamlib's messages together exactly as Hamlib itself would ----
+    //
+    // The same C library Hamlib uses: on Windows msvcrt.dll (Hamlib's Windows build takes its
+    // printf from there), on the Mac libSystem, on Linux glibc. A va_list arrives in the callback
+    // as one pointer-sized value on every system RFpix is built for (64-bit Windows, Mac and
+    // Linux, Intel and ARM), and is passed straight on; it can be read only once, so the text is
+    // made in one go, into a buffer big enough for any message (longer ones are cut short).
+
+    private const string CLibrary = "rfpix-c-library";
+
+    [DllImport(CLibrary, EntryPoint = "_vsnprintf", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int WindowsFormat(byte[] buffer, nuint count, IntPtr format, IntPtr values);
+
+    [DllImport(CLibrary, EntryPoint = "vsnprintf", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int UnixFormat(byte[] buffer, nuint size, IntPtr format, IntPtr values);
+
+    [ThreadStatic] private static byte[]? _formatBuffer;
+
+    /// <summary>A Hamlib message's text: its format with the values filled in.</summary>
+    public static string Format(IntPtr format, IntPtr values)
+    {
+        var buffer = _formatBuffer ??= new byte[8192];
+        int length;
+        if (OperatingSystem.IsWindows())
+        {
+            // _vsnprintf writes at most count bytes, and -1 when the text was longer (cut short).
+            int count = buffer.Length - 1;
+            int n = WindowsFormat(buffer, (nuint)count, format, values);
+            length = n >= 0 ? Math.Min(n, count) : count;
+        }
+        else
+        {
+            // vsnprintf writes at most size - 1 bytes and a 0, and returns the full text's length.
+            int n = UnixFormat(buffer, (nuint)buffer.Length, format, values);
+            length = Math.Clamp(n, 0, buffer.Length - 1);
+        }
+        return System.Text.Encoding.UTF8.GetString(buffer, 0, length);
+    }
+
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr rig_init(uint model);
 
@@ -103,6 +155,10 @@ internal static class HamlibNative
 
     private static IntPtr Resolve(string name, Assembly assembly, DllImportSearchPath? searchPath)
     {
+        if (name == CLibrary)
+            return NativeLibrary.Load(OperatingSystem.IsWindows() ? "msvcrt.dll"
+                                      : OperatingSystem.IsMacOS() ? "/usr/lib/libSystem.B.dylib"
+                                      : "libc.so.6");
         if (name != Library) return IntPtr.Zero;   // not ours: the normal search
 
         string[] candidates =

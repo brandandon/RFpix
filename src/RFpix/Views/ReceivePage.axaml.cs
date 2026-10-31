@@ -33,6 +33,7 @@ using Avalonia.Input;
 using Avalonia;
 using Avalonia.VisualTree;
 using RFpix.Audio;
+using RFpix.Diagnostics;
 using RFpix.Dsp;
 using RFpix.Gallery;
 using RFpix.HamDrm;
@@ -126,6 +127,7 @@ public partial class ReceivePage : UserControl, IDisposable
         // came through and add it to the test log.
         _receiver.TransmissionReported += report =>
         {
+            AppLog.Info("Receive", LogSummary.Transmission(report));
             Dispatcher.UIThread.Post(ShowIncomplete);
             int gaps = _input.Gaps - _gapsAtLastReport;
             _gapsAtLastReport = _input.Gaps;
@@ -266,6 +268,9 @@ public partial class ReceivePage : UserControl, IDisposable
             _gapsAtLastReport = 0;   // a new start counts gaps afresh
             HideError();
             FormatText.Text = $"{device.Name}  ·  {_input.FormatDescription}";
+            AppLog.Info("Sound", $"Listening to {device.Name} ({_input.FormatDescription}" +
+                                 (_clockCorrector is not null ? $", corrected {ppm:+0.0;-0.0} ppm" : "") +
+                                 (_input.GetRecordingLevel(device.Id) is double level ? $", recording level {level:P0}" : "") + ").");
             _meterTimer.Start();
         }
         catch (AudioException ex)
@@ -278,6 +283,7 @@ public partial class ReceivePage : UserControl, IDisposable
     private void StopListening()
     {
         if (_recorder.IsRecording) StopRecording();
+        if (_input.IsRunning) AppLog.Info("Sound", "Stopped listening.");
         _input.Stop();
         _pump.Post(() => _recorder.Reset());   // forget the last 30 seconds: the next start is a fresh source
         if (!_player.IsRunning) ResetMeter();
@@ -411,6 +417,7 @@ public partial class ReceivePage : UserControl, IDisposable
         try
         {
             _player.Start(path);
+            AppLog.Info("Receive", $"Playing the recording \"{Path.GetFileName(path)}\".");
             HideError();
             _meterTimer.Start();
         }
@@ -686,6 +693,7 @@ public partial class ReceivePage : UserControl, IDisposable
             ShowError($"Received {file.Name}{from}, but couldn't save it to {DigitalFolder}: {ex.Message}");
             return;
         }
+        AppLog.Info("Receive", $"Received \"{file.Name}\"{from} ({file.Data.Length:N0} bytes): saved as \"{savedAs}\".");
         if (file.Problem is not null) ShowError($"{file.Name}: {file.Problem}");
         string caption = $"{file.Name}{from}  ·  {DateTime.Now:HH:mm}\nSaved as \"{savedAs}\"";
         int number = ++_pictureCount;
@@ -781,6 +789,7 @@ public partial class ReceivePage : UserControl, IDisposable
         _analogBoxesUntil = DateTime.MaxValue;
         PictureCaption.Text = $"Receiving analog SSTV: {mode.Name} ({mode.Width} × {mode.Height})" +
                               (_sstv.ReceivingLate ? ", joined partway (its VIS code was missed)" : "");
+        AppLog.Info("Receive", $"Analog SSTV {mode.Name} arriving" + (_sstv.ReceivingLate ? ", found without its VIS code." : " (its VIS code heard)."));
     }
 
     private void ShowAnalogProgress(DecodedPicture picture, int lines)
@@ -813,6 +822,8 @@ public partial class ReceivePage : UserControl, IDisposable
                 _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when, analog: true));
             _analogCaption = $"Analog SSTV {got.Mode.Name}  ·  {when:HH:mm}{status}";
             PictureCaption.Text = $"{_analogCaption}\nSaved as \"{savedAs}\"";
+            AppLog.Info("Receive", $"Analog SSTV {got.Mode.Name}: {got.Lines} of {got.Mode.Height} lines" +
+                                   (got.JoinedLate ? ", without its VIS code" : "") + $", saved as \"{savedAs}\".");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PictureException)
         {
@@ -823,6 +834,7 @@ public partial class ReceivePage : UserControl, IDisposable
     /// <summary>An FSK ID: the sender's callsign, shown in the From box and added to the picture just saved.</summary>
     private void ShowAnalogId(string call)
     {
+        AppLog.Info("Receive", $"FSK ID heard: {call}");
         _analogFrom = call;
         if (_sstv.Receiving is null && DateTime.Now < _analogBoxesUntil) _analogBoxesUntil = DateTime.Now + AnalogBoxesLinger;
         if (_lastAnalog is not { } last || DateTime.Now - last.Saved > TimeSpan.FromSeconds(20)) return;
@@ -919,6 +931,7 @@ public partial class ReceivePage : UserControl, IDisposable
 
     private void ShowAskStatus(string message, bool problem)
     {
+        if (problem) AppLog.Error("Receive", message);
         AskText.Text = message;
         if (problem) AskText.Foreground = Brushes.OrangeRed;
         else AskText.ClearValue(TextBlock.ForegroundProperty);
@@ -928,6 +941,7 @@ public partial class ReceivePage : UserControl, IDisposable
 
     private void ShowError(string message)
     {
+        AppLog.Error("Receive", message);
         ErrorText.Text = message;
         ErrorPanel.IsVisible = true;
     }

@@ -44,6 +44,7 @@ public partial class WaterfallPictureWindow : Window
         catch (Exception ex) when (ex is PictureException or IOException or UnauthorizedAccessException)
         {
             FileText.Text = $"Couldn't open {Path.GetFileName(path)}: {ex.Message}";
+            RFpix.Diagnostics.AppLog.Error("Send", FileText.Text);
             _picture = null;
         }
         ShowPreview();

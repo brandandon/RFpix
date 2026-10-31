@@ -33,6 +33,7 @@ public partial class MainWindow : Window
         VersionText.Text = $"Version {version.Replace('-', ' ')}";
 
         if (OperatingSystem.IsMacOS()) RepairMacDeviceChoices();
+        _ = Task.Run(LogSettings);   // in the background: finding the devices' names can take a moment
         NavList.SelectedIndex = 0;   // start on the first page (TX/RX, on its Receive tab)
         RestorePlacement();
         GalleryPage.SendRequested += OnGallerySend;
@@ -71,6 +72,42 @@ public partial class MainWindow : Window
         catch (Exception) { /* the sound system isn't answering: leave them for now */ }
     }
 
+    // ---- the log: the settings that matter for problems, at the top ----
+
+    private static void LogSettings()
+    {
+        try
+        {
+            IReadOnlyList<RFpix.Audio.AudioDeviceInfo> Devices(Func<IReadOnlyList<RFpix.Audio.AudioDeviceInfo>> list)
+            {
+                try { return list(); }
+                catch (Exception) { return Array.Empty<RFpix.Audio.AudioDeviceInfo>(); }
+            }
+            using var input = RFpix.Audio.AudioSystem.CreateInput();
+            using var output = RFpix.Audio.AudioSystem.CreateOutput();
+            var inputs = Devices(input.GetDevices);
+            var outputs = Devices(output.GetDevices);
+            var ports = RFpix.Radio.SerialPorts.List();
+            var lines = RFpix.Diagnostics.LogSummary.Lines(AppSettings.Current,
+                id => inputs.FirstOrDefault(d => d.Id == id)?.Name,
+                id => outputs.FirstOrDefault(d => d.Id == id)?.Name,
+                port => ports.FirstOrDefault(p => p.Name == port)?.Description,
+                number => Models(number),
+                RFpix.Gallery.PictureFolders.Root);
+            RFpix.Diagnostics.AppLog.Info("Settings", string.Join("\n", lines));
+        }
+        catch (Exception ex)
+        {
+            RFpix.Diagnostics.AppLog.Error("Settings", $"Couldn't write the settings into the log: {ex.Message}");
+        }
+
+        static string? Models(int number)
+        {
+            try { return RFpix.Radio.HamlibModels.Find(number) is { } m ? $"{m.Make} {m.Model}" : null; }
+            catch (Exception) { return null; }
+        }
+    }
+
     // ---- is there a newer RFpix? ----
 
     private RFpix.Update.UpdateInfo? _update;
@@ -83,6 +120,9 @@ public partial class MainWindow : Window
         if (installer is null || !AppSettings.Current.CheckForUpdates || RFpix.Update.AppVersion.Parse(version) is not { } running) return;
         await Task.Delay(TimeSpan.FromSeconds(5));   // let RFpix finish starting first
         _update = await RFpix.Update.UpdateCheck.CheckAsync(running, installer);
+        RFpix.Diagnostics.AppLog.Info("RFpix", _update is null
+            ? "Checked for a new version: none (or GitHub couldn't be reached)."
+            : $"Checked for a new version: RFpix {_update.Version} is out.");
         if (_update is null) return;
         UpdateText.Text = $"RFpix {_update.Version} is out (you have {running}).";
         UpdateHint.Text = OperatingSystem.IsWindows()

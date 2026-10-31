@@ -14,6 +14,8 @@
 // turns it off again after un-keying. If it was already on, RFpix leaves it alone. Through
 // HRD, the same is done with HRD's own data-mode button (or list), for any radio HRD offers one for.
 
+using RFpix.Diagnostics;
+
 namespace RFpix.Radio;
 
 /// <summary>Something went wrong talking to the radio; the message is for the operator.</summary>
@@ -60,7 +62,13 @@ public sealed class RadioConnection : IDisposable
     public static RadioConnection Open(RadioSettings settings)
     {
         var choice = RadioChoices.Find(settings.Choice);
-        if (choice.Id == RadioChoices.HrdId) return new RadioConnection(settings, IntPtr.Zero, HrdClient.Connect(settings.Port ?? ""));
+        AppLog.Info("Radio", "Connecting. " + LogSummary.Radio(settings, PortName(settings), null));
+        if (choice.Id == RadioChoices.HrdId)
+        {
+            var hrd = new RadioConnection(settings, IntPtr.Zero, HrdClient.Connect(settings.Port ?? ""));
+            AppLog.Info("Radio", $"Connected to Ham Radio Deluxe, which is controlling the {hrd.HrdRadio}.");
+            return hrd;
+        }
         int model = choice.HamlibModel == -1 ? settings.OtherModel : choice.HamlibModel;
         if (model <= 0) throw new RadioException("No radio is chosen, so there's nothing to connect to.");
         bool pretend = model == DummyModel;   // Hamlib's pretend radio: no port needed
@@ -72,7 +80,9 @@ public sealed class RadioConnection : IDisposable
         IntPtr rig;
         try
         {
-            HamlibNative.rig_set_debug(0);   // Hamlib's own messages: none
+            // Hamlib's own messages go to the log while connecting (and before any error later).
+            HamlibLog.Attach();
+            HamlibLog.WriteFor(ConnectDetail);
             rig = HamlibNative.rig_init((uint)model);
         }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
@@ -113,7 +123,22 @@ public sealed class RadioConnection : IDisposable
             HamlibNative.rig_cleanup(rig);
             throw;
         }
+        // The first readings after connecting (often where a wrong port or baud rate shows) are written too.
+        HamlibLog.WriteFor(ConnectDetail);
+        AppLog.Info("Radio", "Connected (the port opened and Hamlib accepted the settings).");
         return new RadioConnection(settings, rig);
+    }
+
+    /// <summary>How long Hamlib's own messages go to the log, from the start of connecting and
+    /// again once connected.</summary>
+    private static readonly TimeSpan ConnectDetail = TimeSpan.FromSeconds(15);
+
+    /// <summary>A serial port's full name ("Silicon Labs ... Enhanced COM Port"), for the log.</summary>
+    private static string? PortName(RadioSettings settings)
+    {
+        if (RadioChoices.Find(settings.Choice).Connection != "serial" || string.IsNullOrWhiteSpace(settings.Port)) return null;
+        try { return SerialPorts.List().FirstOrDefault(p => p.Name == settings.Port.Trim())?.Description ?? "not found on this computer now"; }
+        catch (Exception) { return null; }
     }
 
     /// <summary>Hamlib's "Dummy" radio (model 1): a pretend radio inside Hamlib that remembers
@@ -168,7 +193,7 @@ public sealed class RadioConnection : IDisposable
             if (IsKeyed) return;
 
             LastDataModeReport = "";
-            if (DataModeForTransmit) DataModeOn();
+            if (DataModeForTransmit) WithHamlibDetail(DataModeOn);
 
             if (_settings.Ptt != PttMethod.Vox)
             {
@@ -176,13 +201,18 @@ public sealed class RadioConnection : IDisposable
                 else Check(HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOn), "Couldn't key the transmitter");
             }
             IsKeyed = true;
+            AppLog.Info("Radio", _settings.Ptt == PttMethod.Vox
+                ? $"Transmitting by VOX (no key command), time limit {limit.TotalSeconds:0} s."
+                : $"Keyed the transmitter, time limit {limit.TotalSeconds:0} s.");
 
             // The time limit has its own thread, so a busy computer can't delay it.
             var ended = new ManualResetEventSlim();
             _pttLimit = ended;
             new Thread(() =>
             {
-                if (!ended.Wait(limit) && UnkeyIfKeyed()) KeyedTooLong?.Invoke();
+                if (ended.Wait(limit) || !UnkeyIfKeyed()) return;
+                AppLog.Error("Radio", $"The transmit time limit ({limit.TotalSeconds:0} s) was reached, so RFpix released the transmitter.");
+                KeyedTooLong?.Invoke();
             }) { IsBackground = true, Name = "RFpix transmit time limit" }.Start();
         }
     }
@@ -213,9 +243,18 @@ public sealed class RadioConnection : IDisposable
             }
             IsKeyed = result != 0;
             Check(result, "Couldn't un-key the transmitter. Un-key the radio by hand");
+            AppLog.Info("Radio", _settings.Ptt == PttMethod.Vox ? "Transmission over (VOX)." : "Released the transmitter.");
 
-            if (_modeBeforeTransmit is not null) DataModeOff();
+            if (_modeBeforeTransmit is not null) WithHamlibDetail(DataModeOff);
         }
+    }
+
+    /// <summary>Data mode is switched with commands RFpix checks itself: if it goes wrong, the
+    /// log gets Hamlib's detail of what was sent and what came back too.</summary>
+    private static void WithHamlibDetail(Action action)
+    {
+        try { action(); }
+        catch (RadioException) { HamlibLog.WriteRecent(); throw; }
     }
 
     private bool UnkeyIfKeyed()
@@ -258,6 +297,7 @@ public sealed class RadioConnection : IDisposable
         if (_hrd is { } hrd) { HrdDataModeOn(hrd); return; }
         var (mode, report) = DataMode.On();
         LastDataModeReport = report;
+        AppLog.Info("Radio", $"Data mode: {report}");
         if (mode is null) return;
         _modeBeforeTransmit = mode;
         DataModeSwitched?.Invoke($"IC-9700 in {mode}-D");
@@ -270,6 +310,7 @@ public sealed class RadioConnection : IDisposable
         if (_hrd is { } hrd) hrd.SetDataMode(false);
         else DataMode.Off(mode);
         LastDataModeReport += $" → {mode}";
+        AppLog.Info("Radio", $"Data mode: {_hrd?.RadioName ?? "IC-9700"} back to {mode}.");
         DataModeSwitched?.Invoke($"{_hrd?.RadioName ?? "IC-9700"} back to {mode}");
     }
 
@@ -294,6 +335,7 @@ public sealed class RadioConnection : IDisposable
             throw new RadioException($"The {hrd.RadioName} didn't switch to data mode through Ham Radio Deluxe. Switch it by hand, or untick data mode.");
         _modeBeforeTransmit = mode;
         LastDataModeReport = $"{mode} → {mode}-D";
+        AppLog.Info("Radio", $"Data mode: {hrd.RadioName} {LastDataModeReport} (through Ham Radio Deluxe).");
         DataModeSwitched?.Invoke($"{hrd.RadioName} in {mode}-D");
     }
 
@@ -328,7 +370,7 @@ public sealed class RadioConnection : IDisposable
             for (int attempt = 0; attempt < 4; attempt++)
             {
                 int n = HamlibNative.rig_send_raw(Rig, send, send.Length, reply, reply.Length, end);
-                if (n < 0) throw new RadioException($"Couldn't {what}: {Explain(n)}");
+                if (n < 0) { HamlibLog.WriteRecent(); throw new RadioException($"Couldn't {what}: {Explain(n)}"); }
                 if (IcomCiv.Answer(reply.AsSpan(0, Math.Min(n, reply.Length)), radio) is { } answer) return answer;
                 send = Array.Empty<byte>();   // that was the echo or someone else's: read the next message
             }
@@ -367,6 +409,7 @@ public sealed class RadioConnection : IDisposable
                 try { Unkey(); } catch (RadioException) { }
                 hrd.Dispose();
                 _hrd = null;
+                AppLog.Info("Radio", "Disconnected from Ham Radio Deluxe.");
                 return;
             }
             if (_rig == IntPtr.Zero) return;
@@ -374,6 +417,7 @@ public sealed class RadioConnection : IDisposable
             HamlibNative.rig_close(_rig);
             HamlibNative.rig_cleanup(_rig);
             _rig = IntPtr.Zero;
+            AppLog.Info("Radio", "Disconnected from the radio.");
         }
     }
 
@@ -391,6 +435,7 @@ public sealed class RadioConnection : IDisposable
     private static void Check(int result, string what)
     {
         if (result == 0) return;
+        HamlibLog.WriteRecent();   // the log shows what Hamlib sent and got back just before
         throw new RadioException($"{what}: {Explain(-Math.Abs(result))}");
     }
 

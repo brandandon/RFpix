@@ -31,7 +31,7 @@ public static class HamlibModels
         var models = new List<HamlibModel>();
         try
         {
-            HamlibNative.rig_set_debug(0);
+            RFpix.Diagnostics.HamlibLog.Attach();   // Hamlib's messages to the log, not the screen
             HamlibNative.rig_load_all_backends();
             HamlibNative.RigListCallback each = (caps, _) =>
             {

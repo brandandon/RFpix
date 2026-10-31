@@ -176,6 +176,7 @@ public partial class TxRxPage : UserControl, IDisposable
 
     private void ShowRequestStatus(string message, bool problem)
     {
+        if (problem) RFpix.Diagnostics.AppLog.Error("BSR", message);
         RequestText.Text = message;
         if (problem) RequestText.Foreground = Avalonia.Media.Brushes.OrangeRed;
         else RequestText.ClearValue(TextBlock.ForegroundProperty);
