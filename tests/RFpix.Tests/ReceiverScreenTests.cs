@@ -23,7 +23,10 @@ public class ReceiverScreenTests
         var feeding = Task.Run(() =>
         {
             for (int pos = 0; pos + 480 <= audio.Length; pos += 480)
+            {
                 receiver.AddSamples(audio[pos..(pos + 480)], 480, 48000);
+                Thread.Yield();   // sound comes in pieces, with gaps between (much shorter here than on the air)
+            }
             receiver.EndOfAudio();
         });
 
