@@ -3,6 +3,11 @@
 // A recording stream from the chosen device, two channels of 32-bit floating point at 48 kHz
 // (the sound server converts from the device's own format). A thread of RFpix's own reads it
 // 20 ms at a time and passes on the left channel, as on Windows and the Mac.
+//
+// Each start has its own stream and its own reading thread, and only that thread closes the
+// stream, when it has finished reading. (Closing it from Stop could free it while a read was
+// still waiting on a stalled device, and crash RFpix; and a quick Stop and Start could leave the
+// old thread reading the new stream.) Stop waits up to half a second for the thread to finish.
 
 using System.Runtime.Versioning;
 using static RFpix.Audio.Pulse.PulseNative;
@@ -16,11 +21,17 @@ public sealed class PulseAudioInput : IAudioInput
     private const int Channels = 2;
     private const int ChunkFrames = SampleRate / 50;   // 20 ms
 
-    private IntPtr _stream;
-    private Thread? _thread;
-    private volatile bool _running;
+    /// <summary>One start: its stream, read and closed by its own thread.</summary>
+    private sealed class Session(IntPtr stream)
+    {
+        public readonly IntPtr Stream = stream;
+        public volatile bool Running = true;
+    }
 
-    public bool IsRunning => _running;
+    private Session? _session;
+    private Thread? _thread;
+
+    public bool IsRunning => _session is { Running: true };
     public string FormatDescription { get; private set; } = "";
     public event EventHandler<AudioSamplesEventArgs>? SamplesAvailable;
     public event EventHandler<string>? Failed;
@@ -49,41 +60,47 @@ public sealed class PulseAudioInput : IAudioInput
         }
         if (stream == IntPtr.Zero)
             throw new AudioException($"Couldn't listen to that sound input ({ErrorText(error)}). Check the radio is switched on and plugged in, then click Refresh in Settings.");
-        _stream = stream;
-        _running = true;
+        var session = new Session(stream);
+        _session = session;
         FormatDescription = $"{SampleRate} Hz, 32-bit, {Channels} channel(s)";
-        _thread = new Thread(Read) { IsBackground = true, Name = "RFpix sound input" };
+        _thread = new Thread(() => Read(session)) { IsBackground = true, Name = "RFpix sound input" };
         _thread.Start();
     }
 
-    private void Read()
+    private void Read(Session session)
     {
-        var interleaved = new float[ChunkFrames * Channels];
-        var left = new float[ChunkFrames];
-        while (_running)
+        try
         {
-            if (pa_simple_read(_stream, interleaved, (UIntPtr)(interleaved.Length * 4), out int error) < 0)
+            var interleaved = new float[ChunkFrames * Channels];
+            var left = new float[ChunkFrames];
+            while (session.Running)
             {
-                if (!_running) return;
-                _running = false;
-                Failed?.Invoke(this, $"The sound input stopped ({ErrorText(error)}). The radio may have been switched off or its USB cable " +
-                                     "unplugged. Check it, then click Refresh in Settings and Start listening again.");
-                return;
+                if (pa_simple_read(session.Stream, interleaved, (UIntPtr)(interleaved.Length * 4), out int error) < 0)
+                {
+                    if (!session.Running) return;
+                    session.Running = false;
+                    Failed?.Invoke(this, $"The sound input stopped ({ErrorText(error)}). The radio may have been switched off or its USB cable " +
+                                         "unplugged. Check it, then click Refresh in Settings and Start listening again.");
+                    return;
+                }
+                if (!session.Running) return;   // stopped while this read was waiting: nothing more is passed on
+                for (int i = 0; i < ChunkFrames; i++) left[i] = interleaved[i * Channels];
+                try { SamplesAvailable?.Invoke(this, new AudioSamplesEventArgs(left, ChunkFrames, SampleRate)); }
+                catch (Exception) { /* a problem further on mustn't stop the sound */ }
             }
-            for (int i = 0; i < ChunkFrames; i++) left[i] = interleaved[i * Channels];
-            try { SamplesAvailable?.Invoke(this, new AudioSamplesEventArgs(left, ChunkFrames, SampleRate)); }
-            catch (Exception) { /* a problem further on mustn't stop the sound */ }
+        }
+        finally
+        {
+            pa_simple_free(session.Stream);   // only this thread reads the stream, so only it closes it
         }
     }
 
     public void Stop()
     {
-        _running = false;
-        // The reading thread finishes its last 20 ms, then the stream is closed.
+        if (Interlocked.Exchange(ref _session, null) is { } session) session.Running = false;
+        // The reading thread finishes its last 20 ms, then closes the stream itself.
         if (_thread is { } thread && thread != Thread.CurrentThread) thread.Join(500);
         _thread = null;
-        var stream = Interlocked.Exchange(ref _stream, IntPtr.Zero);
-        if (stream != IntPtr.Zero) pa_simple_free(stream);
         FormatDescription = "";
     }
 

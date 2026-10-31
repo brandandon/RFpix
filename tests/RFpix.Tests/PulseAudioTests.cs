@@ -80,6 +80,32 @@ public class PulseAudioTests
         Assert.True(rms > 0.1, $"the sound coming in was too quiet (rms {rms:0.000})");   // 0.35 when it all arrives
     }
 
+    // Code review, Oct 2026: Stop closed the stream while the reading thread might still be using it.
+    [Fact]
+    public void Listening_can_be_stopped_and_started_quickly_over_and_over()
+    {
+        if (!Ready) return;
+        using var input = new PulseAudioInput();
+        int chunks = 0;
+        input.SamplesAvailable += (_, _) => Interlocked.Increment(ref chunks);
+        for (int i = 0; i < 20; i++)
+        {
+            input.Start(In);
+            Thread.Sleep(i % 3 * 10);   // 0, 10 or 20 ms: sometimes in the middle of a read
+            input.Stop();
+            Assert.False(input.IsRunning);
+        }
+
+        input.Start(In);
+        Thread.Sleep(500);
+        Assert.True(input.IsRunning);
+        Assert.True(Volatile.Read(ref chunks) > 0, "no sound arrived");
+        input.Stop();
+        int atStop = Volatile.Read(ref chunks);
+        Thread.Sleep(300);
+        Assert.InRange(Volatile.Read(ref chunks) - atStop, 0, 1);   // nothing after Stop (but a read already under way)
+    }
+
     [Fact]
     public async Task Stopping_a_sending_stops_it_at_once()
     {
