@@ -45,11 +45,14 @@ internal static class MacMicrophone
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void Answered(IntPtr block, byte granted);
 
-    private static readonly Answered OnAnswered = (_, granted) => AnswerArrived?.Invoke(granted != 0);
+    // The answer goes to MicrophoneAccess.Answered (on a thread of macOS's): the Receive tab starts
+    // listening by itself after Allow. Nothing may escape back into macOS from here.
+    private static readonly Answered OnAnswered = (_, granted) =>
+    {
+        try { MicrophoneAccess.RaiseAnswered(granted != 0); }
+        catch (Exception) { }
+    };
     private static IntPtr _block;   // made once and kept for good (macOS may hold on to it)
-
-    /// <summary>Raised (on a thread of macOS's) when the question has been answered.</summary>
-    public static event Action<bool>? AnswerArrived;
 
     /// <summary>Asks the question (macOS shows it only if it hasn't been answered before).</summary>
     public static void Ask()

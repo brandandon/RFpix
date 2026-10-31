@@ -162,6 +162,7 @@ public partial class ReceivePage : UserControl, IDisposable
             Dispatcher.UIThread.Post(() => Waterfall.AddLine(line, hzPerStep));
 
         AppSettings.SoundDevicesChanged += OnSoundDevicesChanged;
+        MicrophoneAccess.Answered += OnMicrophoneAnswered;
         LayoutUpdated += OnLayoutUpdated;
         UpdateStartButton();
     }
@@ -273,12 +274,37 @@ public partial class ReceivePage : UserControl, IDisposable
                                  (_input.GetRecordingLevel(device.Id) is double level ? $", recording level {level:P0}" : "") + ").");
             _meterTimer.Start();
         }
+        catch (AudioException ex) when (ex.AskingForPermission)
+        {
+            // The Mac is asking whether RFpix may listen: after Allow, it starts by itself (OnMicrophoneAnswered).
+            _startWhenAllowed = true;
+            ShowNote("The Mac is asking whether RFpix may listen to the radio (its sound input counts as a microphone). " +
+                     "Click Allow: RFpix then starts listening by itself.");
+        }
         catch (AudioException ex)
         {
             ShowError(ex.Message);
         }
         UpdateStartButton();
     }
+
+    // Start listening was clicked while the Mac asked whether RFpix may use the microphone.
+    private bool _startWhenAllowed;
+
+    // The answer to that question (on a thread of the Mac's).
+    private void OnMicrophoneAnswered(bool allowed) => Dispatcher.UIThread.Post(() =>
+    {
+        if (!_startWhenAllowed) return;
+        _startWhenAllowed = false;
+        if (!allowed)
+        {
+            ShowError("The Mac won't let RFpix listen (Don't Allow was clicked). To allow it: open System Settings > " +
+                      "Privacy & Security > Microphone, turn RFpix on, then click Start listening.");
+            return;
+        }
+        AppLog.Info("Sound", "The Mac now lets RFpix listen (Allow was clicked): starting.");
+        if (!_input.IsRunning && !_player.IsRunning) StartListening();
+    });
 
     private void StopListening()
     {
@@ -933,9 +959,24 @@ public partial class ReceivePage : UserControl, IDisposable
 
     // ---- messages ----
 
+    private static readonly IBrush ErrorBack = new SolidColorBrush(Color.Parse("#33E5484D")), ErrorEdge = new SolidColorBrush(Color.Parse("#99E5484D"));
+    private static readonly IBrush NoteBack = new SolidColorBrush(Color.Parse("#333B82F6")), NoteEdge = new SolidColorBrush(Color.Parse("#993B82F6"));
+
     private void ShowError(string message)
     {
         AppLog.Error("Receive", message);
+        ErrorPanel.Background = ErrorBack;
+        ErrorPanel.BorderBrush = ErrorEdge;
+        ErrorText.Text = message;
+        ErrorPanel.IsVisible = true;
+    }
+
+    /// <summary>The same place, in blue: something to do, not something wrong.</summary>
+    private void ShowNote(string message)
+    {
+        AppLog.Info("Receive", message);
+        ErrorPanel.Background = NoteBack;
+        ErrorPanel.BorderBrush = NoteEdge;
         ErrorText.Text = message;
         ErrorPanel.IsVisible = true;
     }
@@ -946,6 +987,7 @@ public partial class ReceivePage : UserControl, IDisposable
     {
         _meterTimer.Stop();
         AppSettings.SoundDevicesChanged -= OnSoundDevicesChanged;
+        MicrophoneAccess.Answered -= OnMicrophoneAnswered;
         try { _testLog.WriteHeld(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         if (_recorder.IsRecording) _recorder.Stop(_recordingCallsigns);   // closing RFpix: keep what was recorded
         _asking?.Cancel();   // closing RFpix mid-request: stop (Transmission un-keys)

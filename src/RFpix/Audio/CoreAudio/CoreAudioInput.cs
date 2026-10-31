@@ -6,6 +6,8 @@
 // on both, and the IC-9700 can put its second receiver on the right), and the buffer is given back.
 //
 // macOS asks once whether RFpix may use the microphone (the radio's sound input counts as one).
+// While it asks, Start says so (AudioException.AskingForPermission) and the answer comes through
+// MicrophoneAccess.Answered: the Receive tab then starts listening by itself after Allow.
 // If that was refused, the sound is silent: System Settings > Privacy & Security > Microphone.
 
 using System.Runtime.InteropServices;
@@ -89,7 +91,7 @@ public sealed class CoreAudioInput : IAudioInput
                 try { MacMicrophone.Ask(); }
                 catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or ArgumentException) { return; }
                 throw new AudioException("The Mac is asking whether RFpix may use the microphone (the radio's sound input counts as one). " +
-                                         "Click Allow, then click Start listening again.");
+                                         "Click Allow, then try again.") { AskingForPermission = true };
             case MacMicrophone.Access.Denied:
                 throw new AudioException("The Mac isn't letting RFpix listen. Open System Settings > Privacy & Security > Microphone, " +
                                          "turn RFpix on, then click Start listening again.");

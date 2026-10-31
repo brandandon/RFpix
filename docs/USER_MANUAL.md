@@ -88,7 +88,7 @@ The Mac version is new in 0.5.2 beta, and hasn't yet been tried with a radio. Ea
 2. macOS says the installer was *"Not Opened"*, because RFpix isn't yet signed by Apple. Click **Done**. This doesn't mean anything is wrong.
 3. Open **System Settings > Privacy & Security** and scroll down. Next to the message about the RFpix installer, click **Open Anyway**, then type your Mac password. The installer opens.
 4. Click **Continue**, then **Install**. RFpix goes in your **Applications** folder; open it from there or from Launchpad.
-5. The first time you click **Start listening**, macOS asks whether RFpix may use the microphone. Click **Allow**: the radio's sound input counts as a microphone. If you clicked **Don't Allow**, turn RFpix on in **System Settings > Privacy & Security > Microphone**. macOS may ask again after an update, until RFpix is signed by Apple.
+5. The first time you click **Start listening**, macOS asks whether RFpix may use the microphone (the radio's sound input counts as one). Click **Allow**, and RFpix starts listening by itself. If you clicked **Don't Allow**, RFpix says so: turn RFpix on in **System Settings > Privacy & Security > Microphone**, then click **Start listening**. macOS may ask again after an update, until RFpix is signed by Apple.
 
 **Updating on a Mac:** when a newer version is out, a notice appears at the bottom left of RFpix's window when it starts, with a **Download** button. Quit RFpix, open the downloaded installer (steps 2 and 3 again), and install. It replaces the old RFpix; your settings and pictures stay. To stop RFpix checking, untick **Check for new versions of RFpix when it starts** in **Settings > Misc**.
 

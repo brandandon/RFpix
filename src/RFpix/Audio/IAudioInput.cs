@@ -39,6 +39,20 @@ public sealed class AudioSamplesEventArgs : EventArgs
 public sealed class AudioException : Exception
 {
     public AudioException(string message, Exception? inner = null) : base(message, inner) { }
+
+    /// <summary>The computer is asking the person whether RFpix may listen (the Mac's microphone
+    /// question): <see cref="MicrophoneAccess.Answered"/> says what they chose.</summary>
+    public bool AskingForPermission { get; init; }
+}
+
+/// <summary>The answer to the computer's question whether RFpix may listen (on the Mac: "RFpix would
+/// like to access the microphone", Allow or Don't Allow).</summary>
+public static class MicrophoneAccess
+{
+    /// <summary>Raised (on a thread of the system's) with true for Allow, false for Don't Allow.</summary>
+    public static event Action<bool>? Answered;
+
+    internal static void RaiseAnswered(bool allowed) => Answered?.Invoke(allowed);
 }
 
 public interface IAudioInput : IDisposable

@@ -95,8 +95,9 @@ It needs macOS 14 (Sonoma) or newer. Download the installer for your kind of Mac
    installer, click **Open Anyway** and type your Mac password. The installer opens.
 3. Click **Continue** and **Install**. RFpix goes in your **Applications** folder.
 4. The first time you click **Start listening**, macOS asks whether RFpix may use the
-   microphone: click **Allow** (the radio's sound input counts as a microphone). If you clicked
-   Don't Allow, turn RFpix on in **System Settings > Privacy & Security > Microphone**.
+   microphone: click **Allow** (the radio's sound input counts as a microphone), and RFpix starts
+   listening by itself. If you clicked Don't Allow, turn RFpix on in **System Settings > Privacy &
+   Security > Microphone**, then click **Start listening**.
    (macOS may ask again after each update, until RFpix is signed by Apple.)
 
 **Updating:** when a newer version is out, RFpix says so at the bottom left when it starts, with a
