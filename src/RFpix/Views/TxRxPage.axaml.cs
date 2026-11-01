@@ -34,6 +34,34 @@ public partial class TxRxPage : UserControl, IDisposable
         Loaded += (_, _) => { if (AppSettings.Current.ReceivePoppedOut && _receiveWindow is null) PopOut(); };
     }
 
+    // ---- Log QSO ----
+
+    private async void OnLogQsoClick(object? sender, RoutedEventArgs e)
+    {
+        var s = AppSettings.Current;
+        // The frequency, if a radio is connected (read in the background: it asks the radio).
+        double? hz = null;
+        if (RFpix.Radio.RadioService.Current is { } radio)
+        {
+            try { hz = await Task.Run(() => radio.ReadFrequency()); }
+            catch (Exception) { /* not answering: the box is left for typing */ }
+        }
+        var draft = RFpix.Logbook.QsoDraft.Make(ReceiveTab.LastPicture, s.TemplateTo, s.TemplateToName, s.TemplateRst,
+                                                DateTime.UtcNow, hz, s.Callsign, s.GridSquare);
+        var window = new LogQsoWindow(draft);
+        if (TopLevel.GetTopLevel(this) is Window owner) await window.ShowDialog(owner);
+        else { window.Show(); return; }
+        if (window.Logged is not { } qso || window.Result is not { } result) return;
+        string where = result.Saved && result.Sent ? "saved in RFpix's log and sent to your logging program"
+                     : result.Saved ? (s.Logging.SendToLogger ? $"saved in RFpix's log, but couldn't be sent to your logging program: {result.SendProblem}"
+                                                               : "saved in RFpix's log")
+                     : $"sent to your logging program, but couldn't be saved in RFpix's log: {result.SaveProblem}";
+        NoteText.Text = $"Logged {qso.Call}" + (qso.Band is { } band ? $" on {band}" : "") + $": {where}.";
+        NoteBar.IsVisible = true;
+        _noteTimer.Stop();
+        _noteTimer.Start();
+    }
+
     // ---- the Receive tab in its own window ----
 
     private ReceiveWindow? _receiveWindow;

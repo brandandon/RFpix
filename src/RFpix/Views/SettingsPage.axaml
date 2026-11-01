@@ -1,9 +1,10 @@
 <!--
-  SettingsPage.axaml - the Settings page, in three tabs:
+  SettingsPage.axaml - the Settings page, in four tabs:
     Radio - how RFpix reaches and keys the radio (the RadioPage control), and below that the
             radio's sound devices (receive input and send output)
     Misc  - your callsign, waterfall text, the colour theme, sound-card calibration, and the log
             (Save log for help, Open log folder)
+    Logging - where contacts logged with Log QSO go (the LoggingPage control)
     FTP server - copies of pictures for a website, and uploading them (the FtpPage control)
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
@@ -116,6 +117,11 @@
             </StackPanel>
           </StackPanel>
         </ScrollViewer>
+      </TabItem>
+
+      <!-- Logging: where contacts logged with Log QSO go (LoggingPage.cs) -->
+      <TabItem Header="Logging" FontSize="16">
+        <views:LoggingPage />
       </TabItem>
 
       <!-- FTP server: copies for a website, and uploading them -->

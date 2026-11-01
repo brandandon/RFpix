@@ -7,7 +7,7 @@ This manual covers RFpix version 0.6.0 beta for Windows 10 and 11, the Mac (macO
 The manual has three parts:
 
 - **Part 1, Getting started:** what RFpix is, installing it, and setting it up.
-- **Part 2, Using it:** receiving, sending digital and analog pictures, templates, the Gallery, and putting pictures on a website.
+- **Part 2, Using it:** receiving, sending digital and analog pictures, templates, the Gallery, putting pictures on a website, and logging contacts.
 - **Part 3, Reference:** every setting, tab by tab; what RFpix's messages mean; and a glossary.
 
 Words in **bold** are what you see on the screen: a page, tab, button or box.
@@ -551,7 +551,34 @@ If the server can't be reached, RFpix tries again 30 seconds later. The **Upload
 - **Don't run two uploaders:** if you used the SSTV Auto Uploader before, close it, or point it at a different folder. Two programs renaming the same pictures would get in each other's way.
 - **Your website's page** just shows image1.jpg to image12.jpg (or however many you chose) from each server folder.
 
-### 10. The Beta Testing page
+### 10. Logging contacts
+
+When you've worked a station, click **Log QSO** at the top of the TX/RX page (beside **Pop out Receive**), the way you would in WSJT-X. A **Log QSO** window opens, already filled in:
+
+| Box | Filled in from |
+| --- | --- |
+| **Call**, **Name** | The sender of the last picture received (or, if none, the **To** box on the Send tab). The name comes from the Send tab's **To** name when that's the same station. |
+| **Date and time (UTC)** | When their picture arrived (or now). |
+| **Frequency (MHz)** | The radio's frequency, if RFpix is connected to it. The band is shown beside it. |
+| **Mode** | SSTV. |
+| **RST sent** | The Send tab's **RST** box. |
+| **RST received**, **Their grid** | Left for you to type. |
+| **Comment** | The analog mode (such as *Scottie 2*), or *HamDRM* for a digital picture. |
+
+Check or change any box, then click **Log**. The contact goes to two places:
+
+- **Your logging program**, on the same computer, the way WSJT-X sends contacts. Set it up once on **Settings > Logging** (on to start with: address 127.0.0.1, port 2333). If no logging program is listening, nothing goes wrong.
+- **RFpix's own log file**, *Documents\RFpix\RFpix contacts.adi*, in ADIF, the format every logging program can import. **Clear log file** on **Settings > Logging** empties it (it asks first); your logging program keeps its own copy of what was sent to it.
+
+A note at the top of the TX/RX page says where the contact went.
+
+#### Setting up HRD Logbook
+
+In HRD Logbook, open **QSO Forwarding**. Under **UDP Receive**, tick the boxes, set the port to **2333** (the same as **Settings > Logging** in RFpix), and pick the log to receive into. Contacts you log in RFpix then appear in HRD Logbook as they do from WSJT-X. If you also use JTAlert, don't have it forward to the same log, or contacts may arrive twice.
+
+Other logging programs that accept contacts from WSJT-X the same way (ADIF over UDP) work too: set **Settings > Logging** to the address and port they listen on.
+
+### 11. The Beta Testing page
 
 The **Beta Testing** page sends ten fixed test transmissions. Each sends its own picture with fixed settings, and the picture says what they are, so whoever receives it knows exactly what was sent and can report which tests came through. They're the quickest way to find which settings work on a path or a repeater.
 
@@ -580,9 +607,9 @@ Nothing to set up: just listen on the Receive tab. When a test ends, RFpix shows
 
 ## Part 3: Reference
 
-### 11. Settings, tab by tab
+### 12. Settings, tab by tab
 
-The **Settings** page has three tabs: **Radio**, **Misc** and **FTP server**. Everything on the Radio and Misc tabs is saved as you change it; the FTP server tab has its own **Save** button.
+The **Settings** page has four tabs: **Radio**, **Misc**, **Logging** and **FTP server**. Everything on the Radio, Misc and Logging tabs is saved as you change it; the FTP server tab has its own **Save** button.
 
 #### Radio tab
 
@@ -613,6 +640,16 @@ The **Settings** page has three tabs: **Radio**, **Misc** and **FTP server**. Ev
 | **Sound-card calibration** | Shows how fast or slow each sound device's clock runs, and when it was measured. **Measure (2 minutes)** measures both against the computer's clock while the radio stays receiving (RFpix doesn't key it); set Windows' clock right first. **Set back to none** forgets the measurements. A measurement belongs to one device: pick a different device and it needs measuring again. |
 | **Log, for help with problems** | **Save log for help** puts RFpix's logs into one zip file on your desktop and opens its folder, ready to attach to an email to whoever is helping you. **Open log folder** opens the folder where they're kept. See [Getting help: the log](#getting-help-the-log). |
 
+#### Logging tab
+
+Section 10 explains logging contacts.
+
+| Box | What it's for |
+| --- | --- |
+| **Send logged contacts to a logging program** | Sends each contact you log with **Log QSO** to a logging program on this computer (HRD Logbook, say), the way WSJT-X does. On to start with. |
+| **Address**, **Port** | Where the logging program listens: 127.0.0.1 (this computer) and 2333 (HRD Logbook's port for WSJT-X). |
+| **RFpix's log file** | How many contacts *Documents\RFpix\RFpix contacts.adi* holds. **Open folder** shows it; **Clear log file** empties it (click again to confirm). |
+
 #### FTP server tab
 
 Section 9 explains setting it up and how the upload works. In short:
@@ -633,7 +670,7 @@ Section 9 explains setting it up and how the upload works. In short:
 | **Save**, **Test the connection** | Save keeps the settings and starts (or stops) uploading. Test logs in and lists both server folders. |
 | **Upload log** | What happened to each picture, and any problem. |
 
-### 12. Troubleshooting
+### 13. Troubleshooting
 
 RFpix says what went wrong in plain words, in orange, near what you were doing. This section lists those messages and the most common problems, grouped by what you were trying to do.
 
@@ -671,6 +708,7 @@ When something goes wrong and you'd like help, open **Settings > Misc** and clic
 | *Pick the radio's sound output in Settings (Radio tab) first.* or *The sound output chosen isn't connected.* | Choose the radio's sound output at the bottom of **Settings > Radio**; switch on or plug in the radio and click **Refresh**. |
 | *RFpix is already transmitting.* | Only one transmission at a time: wait for it to finish, or click **Stop**. |
 | The time box is red and says it's over the repeater's time-out | Pick a shorter **Transmit time** (or a shorter analog mode), or check the **Repeater time-out** setting. |
+| Log QSO says the contact was sent, but it isn't in HRD Logbook | In HRD Logbook's **QSO Forwarding**, check **UDP Receive** is ticked with port **2333**, the same as **Settings > Logging**, and that the log chosen to receive into is the one you're looking at. The contact is in RFpix's own log file either way, to import later. |
 | The radio doesn't key | Click **Test PTT** on the Radio tab. With VOX, check VOX is on in the radio and its level is high enough for RFpix's sound to trip it. |
 | The radio keys, but your pictures go out weak, distorted or silent (FT-991A) | Use the radio's **Data VOX**: USB mode, menu **142 VOX SELECT** set to **DATA**, **VOX** on in the **F** menu, and **VOX** under **Transmit keying (PTT)** in RFpix (stay connected to the radio). See section 3, step 3. With other radios, check the radio takes its transmit sound from the USB cable (its data or USB input) rather than the microphone. |
 | The start of your pictures is lost on the repeater | Raise **Lead-in** so the repeater has time to open before the picture starts. |
@@ -711,7 +749,7 @@ When something goes wrong and you'd like help, open **Settings > Misc** and clic
 
 If something else goes wrong, click **Record** on the Receive tab before the next try: the recording (in Documents\RFpix\Recordings) shows exactly what your radio heard, and helps find the cause.
 
-### 13. Glossary and file locations
+### 14. Glossary and file locations
 
 #### Glossary
 
@@ -765,5 +803,6 @@ If something else goes wrong, click **Record** on the Receive tab before the nex
 | What the Gallery knows about each picture | .RFpix gallery.json, a hidden file in each pictures folder |
 | Copies for the website | C:\FTPIMAGE\Digital and C:\FTPIMAGE\Analog (or the folder you chose), with their Archives folders |
 | Settings (radio, sound devices, callsign, profiles...) | %AppData%\RFpix\settings.json. To open the folder, press Windows key + R, type %AppData%\RFpix and press Enter. (Mac: ~/Library/Application Support/RFpix; Linux: ~/.config/RFpix.) |
+| Your contacts (Log QSO), in ADIF | Documents\RFpix\RFpix contacts.adi. **Open folder** on **Settings > Logging** opens it. |
 | Log (one for each run, the last 10) | %AppData%\RFpix\Logs (Mac: ~/Library/Application Support/RFpix/Logs; Linux: ~/.config/RFpix/Logs). **Open log folder** on **Settings > Misc** opens it. |
 | The program (installed) | The folder chosen when installing; normally your own programs folder (%LocalAppData%\Programs\RFpix). Mac: Applications. Linux: /opt/rfpix (from the .deb), or wherever you keep the AppImage. |

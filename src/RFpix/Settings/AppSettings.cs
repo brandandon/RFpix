@@ -91,6 +91,9 @@ public sealed class AppSettings
     public bool ShouldKeepAnalog(bool foundWithoutVis, int lines, int height) =>
         !foundWithoutVis || KeepNoVis && height > 0 && lines * 100L >= (long)KeepNoVisMinPercent * height;
 
+    /// <summary>Logging contacts (Log QSO on the TX/RX page; Settings, Logging tab).</summary>
+    public RFpix.Logbook.LoggingSettings Logging { get; set; } = new();
+
     /// <summary>Copies for the website, and uploading them (Settings, FTP server tab).</summary>
     public RFpix.Upload.UploadSettings Upload { get; set; } = new();
 

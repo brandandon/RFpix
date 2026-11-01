@@ -734,6 +734,7 @@ public partial class ReceivePage : UserControl, IDisposable
             return;
         }
         AppLog.Info("Receive", $"Received \"{file.Name}\"{from} ({file.Data.Length:N0} bytes): saved as \"{savedAs}\".");
+        if (!string.IsNullOrEmpty(callsign)) LastPicture = new(callsign, DateTime.UtcNow, Digital: true, "HamDRM");
         if (file.Problem is not null) ShowError($"{file.Name}: {file.Problem}");
         string caption = $"{file.Name}{from}  ·  {DateTime.Now:HH:mm}\nSaved as \"{savedAs}\"";
         int number = ++_pictureCount;
@@ -815,6 +816,11 @@ public partial class ReceivePage : UserControl, IDisposable
         }
     }
 
+    // ---- for Log QSO (TX/RX page) ----
+
+    /// <summary>The last picture received whose sender is known, or null.</summary>
+    public RFpix.Logbook.LastPicture? LastPicture { get; private set; }
+
     // ---- the picture viewer ----
 
     private PictureViewerWindow? _viewer;
@@ -879,6 +885,7 @@ public partial class ReceivePage : UserControl, IDisposable
         // An FSK ID heard while it arrived, or while it waited after fading out (it often comes then):
         // the sender, saved with it.
         string? from = _analogFrom.Length > 0 ? _analogFrom : null;
+        if (from is not null) LastPicture = new(from, got.Ended.ToUniversalTime(), Digital: false, got.Mode.Name);
         string status = got.JoinedLate ? "  ·  joined partway (no VIS code)"
                       : got.Complete ? "" : $"  ·  cut short: {got.Lines} of {got.Mode.Height} lines";
         _analogCaption = $"Analog SSTV {got.Mode.Name}  ·  {when:HH:mm}{status}" + (from is null ? "" : $"  ·  from {from}");
@@ -930,6 +937,9 @@ public partial class ReceivePage : UserControl, IDisposable
     {
         AppLog.Info("Receive", $"FSK ID heard: {call}");
         _analogFrom = call;
+        // The FSK ID comes just after the picture: it's that picture's sender (for Log QSO).
+        if (_analogMode is { } heardMode)
+            LastPicture = new(call, (_lastAnalog?.Entry.When ?? DateTime.Now).ToUniversalTime(), Digital: false, heardMode.Name);
         if (_lastAnalog is null && _unkeptAnalog is { } unkept && DateTime.Now - unkept.At <= TimeSpan.FromSeconds(20))
         {
             _unkeptAnalog = null;
