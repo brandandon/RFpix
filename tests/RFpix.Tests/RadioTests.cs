@@ -314,7 +314,8 @@ public class RadioTests
         var ic9700 = RadioChoices.Find("ic9700");
         Assert.Equal((3081, "A2", PttMethod.Rts, true), (ic9700.HamlibModel, ic9700.CivAddress, ic9700.Ptt, ic9700.DataMode));
         var ft991a = RadioChoices.Find("ft991a");
-        Assert.Equal((1035, PttMethod.Cat, false), (ft991a.HamlibModel, ft991a.Ptt, ft991a.DataMode));
+        // Data mode ticked to start with since Nov 1, 2026: CAT keying sends RFpix's sound in DATA-FM.
+        Assert.Equal((1035, PttMethod.Cat, true), (ft991a.HamlibModel, ft991a.Ptt, ft991a.DataMode));
         Assert.Equal("none", RadioChoices.Find("something old").Id);   // unknown → no radio control
     }
 
