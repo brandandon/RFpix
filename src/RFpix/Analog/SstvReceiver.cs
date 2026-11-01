@@ -104,14 +104,24 @@ public sealed class SstvReceiver
     /// <summary>A picture has ended (complete, or cut short).</summary>
     public event Action<SstvPicture>? Finished;
 
+    /// <summary>The picture's signal has gone (no syncs for 20 lines): it's kept, waiting, in case the
+    /// signal comes back before the picture's planned end. Gives the lines drawn so far.</summary>
+    public event Action<int>? Faded;
+
+    /// <summary>The signal came back on the waiting picture's beat: it carries on (from this line).</summary>
+    public event Action<int>? Resumed;
+
     /// <summary>A sender's callsign, from the FSK ID MMSSTV and QSSTV send after a picture.</summary>
     public event Action<string>? IdReceived;
 
-    /// <summary>The mode being received, or null between pictures.</summary>
-    public SstvModeInfo? Receiving => _image?.Mode;
+    /// <summary>The mode being received (or waiting for its signal to come back), or null between pictures.</summary>
+    public SstvModeInfo? Receiving => (_image ?? _faded)?.Mode;
 
     /// <summary>The picture being received was found without its VIS code (it joined partway through).</summary>
-    public bool ReceivingLate => _image?.JoinedLate == true;
+    public bool ReceivingLate => (_image ?? _faded)?.JoinedLate == true;
+
+    /// <summary>The picture's signal has gone and RFpix is waiting to see if it comes back.</summary>
+    public bool Waiting => _faded is not null;
 
     // ---- step 2: VIS ----
 
@@ -128,8 +138,16 @@ public sealed class SstvReceiver
         if (_image is not null) _image.Advance(end);
         else
         {
-            if (FindBySyncs(end - 1) is (var lateMode, long lateStart)) Begin(lateMode, lateStart, joinedLate: true);
-            else if (_track.Count > TrackRate * 12)
+            // A picture whose signal faded: past its planned end there's nothing left to come back.
+            if (_faded is not null && end > _fadedEnd) End();
+            if (FindBySyncs(end - 1) is (var lateMode, long lateStart))
+            {
+                // On the waiting picture's beat: the same transmission, after a fade. Carry on with it.
+                if (_faded is { } faded && faded.Mode == lateMode && faded.LineAt(lateStart) is int line) Resume(line);
+                else Begin(lateMode, lateStart, joinedLate: true);
+            }
+            // (While a picture waits, all its sound is kept: it's drawn again from the start at the end.)
+            else if (_faded is null && _track.Count > TrackRate * 12)
             {
                 // Between pictures only the last few seconds are needed (for the VIS code, and the
                 // syncs of a picture whose VIS code was missed: six lines of the slowest mode).
@@ -257,10 +275,36 @@ public sealed class SstvReceiver
     // ---- step 3: the picture ----
 
     private Image? _image;
+    private Image? _faded;   // a picture whose signal has gone, kept in case it comes back
+    private double _fadedEnd;  // where it would have ended (worked out once: its timing can't change while it waits)
+
+    /// <summary>The picture's signal has gone: keep it, waiting, rather than end it. Pulses of the same
+    /// mode on its beat before its planned end are the same transmission (Resume); anything else ends it.</summary>
+    private void Fade()
+    {
+        if (_image is not { } image) return;
+        _image = null;
+        _faded = image;
+        _fadedEnd = image.PlannedEnd;
+        _pulses.Clear();
+        _pulseStart = -1;
+        Faded?.Invoke(image.Drawn);
+    }
+
+    private void Resume(int line)
+    {
+        if (_faded is not { } image) return;
+        _faded = null;
+        _image = image;
+        _pulses.Clear();
+        _pulseStart = -1;
+        image.Resume(line);
+        Resumed?.Invoke(line);
+    }
 
     private void Begin(SstvModeInfo mode, long start, bool joinedLate = false)
     {
-        if (_image is not null) End();   // a new picture cuts the last one short
+        if (_image is not null || _faded is not null) End();   // a new picture cuts the last one short
         _pulses.Clear();
         _pulseStart = -1;
         // Drop the track before the picture.
@@ -275,8 +319,8 @@ public sealed class SstvReceiver
     /// <summary>Ends the picture being received (the signal has stopped, or listening stops).</summary>
     public void End()
     {
-        if (_image is not { } image) return;
-        _image = null;
+        if ((_image ?? _faded) is not { } image) return;
+        _image = _faded = null;
         _lastEnd = TrackEnd;
         _pulses.Clear();
         _pulseStart = -1;
@@ -353,9 +397,10 @@ public sealed class SstvReceiver
                 FindSync(_lines);
                 DrawLine(_lines, LineStart(_lines));
                 _lines++;
-                if (_missedSyncs >= 20)   // no syncs for 20 lines: the signal has gone
+                if (_lines <= _resumeLine) _missedSyncs = 0;   // the gap before a fade's end isn't counted again
+                if (_missedSyncs >= 20)   // no syncs for 20 lines: the signal has gone (perhaps only for a while)
                 {
-                    _rx.End();
+                    _rx.Fade();
                     return;
                 }
                 if (_lines % 4 == 0 || _lines == Mode.SoundLines) _rx.Progress?.Invoke(Snapshot(), Drawn);
@@ -363,7 +408,33 @@ public sealed class SstvReceiver
             _rx.End();   // complete
         }
 
-        private int Drawn => Mode.Color == SstvColor.PD ? 2 * _lines : _lines;
+        public int Drawn => Mode.Color == SstvColor.PD ? 2 * _lines : _lines;
+
+        private int _resumeLine = -1;   // after a fade: the line where the signal came back
+
+        /// <summary>Where the picture would have ended (track sample), by its timing.</summary>
+        public double PlannedEnd => LineStart(Mode.SoundLines);
+
+        /// <summary>A picture found from its syncs, starting at <paramref name="start"/> (as
+        /// <see cref="MatchSyncs"/> gives it): is it this picture's own line, after a fade? Its line
+        /// number if it falls on this picture's beat (within 5 ms), after the last line with a sync and
+        /// before the end; otherwise null.</summary>
+        public int? LineAt(long start)
+        {
+            if (_syncs.Count == 0) return null;
+            double at = start + (Mode.IsScottie ? Math.Round(Mode.SyncMs * TrackRate / 1000) : 0);
+            var (a, b) = Timing();
+            int line = (int)Math.Round((at - a) / b);
+            if (line <= _syncs[^1].Line || line >= Mode.SoundLines) return null;
+            return Math.Abs(at - (a + b * line)) <= 0.005 * TrackRate ? line : null;
+        }
+
+        /// <summary>Carries on after a fade: the signal came back at <paramref name="line"/>.</summary>
+        public void Resume(int line)
+        {
+            _resumeLine = line;
+            _missedSyncs = 0;
+        }
 
         // Looks for the line's sync pulse within 8 ms of where it should be.
         private void FindSync(int line)

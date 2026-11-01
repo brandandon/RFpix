@@ -450,4 +450,121 @@ public class SstvTests
         double psnr = PsnrRows(picture, got.Picture, 61, 2, Math.Min(got.Lines, m.Height - 61) - 2);
         Assert.True(psnr > 22, $"quality {psnr:0.0} dB");
     }
+
+    // ---- a fade: the signal goes for a while, then comes back ----
+
+    private static void Feed(SstvReceiver rx, float[] audio)
+    {
+        for (int at = 0; at < audio.Length; at += 4800) rx.AddSamples(audio.AsSpan(at, Math.Min(4800, audio.Length - at)));
+    }
+
+    /// <summary>Where line <paramref name="line"/> of a picture starts in its sound, in samples.</summary>
+    private static int LineSample(SstvModeInfo m, double line) =>
+        (int)((SstvModes.VisTime.TotalMilliseconds + (m.IsScottie ? m.SyncMs : 0) + line * m.LineMs) * 48);
+
+    [Theory]
+    [InlineData(SstvMode.Scottie2, 70, 30)]
+    [InlineData(SstvMode.Martin2, 60, 40)]
+    [InlineData(SstvMode.Robot36, 80, 60)]
+    [InlineData(SstvMode.PD90, 40, 25)]
+    public void A_picture_that_fades_and_comes_back_carries_on_as_one_picture(SstvMode mode, int fadeLine, int fadeLines)
+    {
+        var m = SstvModes.Get(mode);
+        var picture = SstvEncoder.Fit(Pattern(400, 300), m);
+        var audio = SstvEncoder.Audio(picture, m);
+        // The signal fades out completely for fadeLines lines (well over the 20 that end a picture now).
+        Array.Clear(audio, LineSample(m, fadeLine + 0.4), LineSample(m, fadeLine + fadeLines + 0.4) - LineSample(m, fadeLine + 0.4));
+
+        var rx = new SstvReceiver();
+        var started = new List<SstvMode>();
+        var finished = new List<SstvPicture>();
+        int faded = 0, resumedAt = -1;
+        rx.Started += s => started.Add(s.Mode);
+        rx.Finished += finished.Add;
+        rx.Faded += _ => faded++;
+        rx.Resumed += line => resumedAt = line;
+        var padded = new float[audio.Length + 48000 * 6];
+        audio.CopyTo(padded, 24000);
+        Feed(rx, padded);
+        rx.End();
+
+        Assert.Equal(new[] { mode }, started);            // started once: no second "joined partway" picture
+        Assert.Equal(1, faded);
+        Assert.InRange(resumedAt, fadeLine + fadeLines, fadeLine + fadeLines + 8);
+        var got = Assert.Single(finished);                 // and saved once
+        Assert.False(got.JoinedLate);
+        Assert.True(got.Complete);
+        // Before the fade, and after it, the picture is in its right place.
+        int rows = m.Color == SstvColor.PD ? 2 : 1;
+        double before = PsnrRows(picture, got.Picture, 0, 2 * rows, (fadeLine - 1) * rows);
+        double after = PsnrRows(picture, got.Picture, 0, (fadeLine + fadeLines + 10) * rows, m.Height - 2 * rows);
+        Assert.True(before > 24, $"before the fade: {before:0.0} dB");
+        Assert.True(after > 24, $"after the fade: {after:0.0} dB");
+    }
+
+    [Fact]
+    public void A_picture_whose_signal_never_comes_back_is_saved_at_its_planned_end()
+    {
+        var m = SstvModes.Get(SstvMode.Robot36);   // 36 seconds
+        var audio = SstvEncoder.Audio(SstvEncoder.Fit(Pattern(320, 240), m), m);
+        var rx = new SstvReceiver();
+        SstvPicture? got = null;
+        rx.Finished += p => got = p;
+        Feed(rx, audio.AsSpan(0, LineSample(m, 100)).ToArray());
+        Feed(rx, new float[48000 * 8]);            // 8 s of nothing: past the 20 lines (3 s), not yet its end
+        Assert.Null(got);
+        Assert.True(rx.Waiting);
+        Assert.Equal(SstvMode.Robot36, rx.Receiving!.Mode);
+        Feed(rx, new float[48000 * 25]);           // past where it would have ended
+        Assert.NotNull(got);
+        Assert.False(rx.Waiting);
+        Assert.Null(rx.Receiving);
+        Assert.False(got!.Complete);
+        Assert.InRange(got.Lines, 100, 125);
+    }
+
+    [Fact]
+    public void A_new_picture_while_one_waits_saves_the_waiting_one_first()
+    {
+        var robot = SstvModes.Get(SstvMode.Robot36);
+        var martin = SstvModes.Get(SstvMode.Martin2);
+        var rx = new SstvReceiver();
+        var finished = new List<SstvMode>();
+        rx.Finished += p => finished.Add(p.Mode.Mode);
+        Feed(rx, SstvEncoder.Audio(SstvEncoder.Fit(Pattern(320, 240), robot), robot).AsSpan(0, LineSample(robot, 100)).ToArray());
+        Feed(rx, new float[48000 * 5]);
+        Assert.True(rx.Waiting);
+        Feed(rx, SstvEncoder.Audio(SstvEncoder.Fit(Pattern(320, 256), martin), martin));   // with its VIS code
+        Feed(rx, new float[48000 * 3]);
+        rx.End();
+        Assert.Equal(new[] { SstvMode.Robot36, SstvMode.Martin2 }, finished);
+    }
+
+    [Fact]
+    public void The_same_mode_coming_back_off_the_beat_is_a_new_picture()
+    {
+        // Another station's Martin 2, joined partway, during the wait: its lines don't fall on the
+        // waiting picture's beat, so it isn't drawn into it.
+        var m = SstvModes.Get(SstvMode.Martin2);
+        var first = SstvEncoder.Audio(SstvEncoder.Fit(Pattern(320, 256), m), m);
+        var other = SstvEncoder.Audio(SstvEncoder.Fit(Flat(320, 256, 200, 40, 40), m), m);
+        var rx = new SstvReceiver();
+        var started = new List<bool>();
+        var finished = new List<SstvPicture>();
+        int resumed = 0;
+        rx.Started += _ => started.Add(rx.ReceivingLate);
+        rx.Finished += finished.Add;
+        rx.Resumed += _ => resumed++;
+        Feed(rx, first.AsSpan(0, LineSample(m, 80)).ToArray());
+        // Half a line off the waiting picture's beat (plus 30 lines of quiet), then the other picture from its line 150.
+        Feed(rx, new float[(int)((30.5 * m.LineMs) * 48)]);
+        Feed(rx, other.AsSpan(LineSample(m, 150.3)).ToArray());
+        Feed(rx, new float[48000 * 6]);
+        rx.End();
+        Assert.Equal(0, resumed);
+        Assert.Equal(new[] { false, true }, started);   // the first with its VIS code, then a new one joined partway
+        Assert.Equal(2, finished.Count);
+        Assert.False(finished[0].Complete);
+        Assert.True(finished[1].JoinedLate);
+    }
 }

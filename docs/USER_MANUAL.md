@@ -159,12 +159,13 @@ Work through these steps in order the first time you run RFpix. Everything is sa
 
 - [ ] **1. Enter your callsign and grid square.** Open **Settings**, then the **Misc** tab. Type your callsign in **Your callsign** (up to 9 characters; it goes out with every picture). Type your grid square in **Your grid square (QTH)**, 4 or 6 characters such as AA00 or AA00aa.
 - [ ] **2. Pick your radio.** On the **Radio** tab, choose your radio from the **Radio** list. RFpix fills in the usual settings for it; the note under the list says what to check.
-  - **Yaesu FT-991A:** choose the *Enhanced COM Port*. The baud rate must match the radio's menu 031 CAT RATE.
+  - **Yaesu FT-991A:** choose the *Enhanced COM Port*. The baud rate must match the radio's menu 031 CAT RATE. If your pictures go out weak, distorted or silent when keyed by CAT, use the radio's **Data VOX** instead (step 3).
   - **Icom IC-9700:** choose the first of its two COM ports. Leave the CI-V address at A2 unless you've changed it in the radio.
   - **Another radio:** choose **Other radio**, then type part of its model (such as 7300) and pick it from the list.
   - **Another program already controls the radio:** choose **Shared through rigctld** or **Shared through flrig**.
   - **No cable for control:** choose **No radio control (VOX only)**, and turn VOX on in the radio.
 - [ ] **3. Choose how the transmitter is keyed.** Under **Transmit keying (PTT)**, pick **CAT command**, **RTS line**, **DTR line** or **VOX**. CAT suits most radios; the IC-9700 works well with RTS. With an IC-9700, you can also tick **Switch the IC-9700 to data mode while transmitting**.
+  - **Yaesu FT-991A with Data VOX** (works best on the FT-991A, as it does with MMSSTV): in the radio, choose **USB** mode, set menu **142 VOX SELECT** to **DATA**, and turn **VOX** on in the **F** menu. In RFpix, stay connected to the radio (so it still shows and sets the frequency) and pick **VOX** under **Transmit keying (PTT)**. The radio then keys itself from RFpix's sound through the USB cable.
 - [ ] **4. Connect and test the keying.** Click **Connect**: the radio's frequency appears. Then click **Test PTT (2 seconds)**. The radio transmits for 2 seconds with no audio, so use a dummy load, or low power on a clear frequency.
 - [ ] **5. Pick the sound devices.** At the bottom of the **Radio** tab, under **Sound devices**, choose the radio's sound input and output. Radios usually show as *USB Audio CODEC*. Don't pick the computer's own speakers or microphone. Tip: rename the radio's devices in Windows' Sound settings (to *FT-991A*, say) to tell them apart.
 - [ ] **6. Calibrate the sound card.** Back on the **Misc** tab, first check Windows' clock is right (Windows **Settings > Time & language > Date & time > Sync now**). Then click **Measure (2 minutes)** under **Sound-card calibration**. The radio stays receiving; RFpix doesn't key it. This corrects for a sound card that runs a little fast or slow, which would otherwise slant analog pictures and upset digital ones.
@@ -207,7 +208,7 @@ Open **TX/RX**, then the **Receive** tab, and click **Start listening**. RFpix l
 | **Picture** (right) | The last picture received, with its name, who sent it, and where it was saved. **Double-click it** to show pictures in a window of their own (below). |
 | **Open received folder** | Opens the folder where pictures are saved. |
 
-The boxes show only while a picture is arriving; the rest of the time their space is left empty.
+The boxes show the details of the picture arriving. When it ends, they keep showing the last picture's details (its mode and settings, and who it was from) until the next picture starts. Only the digital signal readings (Offset, Clock, Strength and Quality) empty when the signal goes, since they measure the signal as it arrives. Stopping listening empties all the boxes.
 
 #### Setting the receive level
 
@@ -248,6 +249,10 @@ Digital pictures go to **Documents\RFpix\Received\Digital** and analog pictures 
 #### Analog pictures that started before you were listening
 
 An analog picture normally begins with a short start code (the VIS code) that says which mode it is. If you started listening partway through, or the code was lost in noise, RFpix works out the mode from the picture's sync pulses after about five lines. The picture then starts at the top of the frame with the line where it was found, and is marked **joined partway**.
+
+#### When an analog picture fades out
+
+If the signal fades partway through an analog picture, RFpix doesn't save it straight away. The Receive tab says *the signal faded at line …, waiting for it to come back*. If the same picture's signal returns before the picture would have finished, RFpix recognises it by its timing (its lines fall exactly on the same beat) and **carries on drawing it in the same picture**, at the right line. The part lost in the fade shows as noise or black, and you get one picture in the Gallery, not two halves. The picture is saved (and uploaded) once, when it's really over: when it finishes, when its time is up, when a new picture starts, or when you stop listening. If the sender's FSK ID comes while RFpix is waiting, the callsign is saved with the picture.
 
 When Receive is left running, many of these are only scraps: the end of a picture, or noise that looked like one. So a picture found without its VIS code is **saved to the Gallery only when at least half of it arrived**. One that isn't kept still shows on the Receive tab until the next picture, with a note under it such as *Not saved to the Gallery: only 30% received*. To keep more or fewer, change **Analog pictures without their VIS code** on **Settings > Misc** (25%, 50%, 75% or 100%, or untick it to keep none). Pictures that started with their VIS code are always saved, even if they were cut short. Whether these pictures go to your website is a separate setting, on the FTP server tab (section 9).
 
@@ -667,6 +672,7 @@ When something goes wrong and you'd like help, open **Settings > Misc** and clic
 | *RFpix is already transmitting.* | Only one transmission at a time: wait for it to finish, or click **Stop**. |
 | The time box is red and says it's over the repeater's time-out | Pick a shorter **Transmit time** (or a shorter analog mode), or check the **Repeater time-out** setting. |
 | The radio doesn't key | Click **Test PTT** on the Radio tab. With VOX, check VOX is on in the radio and its level is high enough for RFpix's sound to trip it. |
+| The radio keys, but your pictures go out weak, distorted or silent (FT-991A) | Use the radio's **Data VOX**: USB mode, menu **142 VOX SELECT** set to **DATA**, **VOX** on in the **F** menu, and **VOX** under **Transmit keying (PTT)** in RFpix (stay connected to the radio). See section 3, step 3. With other radios, check the radio takes its transmit sound from the USB cable (its data or USB input) rather than the microphone. |
 | The start of your pictures is lost on the repeater | Raise **Lead-in** so the repeater has time to open before the picture starts. |
 | Pictures don't decode at the other end, though their settings do | The transmit level is too high: lower the **Transmit level** until the radio's ALC barely moves. |
 | *The transmit time limit was reached, so RFpix released the transmitter.* | A safety limit stopped a transmission that ran too long. If it happens again, please report it. |

@@ -60,7 +60,9 @@ public partial class ReceivePage : UserControl, IDisposable
     private RFpix.Analog.SstvModeInfo? _analogMode;            // the analog picture shown in the boxes
     private string _analogFrom = "";                           // its sender, from the FSK ID
     private static readonly IBrush TooQuietBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0xA8, 0x00));   // yellow
-    private DateTime _analogBoxesUntil = DateTime.MinValue;    // the analog boxes stay a little after it ends
+    // The kind of picture whose details the boxes show: the last one received, until the next starts.
+    private enum BoxesShow { Nothing, Digital, Analog }
+    private BoxesShow _boxes;
     private (string Folder, GalleryEntry Entry, DateTime Saved)? _lastAnalog;   // for the FSK ID that follows
     private string _analogCaption = "";
     private readonly WaterfallMarks _marks = new(AppSettings.Current.SendAnalog);   // analog or HamDRM marks
@@ -123,6 +125,8 @@ public partial class ReceivePage : UserControl, IDisposable
         _sstv.Started += mode => { _analogLines = 0; Dispatcher.UIThread.Post(() => ShowAnalogStart(mode)); };
         _sstv.Progress += (picture, lines) => { _analogLines = lines; Dispatcher.UIThread.Post(() => ShowAnalogProgress(picture, lines)); };
         _sstv.Finished += picture => Dispatcher.UIThread.Post(() => ShowAnalogPicture(picture));
+        _sstv.Faded += lines => Dispatcher.UIThread.Post(() => ShowAnalogFaded(lines));
+        _sstv.Resumed += line => Dispatcher.UIThread.Post(() => ShowAnalogResumed(line));
         _sstv.IdReceived += call => Dispatcher.UIThread.Post(() => ShowAnalogId(call));
 
         // When a transmission ends: if it was one of RFpix's test transmissions, say how it
@@ -329,8 +333,9 @@ public partial class ReceivePage : UserControl, IDisposable
         FormatText.Text = "";
         SignalText.Text = "";
         SignalText.IsVisible = false;
-        _analogBoxesUntil = DateTime.MinValue;
-        ShowSignal();   // empty boxes
+        _boxes = BoxesShow.Nothing;   // not listening: empty boxes
+        ClearHeard();
+        ShowSignal();
         ShowHeard();
         TransmissionText.Text = "";
         FileText.Text = "";
@@ -530,16 +535,19 @@ public partial class ReceivePage : UserControl, IDisposable
         SignalText.Text = line;
         SignalText.IsVisible = line.Length > 0;
 
-        // An analog picture arriving (or just ended): only its boxes. Otherwise the digital ones.
-        // The boxes show only while a picture is arriving; their space stays, empty, otherwise.
-        bool analog = ShowingAnalog;
-        var heard = analog ? null : _receiver.Heard;
-        bool digital = !analog && (heard is not null || _receiver.Signal is not null);
-        Show(DigitalBoxes, digital);
+        // The boxes show the details of the picture arriving, or of the last one received until the
+        // next one starts: an analog picture's boxes, or the digital ones. (The digital signal
+        // readings, Offset to Quality, are live: they empty when the signal goes.)
+        bool analogNow = _sstv.Receiving is not null;   // arriving, or waiting for its signal to come back
+        var heardNow = analogNow ? null : _receiver.Heard;
+        if (analogNow) _boxes = BoxesShow.Analog;
+        else if (heardNow is not null) _boxes = BoxesShow.Digital;
+        bool analog = _boxes == BoxesShow.Analog;
+        Show(DigitalBoxes, _boxes == BoxesShow.Digital);
         Show(AnalogBoxes, analog);
         // The marks follow the kind last received (a HamDRM transmission counts once its FAC, the
         // settings it sends, has been read, so noise doesn't switch them), or Send when it changes.
-        Waterfall.Analog = _marks.Update(AppSettings.Current.SendAnalog, analog, heard is { Fac: not null });
+        Waterfall.Analog = _marks.Update(AppSettings.Current.SendAnalog, analogNow, heardNow is { Fac: not null });
         if (analog)
         {
             AnalogMode.Text = _analogMode?.Name ?? Empty;
@@ -585,13 +593,9 @@ public partial class ReceivePage : UserControl, IDisposable
     /// <summary>An empty box's text: a no-break space, so the box keeps its height.</summary>
     private const string Empty = "\u00A0";
 
-    /// <summary>Whether the analog boxes are showing: while an analog picture arrives, and for a few
-    /// seconds after (its FSK ID comes then), unless a HamDRM transmission starts.</summary>
-    private bool ShowingAnalog => _sstv.Receiving is not null || DateTime.Now < _analogBoxesUntil && _receiver.Heard is null;
-
     private void ShowHeard()
     {
-        var heard = ShowingAnalog ? null : _receiver.Heard;
+        var heard = _boxes == BoxesShow.Digital ? _receiver.Heard : null;
         if (heard is not null)
         {
             var fac = heard.Fac;
@@ -607,11 +611,16 @@ public partial class ReceivePage : UserControl, IDisposable
         }
         else
         {
-            // Between transmissions: empty boxes.
-            HeardMode.Text = HeardBandwidth.Text = HeardQam.Text = HeardInterleave.Text =
-                HeardProtection.Text = HeardReedSolomon.Text = HeardCallsign.Text = Empty;
+            // Between transmissions the boxes keep the last one's settings, until the next starts.
             TransmissionText.Text = "";
         }
+    }
+
+    private void ClearHeard()
+    {
+        HeardMode.Text = HeardBandwidth.Text = HeardQam.Text = HeardInterleave.Text =
+            HeardProtection.Text = HeardReedSolomon.Text = HeardCallsign.Text = Empty;
+        TransmissionText.Text = "";
     }
 
     // ---- level meter (runs on the screen's thread, 20 times a second) ----
@@ -828,9 +837,6 @@ public partial class ReceivePage : UserControl, IDisposable
 
     // ---- analog SSTV ----
 
-    /// <summary>How long the analog boxes stay after a picture ends (its FSK ID comes in the first two seconds).</summary>
-    private static readonly TimeSpan AnalogBoxesLinger = TimeSpan.FromSeconds(10);
-
     private void ShowAnalogStart(RFpix.Analog.SstvModeInfo mode)
     {
         ++_pictureCount;   // a HamDRM picture still being decoded won't replace this one
@@ -838,10 +844,24 @@ public partial class ReceivePage : UserControl, IDisposable
         _analogFrom = "";
         _lastAnalog = null;
         _unkeptAnalog = null;
-        _analogBoxesUntil = DateTime.MaxValue;
         PictureCaption.Text = $"Receiving analog SSTV: {mode.Name} ({mode.Width} × {mode.Height})" +
                               (_sstv.ReceivingLate ? ", joined partway (its VIS code was missed)" : "");
         AppLog.Info("Receive", $"Analog SSTV {mode.Name} arriving" + (_sstv.ReceivingLate ? ", found without its VIS code." : " (its VIS code heard)."));
+    }
+
+    /// <summary>The picture's signal has gone: it's kept, in case it comes back before the picture's end.</summary>
+    private void ShowAnalogFaded(int lines)
+    {
+        if (_analogMode is not { } mode) return;
+        PictureCaption.Text = $"Analog SSTV {mode.Name}: the signal faded at line {lines}. Waiting for it to come back…";
+        AppLog.Info("Receive", $"Analog SSTV {mode.Name}: the signal faded at line {lines}; waiting for it to come back before saving.");
+    }
+
+    private void ShowAnalogResumed(int line)
+    {
+        if (_analogMode is not { } mode) return;
+        PictureCaption.Text = $"Receiving analog SSTV: {mode.Name} ({mode.Width} × {mode.Height}): the signal came back, carrying on from line {line}";
+        AppLog.Info("Receive", $"Analog SSTV {mode.Name}: the signal came back on the same picture's beat; carrying on from line {line}.");
     }
 
     private void ShowAnalogProgress(DecodedPicture picture, int lines)
@@ -855,11 +875,13 @@ public partial class ReceivePage : UserControl, IDisposable
     private async void ShowAnalogPicture(RFpix.Analog.SstvPicture got)
     {
         ShowAnalogProgress(got.Picture, got.Lines);
-        _analogBoxesUntil = DateTime.Now + AnalogBoxesLinger;
         var when = got.Ended;
+        // An FSK ID heard while it arrived, or while it waited after fading out (it often comes then):
+        // the sender, saved with it.
+        string? from = _analogFrom.Length > 0 ? _analogFrom : null;
         string status = got.JoinedLate ? "  ·  joined partway (no VIS code)"
                       : got.Complete ? "" : $"  ·  cut short: {got.Lines} of {got.Mode.Height} lines";
-        _analogCaption = $"Analog SSTV {got.Mode.Name}  ·  {when:HH:mm}{status}";
+        _analogCaption = $"Analog SSTV {got.Mode.Name}  ·  {when:HH:mm}{status}" + (from is null ? "" : $"  ·  from {from}");
 
         // A picture found without its VIS goes to the Gallery only if enough of it arrived
         // (Settings > Misc), and to the website only by its own rule (Settings > FTP server).
@@ -872,7 +894,7 @@ public partial class ReceivePage : UserControl, IDisposable
         if (!settings.ShouldKeepAnalog(got.JoinedLate, got.Lines, got.Mode.Height))
         {
             string note = NotKeptNote(settings.KeepNoVis, got.Lines, got.Mode.Height);
-            _unkeptAnalog = (note, DateTime.Now);
+            if (from is null) _unkeptAnalog = (note, DateTime.Now);
             PictureCaption.Text = $"{_analogCaption}\n{note}";
             AppLog.Info("Receive", $"Analog SSTV {got.Mode.Name}: {got.Lines} of {got.Mode.Height} lines, without its VIS code; not kept in the Gallery (Settings > Misc).");
             return;
@@ -882,9 +904,9 @@ public partial class ReceivePage : UserControl, IDisposable
             var png = await Task.Run(() => Pictures.EncodePng(got.Picture));
             string name = $"SSTV {got.Mode.Name}.png";
             string savedAs = Path.GetFileName(ReceivedFileSaver.Save(new ReceivedFile(name, png, 0), AnalogFolder, null, when));
-            var entry = new GalleryEntry(savedAs, when, name, null, $"Analog SSTV  ·  {got.Mode.Name}" + (got.JoinedLate ? "  ·  joined partway" : ""));
+            var entry = new GalleryEntry(savedAs, when, name, from, $"Analog SSTV  ·  {got.Mode.Name}" + (got.JoinedLate ? "  ·  joined partway" : ""));
             GalleryIndex.Add(AnalogFolder, entry);
-            _lastAnalog = (AnalogFolder, entry, DateTime.Now);
+            if (from is null) _lastAnalog = (AnalogFolder, entry, DateTime.Now);   // for an FSK ID still to come
             SendSupport.RaiseGalleryChanged();
             PictureCaption.Text = $"{_analogCaption}\nSaved as \"{savedAs}\"";
             AppLog.Info("Receive", $"Analog SSTV {got.Mode.Name}: {got.Lines} of {got.Mode.Height} lines" +
@@ -908,7 +930,6 @@ public partial class ReceivePage : UserControl, IDisposable
     {
         AppLog.Info("Receive", $"FSK ID heard: {call}");
         _analogFrom = call;
-        if (_sstv.Receiving is null && DateTime.Now < _analogBoxesUntil) _analogBoxesUntil = DateTime.Now + AnalogBoxesLinger;
         if (_lastAnalog is null && _unkeptAnalog is { } unkept && DateTime.Now - unkept.At <= TimeSpan.FromSeconds(20))
         {
             _unkeptAnalog = null;
