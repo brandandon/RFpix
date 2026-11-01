@@ -80,7 +80,7 @@ public sealed class LogbookTests : IDisposable
     }
 
     [Fact]
-    public void A_logged_contact_is_saved_and_sent_to_the_logging_program()
+    public async Task A_logged_contact_is_saved_and_sent_to_the_logging_program()
     {
         // A pretend logging program listening on this computer, as HRD Logbook does.
         using var logger = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
@@ -88,9 +88,9 @@ public sealed class LogbookTests : IDisposable
         var result = ContactLog.Log(Sample(), new LoggingSettings { Address = "127.0.0.1", Port = port }, File1);
         Assert.True(result.Saved);
         Assert.True(result.Sent);
-        var arrived = logger.ReceiveAsync();
-        Assert.True(arrived.Wait(TimeSpan.FromSeconds(5)), "nothing arrived");
-        string sent = Encoding.UTF8.GetString(arrived.Result.Buffer);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var arrived = await logger.ReceiveAsync(timeout.Token);   // (cancelled after 5 s if nothing arrives)
+        string sent = Encoding.UTF8.GetString(arrived.Buffer);
         Assert.Contains("<programid:5>RFpix", sent);
         Assert.Contains("<eoh>", sent);
         Assert.Contains("<call:5>N3CHX", sent);
