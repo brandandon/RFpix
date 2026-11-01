@@ -35,10 +35,58 @@ public class RadioTests
         Assert.Equal("USB", RadioConnection.ModeName(radio.ReadMode()));
     }
 
-    [Fact]
-    public void Data_mode_is_only_for_the_IC_9700()
+    // ---- the FT-991A's data mode, through Hamlib (tried on Hamlib's pretend radio, which keeps
+    // whatever mode it's given, data modes included) ----
+
+    private const ulong Lsb = 1ul << 3, LsbData = 1ul << 10, Am = 1ul << 0;
+
+    [Theory]
+    [InlineData(Fm, FmData, "FM → FM-D → FM")]
+    [InlineData(Usb, UsbData, "USB → USB-D → USB")]
+    [InlineData(Lsb, LsbData, "LSB → LSB-D → LSB")]
+    public void The_FT_991A_switches_to_data_mode_while_transmitting_and_back(ulong mode, ulong data, string report)
     {
-        // Hamlib's pretend radio isn't an IC-9700: the box is ignored and the mode left alone.
+        using var radio = RadioConnection.Open(Dummy());
+        radio.DataModeForTransmit = true;   // as the FT-991A's box does (the pretend radio is "Other radio")
+        radio.SetMode(mode);
+        radio.Key(TimeSpan.FromSeconds(10));
+        Assert.True(radio.ReadPtt());
+        Assert.Equal(data, radio.ReadMode());
+        radio.Unkey();
+        Assert.False(radio.ReadPtt());
+        Assert.Equal(mode, radio.ReadMode());
+        Assert.Equal(report, radio.LastDataModeReport);
+    }
+
+    [Theory]
+    [InlineData(FmData, "FM-D already, left as it is")]
+    [InlineData(Am, "no data mode for AM: left as it is")]
+    public void A_data_mode_or_a_mode_without_one_is_left_alone(ulong mode, string report)
+    {
+        using var radio = RadioConnection.Open(Dummy());
+        radio.DataModeForTransmit = true;
+        radio.SetMode(mode);
+        radio.Key(TimeSpan.FromSeconds(10));
+        Assert.Equal(mode, radio.ReadMode());
+        radio.Unkey();
+        Assert.Equal(mode, radio.ReadMode());
+        Assert.Equal(report, radio.LastDataModeReport);
+    }
+
+    [Fact]
+    public void The_FT_991A_offers_data_mode_and_starts_with_it_ticked()
+    {
+        Assert.True(RadioChoices.CanSwitchDataMode("ft991a"));
+        Assert.True(RadioChoices.Find("ft991a").DataMode);
+        Assert.False(RadioChoices.CanSwitchDataMode("other"));
+        Assert.Equal(FmData, RadioConnection.DataModeFor(Fm));
+        Assert.Null(RadioConnection.DataModeFor(Am));
+    }
+
+    [Fact]
+    public void Data_mode_is_only_for_radios_it_works_with()
+    {
+        // Hamlib's pretend radio is "Other radio": the box is ignored and the mode left alone.
         using var radio = RadioConnection.Open(Dummy(dataMode: true));
         Assert.False(radio.DataModeForTransmit);
         radio.SetMode(Usb);

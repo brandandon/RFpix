@@ -149,11 +149,15 @@ public partial class RadioPage : UserControl, IDisposable
         // RTS and DTR are lines on a COM port; without radio control only VOX is possible.
         PttRts.IsEnabled = PttDtr.IsEnabled = choice.Connection == "serial";
         PttCat.IsEnabled = choice.Connection != "none";
-        // Data mode switching: the IC-9700 by its own commands, or any radio HRD has a data button for.
+        // Data mode switching: the IC-9700 by its own commands, the FT-991A by Hamlib's data modes,
+        // or any radio HRD has a data button for.
         DataModeBox.IsVisible = RadioChoices.CanSwitchDataMode(choice.Id);
-        DataModeBox.Content = choice.Id == RadioChoices.HrdId
-            ? "Switch the radio to data mode while transmitting (through HRD: USB → USB-D, FM → FM-D), and back afterwards"
-            : "Switch the IC-9700 to data mode while transmitting (FM → FM-D, USB → USB-D), and back afterwards";
+        DataModeBox.Content = choice.Id switch
+        {
+            RadioChoices.HrdId => "Switch the radio to data mode while transmitting (through HRD: USB → USB-D, FM → FM-D), and back afterwards",
+            "ft991a" => "Switch the FT-991A to data mode while transmitting (FM → DATA-FM, USB → DATA-USB, LSB → DATA-LSB), and back afterwards",
+            _ => "Switch the IC-9700 to data mode while transmitting (FM → FM-D, USB → USB-D), and back afterwards",
+        };
         ConnectButton.IsEnabled = choice.Connection != "none" || Connection is not null;
         if (choice.Connection == "none") { ShowPtt(PttMethod.Vox); DataModeBox.IsChecked = false; }
     }

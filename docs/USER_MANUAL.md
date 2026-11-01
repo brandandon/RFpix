@@ -161,12 +161,20 @@ Work through these steps in order the first time you run RFpix. Everything is sa
 
 - [ ] **1. Enter your callsign and grid square.** Open **Settings**, then the **Misc** tab. Type your callsign in **Your callsign** (up to 9 characters; it goes out with every picture). Type your grid square in **Your grid square (QTH)**, 4 or 6 characters such as AA00 or AA00aa.
 - [ ] **2. Pick your radio.** On the **Radio** tab, choose your radio from the **Radio** list. RFpix fills in the usual settings for it; the note under the list says what to check.
-  - **Yaesu FT-991A:** choose the *Enhanced COM Port*. The baud rate must match the radio's menu 031 CAT RATE. If your pictures go out weak, distorted or silent when keyed by CAT, use the radio's **Data VOX** instead (step 3).
+  - **Yaesu FT-991A:** choose the *Enhanced COM Port*. The baud rate must match the radio's menu 031 CAT RATE. When it's keyed by CAT, the FT-991A takes its transmit sound from wherever the menus for the mode it's in say. For RFpix's sound to go out, set the pair for your mode to **REAR** and **USB**:
+
+    | Mode | Source: set to REAR | Port: set to USB |
+    | --- | --- | --- |
+    | DATA-FM, DATA-USB, DATA-LSB | 070 DATA IN SELECT | 072 DATA PORT SELECT |
+    | FM | 074 FM MIC SELECT | 077 FM PORT SELECT |
+    | USB, LSB | 106 SSB MIC SELECT | 109 SSB PORT SELECT |
+
+    The port menu starts out on DATA (the rear 6-pin jack), which keys the radio with no sound from RFpix. If pictures still go out weak, distorted or silent, use the radio's **Data VOX** instead (step 3).
   - **Icom IC-9700:** choose the first of its two COM ports. Leave the CI-V address at A2 unless you've changed it in the radio.
   - **Another radio:** choose **Other radio**, then type part of its model (such as 7300) and pick it from the list.
   - **Another program already controls the radio:** choose **Shared through rigctld** or **Shared through flrig**.
   - **No cable for control:** choose **No radio control (VOX only)**, and turn VOX on in the radio.
-- [ ] **3. Choose how the transmitter is keyed.** Under **Transmit keying (PTT)**, pick **CAT command**, **RTS line**, **DTR line** or **VOX**. CAT suits most radios; the IC-9700 works well with RTS. With an IC-9700, you can also tick **Switch the IC-9700 to data mode while transmitting**.
+- [ ] **3. Choose how the transmitter is keyed.** Under **Transmit keying (PTT)**, pick **CAT command**, **RTS line**, **DTR line** or **VOX**. CAT suits most radios; the IC-9700 works well with RTS. With an IC-9700 or an FT-991A, you can also tick **Switch the … to data mode while transmitting** (on to start with for the FT-991A: FM goes to DATA-FM, USB to DATA-USB, LSB to DATA-LSB, and back after; tested to work in DATA-FM).
   - **Yaesu FT-991A with Data VOX** (works best on the FT-991A, as it does with MMSSTV): in the radio, choose **USB** mode, set menu **142 VOX SELECT** to **DATA**, and turn **VOX** on in the **F** menu. In RFpix, stay connected to the radio (so it still shows and sets the frequency) and pick **VOX** under **Transmit keying (PTT)**. The radio then keys itself from RFpix's sound through the USB cable.
 - [ ] **4. Connect and test the keying.** Click **Connect**: the radio's frequency appears. Then click **Test PTT (2 seconds)**. The radio transmits for 2 seconds with no audio, so use a dummy load, or low power on a clear frequency.
 - [ ] **5. Pick the sound devices.** At the bottom of the **Radio** tab, under **Sound devices**, choose the radio's sound input and output. Radios usually show as *USB Audio CODEC*. Don't pick the computer's own speakers or microphone. Tip: rename the radio's devices in Windows' Sound settings (to *FT-991A*, say) to tell them apart.
@@ -624,7 +632,7 @@ The **Settings** page has four tabs: **Radio**, **Misc**, **Logging** and **FTP 
 | **CI-V address (hex)** | Icom radios only: the radio's address, A2 for an IC-9700 unless changed in its menu. |
 | **Address** | Only for a radio shared through another program: where to reach it. Usually localhost:4532 for rigctld, localhost:12345 for flrig, localhost:7809 for Ham Radio Deluxe. |
 | **Transmit keying (PTT)** | How RFpix keys the transmitter: **CAT command** (a command over the cable), **RTS line** or **DTR line** (a line on the COM port), or **VOX** (the radio keys itself when it hears RFpix's sound; RFpix sends no key command). RTS and DTR need a COM port; with no radio control only VOX is possible. |
-| **Switch to data mode while transmitting** | IC-9700, or a radio shared through Ham Radio Deluxe: RFpix turns the radio's DATA setting on just before keying (USB to USB-D, FM to FM-D) and back off after. A radio already in data mode is left alone. This box counts at once, connected or not. |
+| **Switch to data mode while transmitting** | IC-9700, FT-991A, or a radio shared through Ham Radio Deluxe: RFpix switches the radio to its data mode just before keying (FM to DATA-FM or FM-D, USB to DATA-USB or USB-D; on the FT-991A, LSB to DATA-LSB too) and back after. A radio already in data mode, or in a mode without one (AM, CW), is left alone. A radio already in data mode is left alone. This box counts at once, connected or not. |
 | **Connect / Disconnect** | Opens the connection to the radio. Once connected, the radio's frequency and mode are shown and updated every second. The radio settings above can't be changed while connected. |
 | **Test PTT (2 seconds)** | Keys the transmitter for 2 seconds with no audio, then always releases it. Use a dummy load, or low power on a clear frequency. |
 | **Sound devices** | **Receive** is the radio's sound input (what RFpix listens to); **Send** is the radio's sound output (what RFpix plays into). **Refresh** looks for devices again. A change takes effect at once, even while listening. |

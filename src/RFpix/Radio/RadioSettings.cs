@@ -57,8 +57,10 @@ public static class RadioChoices
 {
     public static readonly IReadOnlyList<RadioChoice> All = new RadioChoice[]
     {
-        new("ft991a", "Yaesu FT-991A", 1035, "serial", 38400, null, PttMethod.Cat, false,
-            "Use the \"Enhanced COM Port\". The baud rate must match the radio's menu 031 CAT RATE."),
+        new("ft991a", "Yaesu FT-991A", 1035, "serial", 38400, null, PttMethod.Cat, true,
+            "Use the \"Enhanced COM Port\". The baud rate must match the radio's menu 031 CAT RATE. " +
+            "For RFpix's sound to go out when keyed by CAT, set the menus for the mode you use to REAR and USB " +
+            "(data modes: 070 and 072; FM: 074 and 077; SSB: 106 and 109)."),
         new("ic9700", "Icom IC-9700", 3081, "serial", 19200, "A2", PttMethod.Rts, true,
             "Use the first of the radio's two COM ports. CI-V address A2 is the radio's default; " +
             "PTT by RTS is what worked in QSSTV (CAT works too)."),
@@ -81,8 +83,9 @@ public static class RadioChoices
     public const string HrdId = "hrd";
 
     /// <summary>The choices RFpix can switch data mode for while transmitting: the IC-9700 (by CI-V),
-    /// and radios shared through HRD (by HRD's data-mode button).</summary>
-    public static bool CanSwitchDataMode(string? id) => id is "ic9700" or HrdId;
+    /// the FT-991A (by Hamlib's data modes: FM → DATA-FM, USB → DATA-USB, LSB → DATA-LSB), and
+    /// radios shared through HRD (by HRD's data-mode button).</summary>
+    public static bool CanSwitchDataMode(string? id) => id is "ic9700" or "ft991a" or HrdId;
 
     /// <summary>Common baud rates for the drop-down.</summary>
     public static readonly int[] BaudRates = { 4800, 9600, 19200, 38400, 57600, 115200 };

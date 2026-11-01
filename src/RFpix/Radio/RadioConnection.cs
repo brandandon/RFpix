@@ -364,6 +364,7 @@ public sealed class RadioConnection : IDisposable
     private void DataModeOn()
     {
         if (_hrd is { } hrd) { HrdDataModeOn(hrd); return; }
+        if (_settings.Choice != "ic9700") { HamlibDataModeOn(); return; }
         var (mode, report) = DataMode.On();
         LastDataModeReport = report;
         AppLog.Info("Radio", $"Data mode: {report}");
@@ -376,11 +377,60 @@ public sealed class RadioConnection : IDisposable
     {
         string mode = _modeBeforeTransmit!;
         if (_hrd is { } hrd) hrd.SetDataMode(false);
+        else if (_hamlibModeBefore is ulong before)
+        {
+            if (SettleTime > TimeSpan.Zero) Thread.Sleep(SettleTime);
+            Check(HamlibNative.rig_set_mode(Rig, HamlibNative.VfoCurrent, before, HamlibNative.PassbandNoChange),
+                  "Couldn't switch the radio back from data mode");
+            _hamlibModeBefore = null;
+        }
         else DataMode.Off(mode);
         _modeBeforeTransmit = null;   // only once it's back (if it failed, it's tried again later)
         LastDataModeReport += $" → {mode}";
-        AppLog.Info("Radio", $"Data mode: {_hrd?.RadioName ?? "IC-9700"} back to {mode}.");
-        DataModeSwitched?.Invoke($"{_hrd?.RadioName ?? "IC-9700"} back to {mode}");
+        AppLog.Info("Radio", $"Data mode: {RadioLabel} back to {mode}.");
+        DataModeSwitched?.Invoke($"{RadioLabel} back to {mode}");
+    }
+
+    /// <summary>The radio's name for the data-mode messages.</summary>
+    private string RadioLabel => _hrd?.RadioName ?? (_settings.Choice == "ft991a" ? "FT-991A" : _settings.Choice == "ic9700" ? "IC-9700" : "The radio");
+
+    // ---- data mode through Hamlib (the FT-991A): FM → DATA-FM, USB → DATA-USB, LSB → DATA-LSB ----
+
+    private ulong? _hamlibModeBefore;   // the mode to put back, while data mode is on
+
+    /// <summary>Hamlib's data mode for each ordinary mode.</summary>
+    internal static ulong? DataModeFor(ulong mode) => mode switch
+    {
+        HamlibNative.ModeFm => HamlibNative.ModePktFm,
+        HamlibNative.ModeUsb => HamlibNative.ModePktUsb,
+        HamlibNative.ModeLsb => HamlibNative.ModePktLsb,
+        _ => null,
+    };
+
+    private void HamlibDataModeOn()
+    {
+        Check(HamlibNative.rig_get_mode(Rig, HamlibNative.VfoCurrent, out ulong mode, out _), "Couldn't read the mode");
+        string name = ModeName(mode);
+        if (mode is HamlibNative.ModePktFm or HamlibNative.ModePktUsb or HamlibNative.ModePktLsb)
+        {
+            LastDataModeReport = $"{name} already, left as it is";
+            AppLog.Info("Radio", $"Data mode: {LastDataModeReport}.");
+            return;
+        }
+        if (DataModeFor(mode) is not ulong data)
+        {
+            LastDataModeReport = $"no data mode for {name}: left as it is";
+            AppLog.Info("Radio", $"Data mode: {LastDataModeReport}.");
+            return;
+        }
+        Check(HamlibNative.rig_set_mode(Rig, HamlibNative.VfoCurrent, data, HamlibNative.PassbandNoChange),
+              "Couldn't switch the radio to data mode");
+        if (SettleTime > TimeSpan.Zero) Thread.Sleep(SettleTime);
+        _hamlibModeBefore = mode;
+        _modeBeforeTransmit = name;
+        LastDataModeReport = $"{name} → {ModeName(data)}";
+        AppLog.Info("Radio", $"Data mode: {RadioLabel} {LastDataModeReport}.");
+        DataModeSwitched?.Invoke($"{RadioLabel} in {ModeName(data)}");
     }
 
     // Through HRD: its data-mode button (or list) on, checked, and the mode noted to put back after.
