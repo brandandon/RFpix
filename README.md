@@ -20,6 +20,7 @@ running EasyPal or QSSTV.
 
 | Date (2026) | Done |
 | --- | --- |
+| Nov 1 | Log QSO: contacts sent to HRD Logbook (or another logger, as WSJT-X does) and kept in an ADIF file; analog pictures that fade and come back stay one picture; the Receive tab's boxes keep the last picture's details; FT-991A Data VOX in the manual; every download's name says its system (v0.6.2 beta) |
 | Oct 31 | A log for help with problems (Save log for help on Settings > Misc); RFpix's own picture viewer (double-click the Receive tab's picture); waterfall marks follow the kind of picture being received; a Gallery setting for analog pictures without their VIS code; fixes from three code reviews: un-keying retried, safer sound stops on Windows and Linux, the Mac starts listening after Allow, stricter build checks (v0.6.1 beta) |
 | Oct 25 | The Linux version: AppImage and .deb for 64-bit PCs and the Raspberry Pi, with Hamlib inside and PipeWire/PulseAudio sound; the Gallery's pictures can be moved to another folder; templates can show a received picture to send back with the report; uploading no-VIS analog pictures only when enough arrived; the Gallery's file hidden (v0.6.0 beta) |
 | Oct 24 | Receive level slider on the Receive tab (sets the radio's recording level in Windows or on the Mac); the Level bar turns yellow when too quiet for pictures; new-version notices on Windows too (v0.5.3 beta) |

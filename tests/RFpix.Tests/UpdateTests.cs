@@ -61,6 +61,33 @@ public class UpdateTests
         Assert.False(UpdateCheck.Fits("RFpix-0.6.0-beta-linux-x64.AppImage", "RFpix-*-linux-arm64.AppImage"));
     }
 
+    /// <summary>The release's files since 0.6.2 name their system (windows, linux). Every copy of RFpix
+    /// already installed finds its update with the patterns above, so each new name must still fit
+    /// its own system's pattern, and no other: otherwise a 0.6.1 wouldn't hear of 0.6.2.</summary>
+    [Fact]
+    public void The_release_files_named_for_their_system_are_still_found_by_older_versions()
+    {
+        var release = new[]
+        {
+            "RFpix-Setup-0.6.2-beta-windows.exe", "RFpix-0.6.2-beta-windows-portable.exe",
+            "RFpix-0.6.2-beta-mac-intel.pkg", "RFpix-0.6.2-beta-mac-apple-silicon.pkg",
+            "RFpix-0.6.2-beta-linux-x64.AppImage", "RFpix-0.6.2-beta-linux-arm64.AppImage",
+            "rfpix_0.6.2-beta_linux_amd64.deb", "rfpix_0.6.2-beta_linux_arm64.deb",
+        };
+        var expected = new Dictionary<string, string>
+        {
+            [Windows] = "RFpix-Setup-0.6.2-beta-windows.exe",   // the installer, not the portable one
+            [Intel] = "RFpix-0.6.2-beta-mac-intel.pkg",
+            [AppleSilicon] = "RFpix-0.6.2-beta-mac-apple-silicon.pkg",
+            ["RFpix-*-linux-x64.AppImage"] = "RFpix-0.6.2-beta-linux-x64.AppImage",
+            ["RFpix-*-linux-arm64.AppImage"] = "RFpix-0.6.2-beta-linux-arm64.AppImage",
+            ["rfpix_*_amd64.deb"] = "rfpix_0.6.2-beta_linux_amd64.deb",
+            ["rfpix_*_arm64.deb"] = "rfpix_0.6.2-beta_linux_arm64.deb",
+        };
+        foreach (var (pattern, file) in expected)
+            Assert.Equal(new[] { file }, release.Where(name => UpdateCheck.Fits(name, pattern)));
+    }
+
     [Theory]
     [InlineData("RFpix-Setup-0.5.3-beta.exe", Windows, true)]
     [InlineData("RFpix.exe", Windows, false)]                         // the one-file program, not the installer

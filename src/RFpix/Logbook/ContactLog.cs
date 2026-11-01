@@ -1,7 +1,7 @@
 // ContactLog.cs - logging a contact: saved in RFpix's own log file (ADIF, in Documents\RFpix),
 // and sent to a logging program on this computer (HRD Logbook, for one) the way WSJT-X sends
 // them: the contact's ADIF over UDP. HRD Logbook takes them in with QSO Forwarding > UDP Receive,
-// on port 2333 (the port its help gives for WSJT-X).
+// on port 2237 (WSJT-X's own port; found working with HRD Logbook, Nov 1, 2026).
 
 using System.Net.Sockets;
 using System.Text;
@@ -15,7 +15,7 @@ public sealed class LoggingSettings
     /// <summary>Send each contact logged to a logging program listening on this address and port.</summary>
     public bool SendToLogger { get; set; } = true;
     public string Address { get; set; } = "127.0.0.1";
-    public int Port { get; set; } = 2333;
+    public int Port { get; set; } = 2237;
 }
 
 /// <summary>How a contact got on: saved in RFpix's file or not, sent or not (with why not).</summary>

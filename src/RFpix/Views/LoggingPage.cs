@@ -53,7 +53,7 @@ public sealed class LoggingPage : UserControl
             else
             {
                 _port.Text = AppSettings.Current.Logging.Port.ToString(CultureInfo.InvariantCulture);
-                Status("The port is a number from 1 to 65535 (HRD Logbook uses 2333 for WSJT-X).", problem: true);
+                Status("The port is a number from 1 to 65535 (2237, as WSJT-X uses, for HRD Logbook).", problem: true);
             }
         };
 
@@ -103,7 +103,7 @@ public sealed class LoggingPage : UserControl
                 Children =
                 {
                     Section("Logging program",
-                        Hint("Each contact you log with Log QSO (at the top of the TX/RX page) is sent to a logging program on this computer, the way WSJT-X sends them. In HRD Logbook: QSO Forwarding, UDP Receive, port 2333. If no logging program is listening, nothing goes wrong: the contact is still saved in RFpix's log file."),
+                        Hint("Each contact you log with Log QSO (at the top of the TX/RX page) is sent to a logging program on this computer, the way WSJT-X sends them. In HRD Logbook: QSO Forwarding, UDP Receive, port 2237. If no logging program is listening, nothing goes wrong: the contact is still saved in RFpix's log file."),
                         _send,
                         new StackPanel
                         {

@@ -2,11 +2,19 @@
 # The finished program can be downloaded from the run's Summary page,
 # under "Artifacts" (you need to be signed in to GitHub to download it).
 #
-# A version tag (e.g. v0.2.0) also makes a public Release: RFpix.exe, the Windows installer, the
-# two Mac installers (Intel and Apple Silicon) and the Linux AppImages and .debs (PCs and
+# A version tag (e.g. v0.2.0) also makes a public Release: the Windows installer and portable
+# RFpix, the two Mac installers (Intel and Apple Silicon) and the Linux AppImages and .debs (PCs and
 # Raspberry Pi) for anyone to download, with docs/TESTING.md as its instructions. To make one: GitHub > Releases > "Draft a new
-# release", type a new tag such as v0.2.0, and Publish; a few minutes later RFpix.exe is
+# release", type a new tag such as v0.2.0, and Publish; a few minutes later the files are
 # attached. The newest is always at https://github.com/brandandon/RFpix/releases/latest
+#
+# Every file's name says which system it's for (windows, mac, linux), and the version:
+#   RFpix-Setup-<version>-windows.exe, RFpix-<version>-windows-portable.exe,
+#   RFpix-<version>-mac-intel.pkg, RFpix-<version>-mac-apple-silicon.pkg,
+#   RFpix-<version>-linux-x64.AppImage, RFpix-<version>-linux-arm64.AppImage,
+#   rfpix_<version>_linux_amd64.deb, rfpix_<version>_linux_arm64.deb
+# Installed copies of RFpix look for their update by these names (Update/UpdateCheck.cs): a
+# new name must still fit the patterns older versions look for, or they won't hear of it.
 
 name: Build
 
@@ -31,7 +39,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # If any test fails, the build stops here and no new RFpix.exe is made.
+      # If any test fails, the build stops here and no new RFpix is made.
       - name: Run the tests (uses the recordings in tests/recordings)
         run: dotnet test tests/RFpix.Tests/RFpix.Tests.csproj -c Release --logger "trx;LogFileName=results.trx" --results-directory test-results
 
@@ -40,7 +48,12 @@ jobs:
         if: always()
         run: python tools/ci/count-tests.py "Windows"
 
-      - name: Build RFpix (one self-contained RFpix.exe, for running without installing)
+      # The version comes from RFpix.csproj, read by the same script the Mac and Linux builds use.
+      - name: Read RFpix's version
+        shell: bash
+        run: echo "RFPIX_VERSION=$(bash tools/version.sh)" >> "$GITHUB_ENV"
+
+      - name: Build RFpix (one self-contained file, for running without installing)
         run: >
           dotnet publish src/RFpix/RFpix.csproj
           -c Release -r win-x64 --self-contained true
@@ -48,16 +61,16 @@ jobs:
           -p:IncludeNativeLibrariesForSelfExtract=true
           -o publish
 
+      # Named for its version and system, like the other downloads.
+      - name: Name the portable RFpix
+        shell: pwsh
+        run: Move-Item publish/RFpix.exe "publish/RFpix-$env:RFPIX_VERSION-windows-portable.exe"
+
       - name: Build RFpix as a folder of files (for the installer)
         run: >
           dotnet publish src/RFpix/RFpix.csproj
           -c Release -r win-x64 --self-contained true
           -o publish-folder
-
-      # The version comes from RFpix.csproj, read by the same script the Mac and Linux builds use.
-      - name: Read RFpix's version
-        shell: bash
-        run: echo "RFPIX_VERSION=$(bash tools/version.sh)" >> "$GITHUB_ENV"
 
       - name: Build the installer (Inno Setup)
         shell: pwsh
@@ -100,8 +113,8 @@ jobs:
         with:
           name: RFpix-windows-x64
           path: |
-            publish/RFpix.exe
-            installer-output/RFpix-Setup-*.exe
+            publish/RFpix-*-windows-portable.exe
+            installer-output/RFpix-Setup-*-windows.exe
 
       - name: Publish a Release (version tags only)
         if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')
@@ -111,7 +124,8 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           $tag = $env:TAG
-          $files = @((Get-ChildItem installer-output -Filter RFpix-Setup-*.exe).FullName, "publish/RFpix.exe")
+          $files = @((Get-ChildItem installer-output -Filter RFpix-Setup-*-windows.exe).FullName,
+                     (Get-ChildItem publish -Filter RFpix-*-windows-portable.exe).FullName)
           # The release may already exist (made on GitHub's Releases page, which also makes the
           # tag): then attach the files, and add the tester instructions below its own description.
           gh release view $tag *> $null

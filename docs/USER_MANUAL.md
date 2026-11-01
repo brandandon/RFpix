@@ -1,8 +1,8 @@
 # RFpix User Manual
 
-Version 0.6.0 beta · Oct 25, 2026 · KD9DD
+Version 0.6.2 beta · Nov 1, 2026 · KD9DD
 
-This manual covers RFpix version 0.6.0 beta for Windows 10 and 11, the Mac (macOS 14 or newer) and Linux (64-bit PCs and Raspberry Pi). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
+This manual covers RFpix version 0.6.2 beta for Windows 10 and 11, the Mac (macOS 14 or newer) and Linux (64-bit PCs and Raspberry Pi). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
 
 The manual has three parts:
 
@@ -50,12 +50,14 @@ RFpix is free to download from its [releases page on GitHub](https://github.com/
 
 | File | What it is | Choose it if |
 | --- | --- | --- |
-| **RFpix-Setup-0.6.0-beta.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
-| **RFpix.exe** | The program in one file, nothing to install | You want to run it from a folder or a USB stick |
+| **RFpix-Setup-0.6.2-beta-windows.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
+| **RFpix-0.6.2-beta-windows-portable.exe** | The program in one file, nothing to install | You want to run it from a folder or a USB stick |
+
+Every download's name says which system it's for (*windows*, *mac* or *linux*) and its version. (Before 0.6.2 the Windows files were *RFpix-Setup-….exe* and *RFpix.exe*.)
 
 #### Installing with the installer
 
-1. Download **RFpix-Setup-0.6.0-beta.exe** and open it.
+1. Download **RFpix-Setup-0.6.2-beta-windows.exe** and open it.
 2. If Windows says *"Windows protected your PC"*, click **More info**, then **Run anyway**. Windows says this about new programs that aren't yet signed; it doesn't mean anything is wrong.
 3. Accept the licence, and choose where to put RFpix. The suggested folder needs no administrator password.
 4. Tick **Put a shortcut on the desktop** if you want one.
@@ -65,15 +67,15 @@ RFpix is free to download from its [releases page on GitHub](https://github.com/
 
 *Click **More info**: a **Run anyway** button appears beside **Don't run**.*
 
-#### Running RFpix.exe without installing
+#### Running RFpix without installing
 
-Put **RFpix.exe** in any folder and double-click it. The first time each new version runs, it takes a few seconds longer while it unpacks its parts into a hidden folder. The *"Windows protected your PC"* message may appear here too; click **More info**, then **Run anyway**.
+Put **RFpix-0.6.2-beta-windows-portable.exe** in any folder and double-click it (you can rename it, to *RFpix.exe* say). The first time each new version runs, it takes a few seconds longer while it unpacks its parts into a hidden folder. The *"Windows protected your PC"* message may appear here too; click **More info**, then **Run anyway**.
 
 #### Updating
 
 When a newer version is out, a notice appears at the bottom left of RFpix's window when it starts, with a **Download** button. Open the downloaded installer: it closes RFpix if it's running and replaces the old version. Your settings and pictures stay as they are. (To stop RFpix checking, untick **Check for new versions of RFpix when it starts** in **Settings > Misc**.)
 
-If you run **RFpix.exe** without installing, download the newer RFpix.exe from the releases page instead, or switch to the installer.
+If you run RFpix without installing, download the newer *…-windows-portable.exe* from the releases page instead, or switch to the installer.
 
 #### On a Mac
 
@@ -108,12 +110,12 @@ The Linux version is new in 0.6.0 beta, and hasn't yet been tried with a radio. 
 
 | File | What it is | For |
 | --- | --- | --- |
-| **rfpix_…_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
-| **rfpix_…_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
-| **RFpix-0.6.0-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
-| **RFpix-0.6.0-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
+| **rfpix_0.6.2-beta_linux_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
+| **rfpix_0.6.2-beta_linux_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
+| **RFpix-0.6.2-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
+| **RFpix-0.6.2-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
 
-**With the .deb:** download it and open it (double-click it, or right-click it and choose to open it with the software installer), then click **Install**. Or, in a terminal, in the folder where it was downloaded: `sudo apt install ./rfpix_*_amd64.deb` (`arm64` on a Raspberry Pi). RFpix then appears in the menu (under Internet, or Ham Radio), and `rfpix` starts it from a terminal.
+**With the .deb:** download it and open it (double-click it, or right-click it and choose to open it with the software installer), then click **Install**. Or, in a terminal, in the folder where it was downloaded: `sudo apt install ./rfpix_*_linux_amd64.deb` (`arm64` on a Raspberry Pi). RFpix then appears in the menu (under Internet, or Ham Radio), and `rfpix` starts it from a terminal.
 
 **With the AppImage:** download it, then make it runnable: right-click it, choose **Properties > Permissions** and tick **Allow executing file as program** (or, in a terminal: `chmod +x RFpix-*.AppImage`). Then double-click it. Keep it wherever you like.
 
@@ -567,14 +569,14 @@ When you've worked a station, click **Log QSO** at the top of the TX/RX page (be
 
 Check or change any box, then click **Log**. The contact goes to two places:
 
-- **Your logging program**, on the same computer, the way WSJT-X sends contacts. Set it up once on **Settings > Logging** (on to start with: address 127.0.0.1, port 2333). If no logging program is listening, nothing goes wrong.
+- **Your logging program**, on the same computer, the way WSJT-X sends contacts. Set it up once on **Settings > Logging** (on to start with: address 127.0.0.1, port 2237, the port WSJT-X uses). If no logging program is listening, nothing goes wrong.
 - **RFpix's own log file**, *Documents\RFpix\RFpix contacts.adi*, in ADIF, the format every logging program can import. **Clear log file** on **Settings > Logging** empties it (it asks first); your logging program keeps its own copy of what was sent to it.
 
 A note at the top of the TX/RX page says where the contact went.
 
 #### Setting up HRD Logbook
 
-In HRD Logbook, open **QSO Forwarding**. Under **UDP Receive**, tick the boxes, set the port to **2333** (the same as **Settings > Logging** in RFpix), and pick the log to receive into. Contacts you log in RFpix then appear in HRD Logbook as they do from WSJT-X. If you also use JTAlert, don't have it forward to the same log, or contacts may arrive twice.
+In HRD Logbook, open **QSO Forwarding**. Under **UDP Receive**, tick the boxes, set the port to **2237** (the same as **Settings > Logging** in RFpix), and pick the log to receive into. Contacts you log in RFpix then appear in HRD Logbook as they do from WSJT-X. If you also use JTAlert, don't have it forward to the same log, or contacts may arrive twice.
 
 Other logging programs that accept contacts from WSJT-X the same way (ADIF over UDP) work too: set **Settings > Logging** to the address and port they listen on.
 
@@ -647,7 +649,7 @@ Section 10 explains logging contacts.
 | Box | What it's for |
 | --- | --- |
 | **Send logged contacts to a logging program** | Sends each contact you log with **Log QSO** to a logging program on this computer (HRD Logbook, say), the way WSJT-X does. On to start with. |
-| **Address**, **Port** | Where the logging program listens: 127.0.0.1 (this computer) and 2333 (HRD Logbook's port for WSJT-X). |
+| **Address**, **Port** | Where the logging program listens: 127.0.0.1 (this computer) and 2237 (the port WSJT-X uses; it works with HRD Logbook). |
 | **RFpix's log file** | How many contacts *Documents\RFpix\RFpix contacts.adi* holds. **Open folder** shows it; **Clear log file** empties it (click again to confirm). |
 
 #### FTP server tab
@@ -708,7 +710,7 @@ When something goes wrong and you'd like help, open **Settings > Misc** and clic
 | *Pick the radio's sound output in Settings (Radio tab) first.* or *The sound output chosen isn't connected.* | Choose the radio's sound output at the bottom of **Settings > Radio**; switch on or plug in the radio and click **Refresh**. |
 | *RFpix is already transmitting.* | Only one transmission at a time: wait for it to finish, or click **Stop**. |
 | The time box is red and says it's over the repeater's time-out | Pick a shorter **Transmit time** (or a shorter analog mode), or check the **Repeater time-out** setting. |
-| Log QSO says the contact was sent, but it isn't in HRD Logbook | In HRD Logbook's **QSO Forwarding**, check **UDP Receive** is ticked with port **2333**, the same as **Settings > Logging**, and that the log chosen to receive into is the one you're looking at. The contact is in RFpix's own log file either way, to import later. |
+| Log QSO says the contact was sent, but it isn't in HRD Logbook | In HRD Logbook's **QSO Forwarding**, check **UDP Receive** is ticked with port **2237**, the same as **Settings > Logging**, and that the log chosen to receive into is the one you're looking at. The contact is in RFpix's own log file either way, to import later. |
 | The radio doesn't key | Click **Test PTT** on the Radio tab. With VOX, check VOX is on in the radio and its level is high enough for RFpix's sound to trip it. |
 | The radio keys, but your pictures go out weak, distorted or silent (FT-991A) | Use the radio's **Data VOX**: USB mode, menu **142 VOX SELECT** set to **DATA**, **VOX** on in the **F** menu, and **VOX** under **Transmit keying (PTT)** in RFpix (stay connected to the radio). See section 3, step 3. With other radios, check the radio takes its transmit sound from the USB cable (its data or USB input) rather than the microphone. |
 | The start of your pictures is lost on the repeater | Raise **Lead-in** so the repeater has time to open before the picture starts. |

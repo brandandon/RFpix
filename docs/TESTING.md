@@ -9,10 +9,10 @@ its own copy of the original and writes down how it came through.
 
 Download one of these (below, under *Assets*). For a Mac, see **On a Mac** below; for Linux, **On Linux**.
 
-- **RFpix-Setup-x.y.z.exe** (recommended) installs RFpix. You choose the folder (no administrator
+- **RFpix-Setup-x.y.z-beta-windows.exe** (recommended) installs RFpix. You choose the folder (no administrator
   rights needed), and it adds RFpix to the Start menu. Uninstall it from Windows' Settings > Apps
   like any other program. Running a newer installer updates RFpix in place.
-- **RFpix.exe** runs without installing: one file, run it from anywhere. (It unpacks a copy of
+- **RFpix-x.y.z-beta-windows-portable.exe** runs without installing: one file, run it from anywhere. (It unpacks a copy of
   its parts into a hidden temporary folder the first time each version runs.)
 
 Windows may say *"Windows protected your PC"* the first time, because RFpix is new and not yet
@@ -49,7 +49,7 @@ This is the first Linux version, and it hasn't been tried with a radio yet: plea
 goes. It runs on 64-bit PCs and on the Raspberry Pi 4 and 5 (64-bit Raspberry Pi OS); Ubuntu 22.04,
 Debian 12, Mint 21 or newer.
 
-- **rfpix_…_amd64.deb** (PCs) or **rfpix_…_arm64.deb** (Raspberry Pi): for Ubuntu,
+- **rfpix_…_linux_amd64.deb** (PCs) or **rfpix_…_linux_arm64.deb** (Raspberry Pi): for Ubuntu,
   Mint, Debian and Raspberry Pi OS. Open it to install, or `sudo apt install ./rfpix_*.deb`. RFpix
   then appears in the menu, and `rfpix` starts it.
 - **RFpix-x.y.z-beta-linux-x64.AppImage** (PCs) or **-linux-arm64.AppImage** (Raspberry Pi): one
