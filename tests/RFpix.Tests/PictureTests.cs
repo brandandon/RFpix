@@ -373,6 +373,8 @@ public class PictureTests
         Assert.True(mot.Progress is null || mot.Progress.Size == 0);
     }
 
+    [Fact]
+    public void Deinterleaver_carries_on_past_a_missing_frame()
     {
         var d = new TimeDeinterleaver(100, HamDrmInterleave.Long);
         var cells = Enumerable.Range(0, 100).Select(i => new Complex(i, 0)).ToArray();
