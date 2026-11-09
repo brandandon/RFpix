@@ -23,12 +23,27 @@ public static class ReceivedFileSaver
         Directory.CreateDirectory(folder);
         string name = $"{when:yyyy-MM-dd HHmm} {(string.IsNullOrWhiteSpace(callsign) ? "" : Clean(callsign) + " ")}{Clean(file.Name)}";
 
-        string path = Path.Combine(folder, name);
         string stem = Path.GetFileNameWithoutExtension(name), ext = Path.GetExtension(name);
-        for (int n = 2; File.Exists(path); n++) path = Path.Combine(folder, $"{stem} ({n}){ext}");
-
-        File.WriteAllBytes(path, file.Data);
-        return path;
+        // Each name is claimed in one step (a file that must be new), so two pictures saved at the
+        // same moment can't both pick the same name and one overwrite the other.
+        for (int n = 1; n <= 1000; n++)
+        {
+            string path = Path.Combine(folder, n == 1 ? name : $"{stem} ({n}){ext}");
+            FileStream claimed;
+            try { claimed = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None); }
+            catch (IOException) when (File.Exists(path)) { continue; }   // taken: the next number
+            try
+            {
+                using (claimed) claimed.Write(file.Data);
+                return path;
+            }
+            catch
+            {
+                try { File.Delete(path); } catch (IOException) { }   // no half-written picture left behind
+                throw;
+            }
+        }
+        throw new IOException($"Too many pictures named {name} in {folder}.");
     }
 
     /// <summary>Makes a name from the air safe to use as a file name.</summary>

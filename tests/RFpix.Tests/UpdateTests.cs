@@ -61,6 +61,14 @@ public class UpdateTests
         Assert.False(UpdateCheck.Fits("RFpix-0.6.0-beta-linux-x64.AppImage", "RFpix-*-linux-arm64.AppImage"));
     }
 
+    [Fact]
+    public void A_number_too_big_for_a_version_gives_no_version_rather_than_an_error()
+    {
+        Assert.Null(AppVersion.Parse("v99999999999.1.2"));
+        Assert.Equal("0.6.3 beta", AppVersion.Parse("RFpix 0.6.3 beta 99999999999")!.ToString());   // an absurd beta number is left off
+        Assert.Equal("0.6.3 beta", AppVersion.Parse("v0.6.3beta")!.ToString());   // ordinary ones as before
+    }
+
     /// <summary>The release's files since 0.6.2 name their system (windows, linux). Every copy of RFpix
     /// already installed finds its update with the patterns above, so each new name must still fit
     /// its own system's pattern, and no other: otherwise a 0.6.1 wouldn't hear of 0.6.2.</summary>

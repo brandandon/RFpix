@@ -11,6 +11,7 @@
 // running a test version you're told about newer test versions too; once on a finished one,
 // only about finished ones.
 
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -34,9 +35,11 @@ public sealed record AppVersion(int Major, int Minor, int Patch, string Label = 
         string label = m.Groups[4].Success ? m.Groups[4].Value.ToLowerInvariant() : "";
         // Words after the number that aren't test labels ("for mac os") don't count.
         if (label.Length > 0 && Rank(label) < 0) label = "";
-        return new AppVersion(int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value),
-                              m.Groups[3].Success ? int.Parse(m.Groups[3].Value) : 0,
-                              label, label.Length > 0 && m.Groups[5].Success ? int.Parse(m.Groups[5].Value) : 0);
+        // A number too big to be a version (only a mistyped release name would have one): no version.
+        static int? Number(Group g) => !g.Success ? 0 : int.TryParse(g.Value, NumberStyles.None, CultureInfo.InvariantCulture, out int n) ? n : null;
+        if (Number(m.Groups[1]) is not int major || Number(m.Groups[2]) is not int minor || Number(m.Groups[3]) is not int patch) return null;
+        int labelNumber = label.Length > 0 && Number(m.Groups[5]) is int ln ? ln : 0;
+        return new AppVersion(major, minor, patch, label, labelNumber);
     }
 
     // The test labels, earliest first.

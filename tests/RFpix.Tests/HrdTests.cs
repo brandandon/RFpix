@@ -227,6 +227,32 @@ public class HrdTests
         Assert.Equal(putBack, radio.LastDataModeReport);
     }
 
+    // Closing RFpix (a review, Nov 8, 2026): un-keying is tried a few times before giving up.
+    [Fact]
+    public void Closing_tries_to_un_key_a_few_times()
+    {
+        using var hrd = new FakeHrd { Mode = "USB" };
+        using var radio = RadioConnection.Open(Hrd(hrd));
+        radio.Key(TimeSpan.FromSeconds(60));
+        hrd.RefuseUnkey = 5;   // each try asks twice: refused on the first two tries, then it works
+        Assert.True(radio.UnkeyForClosing());
+        Assert.False(hrd.Tx);
+        Assert.False(radio.IsKeyed);
+    }
+
+    [Fact]
+    public void Closing_says_when_the_radio_never_un_keys()
+    {
+        using var hrd = new FakeHrd { Mode = "USB" };
+        using var radio = RadioConnection.Open(Hrd(hrd));
+        radio.Key(TimeSpan.FromSeconds(60));
+        hrd.RefuseUnkey = 1000;
+        Assert.False(radio.UnkeyForClosing(tries: 2));
+        Assert.True(radio.IsKeyed);   // as far as RFpix knows: so the window warns rather than closing
+        hrd.RefuseUnkey = 0;
+        Assert.True(radio.UnkeyForClosing());
+    }
+
     [Fact]
     public void If_switching_data_mode_back_fails_closing_tries_again()
     {

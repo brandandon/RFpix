@@ -11,10 +11,15 @@
 // and switches data mode back off if it was switched on for transmitting (and if switching back
 // failed earlier, closing tries again).
 //
-// Data mode (IC-9700 only): before keying, RFpix turns the radio's DATA setting on with
-// Icom's own command (IcomCiv.cs), keeping its mode and filter, checks that it took, and
-// turns it off again after un-keying. If it was already on, RFpix leaves it alone. Through
-// HRD, the same is done with HRD's own data-mode button (or list), for any radio HRD offers one for.
+// The class is in three files: this one (connecting, frequency and mode, closing),
+// RadioConnection.Keying.cs (keying, un-keying and the time limit) and
+// RadioConnection.DataMode.cs (switching data mode for transmitting).
+//
+// Data mode: before keying, RFpix switches the radio to its data mode and back after un-keying,
+// leaving it alone if it was already in one. The IC-9700's DATA setting is turned on with Icom's
+// own command (IcomCiv.cs), keeping its mode and filter, and checked; the FT-991A is switched to
+// Hamlib's data modes (FM → DATA-FM, USB → DATA-USB, LSB → DATA-LSB); through HRD, its own
+// data-mode button (or list) is used, for any radio HRD offers one for.
 
 using RFpix.Diagnostics;
 
@@ -23,7 +28,7 @@ namespace RFpix.Radio;
 /// <summary>Something went wrong talking to the radio; the message is for the operator.</summary>
 public sealed class RadioException(string message) : Exception(message);
 
-public sealed class RadioConnection : IDisposable
+public sealed partial class RadioConnection : IDisposable
 {
     private readonly object _lock = new();
     private readonly RadioSettings _settings;
@@ -182,321 +187,6 @@ public sealed class RadioConnection : IDisposable
             Check(HamlibNative.rig_set_mode(Rig, HamlibNative.VfoCurrent, mode, HamlibNative.PassbandNoChange), "Couldn't change the mode");
     }
 
-    /// <summary>Keys the transmitter for at most <paramref name="limit"/>. With data mode on, switches
-    /// the radio into data mode first (and <see cref="Unkey"/> switches it back). With VOX, sends no
-    /// key command (the radio keys itself from the audio) but still switches data mode.</summary>
-    public void Key(TimeSpan limit)
-    {
-        lock (_lock)
-        {
-            if (IsKeyed) return;
-
-            LastDataModeReport = "";
-            if (DataModeForTransmit) WithHamlibDetail(DataModeOn);
-
-            if (_settings.Ptt != PttMethod.Vox)
-            {
-                try
-                {
-                    if (_hrd is { } hrd) hrd.SetPtt(true);
-                    else Check(HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOn), "Couldn't key the transmitter");
-                }
-                catch (RadioException)
-                {
-                    // Not keyed: put the radio's mode back as it was (if data mode was switched on).
-                    if (_modeBeforeTransmit is not null)
-                        try { DataModeOff(); } catch (RadioException) { /* closing tries again */ }
-                    throw;
-                }
-            }
-            IsKeyed = true;
-            AppLog.Info("Radio", _settings.Ptt == PttMethod.Vox
-                ? $"Transmitting by VOX (no key command), time limit {limit.TotalSeconds:0} s."
-                : $"Keyed the transmitter, time limit {limit.TotalSeconds:0} s.");
-
-            var guard = new KeyGuard();
-            _guard = guard;
-            new Thread(() => Watch(guard, limit)) { IsBackground = true, Name = "RFpix transmit time limit" }.Start();
-        }
-    }
-
-    /// <summary>How often un-keying is tried again once it has failed.</summary>
-    public static TimeSpan UnkeyRetryEvery { get; } = TimeSpan.FromSeconds(2);
-
-    /// <summary>The time limit's watcher: <see cref="Released"/> once un-keyed (nothing more to do);
-    /// <see cref="Retry"/> when un-keying failed (try again now, and every few seconds).</summary>
-    private sealed class KeyGuard
-    {
-        public readonly ManualResetEventSlim Released = new();
-        public readonly ManualResetEventSlim Retry = new();
-        public bool Failing;   // un-keying has failed (said once in the log)
-    }
-
-    // On its own thread, so a busy computer can't delay it. Waits for the time limit (or for un-keying
-    // to fail); then un-keys, and if that fails keeps trying every few seconds until it works or
-    // the connection is closed. The radio is never left transmitting because one try failed.
-    private void Watch(KeyGuard guard, TimeSpan limit)
-    {
-        int woken = WaitHandle.WaitAny(new[] { guard.Released.WaitHandle, guard.Retry.WaitHandle }, limit);
-        if (woken == 0) return;   // un-keyed in time
-        bool atLimit = woken == WaitHandle.WaitTimeout;
-        while (true)
-        {
-            switch (TryUnkey())
-            {
-                case UnkeyTry.Released:
-                    if (atLimit)
-                    {
-                        AppLog.Error("Radio", $"The transmit time limit ({limit.TotalSeconds:0} s) was reached, so RFpix released the transmitter.");
-                        KeyedTooLong?.Invoke();
-                    }
-                    else AppLog.Info("Radio", "Un-keyed the transmitter on a later try.");
-                    return;
-                case UnkeyTry.NothingToDo:
-                    return;
-            }
-            if (guard.Released.Wait(UnkeyRetryEvery)) return;   // un-keyed meanwhile (or closed)
-        }
-    }
-
-    private enum UnkeyTry { Released, StillKeyed, NothingToDo }
-
-    private UnkeyTry TryUnkey()
-    {
-        try
-        {
-            lock (_lock)
-            {
-                if (!IsKeyed || _rig == IntPtr.Zero && _hrd is null) return UnkeyTry.NothingToDo;
-                Unkey();
-                return UnkeyTry.Released;
-            }
-        }
-        catch (RadioException)
-        {
-            // Un-keyed, but the radio's mode couldn't be put back (closing tries again); or still keyed.
-            return IsKeyed ? UnkeyTry.StillKeyed : UnkeyTry.Released;
-        }
-    }
-
-    /// <summary>Un-keys the transmitter and, if data mode was switched on for transmitting, switches back.
-    /// If un-keying fails, the radio stays marked as keyed and the time limit's watcher keeps trying
-    /// every few seconds (closing the connection tries once more). If switching back fails, that's
-    /// tried again next time (closing too).</summary>
-    public void Unkey()
-    {
-        lock (_lock)
-        {
-            if (IsKeyed)
-            {
-                // Un-key (try twice before giving up). With VOX there's nothing to un-key.
-                if (_settings.Ptt != PttMethod.Vox && _hrd is { } hrd)
-                {
-                    try { hrd.SetPtt(false); }
-                    catch (RadioException)
-                    {
-                        try { hrd.SetPtt(false); }
-                        catch (RadioException ex)
-                        {
-                            StillKeyed();
-                            throw new RadioException("Couldn't un-key the transmitter through Ham Radio Deluxe. Un-key the radio by hand. " + ex.Message);
-                        }
-                    }
-                }
-                else if (_settings.Ptt != PttMethod.Vox)
-                {
-                    int result = HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOff);
-                    if (result != 0) result = HamlibNative.rig_set_ptt(Rig, HamlibNative.VfoCurrent, HamlibNative.PttOff);
-                    if (result != 0)
-                    {
-                        StillKeyed();
-                        Check(result, "Couldn't un-key the transmitter. Un-key the radio by hand");
-                    }
-                }
-                IsKeyed = false;
-                _guard?.Released.Set();   // only now: the watcher has nothing left to do
-                _guard = null;
-                AppLog.Info("Radio", _settings.Ptt == PttMethod.Vox ? "Transmission over (VOX)." : "Released the transmitter.");
-            }
-
-            if (_modeBeforeTransmit is not null) WithHamlibDetail(DataModeOff);
-        }
-    }
-
-    // Un-keying failed: the watcher tries again now, and every few seconds.
-    private void StillKeyed()
-    {
-        if (_guard is not { } guard) return;
-        if (!guard.Failing)
-        {
-            guard.Failing = true;
-            AppLog.Error("Radio", $"Un-keying failed: RFpix will keep trying every {UnkeyRetryEvery.TotalSeconds:0} seconds until it works.");
-        }
-        guard.Retry.Set();
-    }
-
-    /// <summary>Data mode is switched with commands RFpix checks itself: if it goes wrong, the
-    /// log gets Hamlib's detail of what was sent and what came back too.</summary>
-    private static void WithHamlibDetail(Action action)
-    {
-        try { action(); }
-        catch (RadioException) { HamlibLog.WriteRecent(); throw; }
-    }
-
-    /// <summary>Is the radio transmitting, by its own report?</summary>
-    public bool ReadPtt()
-    {
-        lock (_lock)
-        {
-            if (_hrd is { } hrd) return hrd.ReadPtt();
-            Check(HamlibNative.rig_get_ptt(Rig, HamlibNative.VfoCurrent, out int ptt), "Couldn't read the transmit state");
-            return ptt != HamlibNative.PttOff;
-        }
-    }
-
-    /// <summary>How long to wait after a mode change before the next command.</summary>
-    public static TimeSpan SettleTime { get; set; } = TimeSpan.FromMilliseconds(250);
-
-    // ---- IC-9700 data mode, by Icom's own commands ----
-
-    private IcomDataMode DataMode => new(IcomCiv.Address(_settings.CivAddress), Exchange, SettleTime);
-
-    private void DataModeOn()
-    {
-        if (_hrd is { } hrd) { HrdDataModeOn(hrd); return; }
-        if (_settings.Choice != "ic9700") { HamlibDataModeOn(); return; }
-        var (mode, report) = DataMode.On();
-        LastDataModeReport = report;
-        AppLog.Info("Radio", $"Data mode: {report}");
-        if (mode is null) return;
-        _modeBeforeTransmit = mode;
-        DataModeSwitched?.Invoke($"IC-9700 in {mode}-D");
-    }
-
-    private void DataModeOff()
-    {
-        string mode = _modeBeforeTransmit!;
-        if (_hrd is { } hrd) hrd.SetDataMode(false);
-        else if (_hamlibModeBefore is ulong before)
-        {
-            if (SettleTime > TimeSpan.Zero) Thread.Sleep(SettleTime);
-            Check(HamlibNative.rig_set_mode(Rig, HamlibNative.VfoCurrent, before, HamlibNative.PassbandNoChange),
-                  "Couldn't switch the radio back from data mode");
-            _hamlibModeBefore = null;
-        }
-        else DataMode.Off(mode);
-        _modeBeforeTransmit = null;   // only once it's back (if it failed, it's tried again later)
-        LastDataModeReport += $" → {mode}";
-        AppLog.Info("Radio", $"Data mode: {RadioLabel} back to {mode}.");
-        DataModeSwitched?.Invoke($"{RadioLabel} back to {mode}");
-    }
-
-    /// <summary>The radio's name for the data-mode messages.</summary>
-    private string RadioLabel => _hrd?.RadioName ?? (_settings.Choice == "ft991a" ? "FT-991A" : _settings.Choice == "ic9700" ? "IC-9700" : "The radio");
-
-    // ---- data mode through Hamlib (the FT-991A): FM → DATA-FM, USB → DATA-USB, LSB → DATA-LSB ----
-
-    private ulong? _hamlibModeBefore;   // the mode to put back, while data mode is on
-
-    /// <summary>Hamlib's data mode for each ordinary mode.</summary>
-    internal static ulong? DataModeFor(ulong mode) => mode switch
-    {
-        HamlibNative.ModeFm => HamlibNative.ModePktFm,
-        HamlibNative.ModeUsb => HamlibNative.ModePktUsb,
-        HamlibNative.ModeLsb => HamlibNative.ModePktLsb,
-        _ => null,
-    };
-
-    private void HamlibDataModeOn()
-    {
-        Check(HamlibNative.rig_get_mode(Rig, HamlibNative.VfoCurrent, out ulong mode, out _), "Couldn't read the mode");
-        string name = ModeName(mode);
-        if (mode is HamlibNative.ModePktFm or HamlibNative.ModePktUsb or HamlibNative.ModePktLsb)
-        {
-            LastDataModeReport = $"{name} already, left as it is";
-            AppLog.Info("Radio", $"Data mode: {LastDataModeReport}.");
-            return;
-        }
-        if (DataModeFor(mode) is not ulong data)
-        {
-            LastDataModeReport = $"no data mode for {name}: left as it is";
-            AppLog.Info("Radio", $"Data mode: {LastDataModeReport}.");
-            return;
-        }
-        Check(HamlibNative.rig_set_mode(Rig, HamlibNative.VfoCurrent, data, HamlibNative.PassbandNoChange),
-              "Couldn't switch the radio to data mode");
-        if (SettleTime > TimeSpan.Zero) Thread.Sleep(SettleTime);
-        _hamlibModeBefore = mode;
-        _modeBeforeTransmit = name;
-        LastDataModeReport = $"{name} → {ModeName(data)}";
-        AppLog.Info("Radio", $"Data mode: {RadioLabel} {LastDataModeReport}.");
-        DataModeSwitched?.Invoke($"{RadioLabel} in {ModeName(data)}");
-    }
-
-    // Through HRD: its data-mode button (or list) on, checked, and the mode noted to put back after.
-    private void HrdDataModeOn(HrdClient hrd)
-    {
-        if (!hrd.CanSwitchDataMode)
-        {
-            LastDataModeReport = $"HRD has no data mode switch for the {hrd.RadioName}";
-            return;
-        }
-        string mode = hrd.ReadModeText();
-        if (mode.Length == 0) mode = "its mode";
-        if (hrd.DataModeOn())
-        {
-            LastDataModeReport = $"{mode}-D already, left as it is";
-            return;
-        }
-        hrd.SetDataMode(true);
-        Thread.Sleep(SettleTime);
-        if (!hrd.DataModeOn())
-            throw new RadioException($"The {hrd.RadioName} didn't switch to data mode through Ham Radio Deluxe. Switch it by hand, or untick data mode.");
-        _modeBeforeTransmit = mode;
-        LastDataModeReport = $"{mode} → {mode}-D";
-        AppLog.Info("Radio", $"Data mode: {hrd.RadioName} {LastDataModeReport} (through Ham Radio Deluxe).");
-        DataModeSwitched?.Invoke($"{hrd.RadioName} in {mode}-D");
-    }
-
-    /// <summary>A mode HRD names ("USB", "FM-N") as Hamlib numbers it, with data mode on or off.</summary>
-    public static ulong ModeFromName(string name, bool data)
-    {
-        string n = name.Trim().ToUpperInvariant();
-        if (n.EndsWith("-D")) { data = true; n = n[..^2]; }
-        if (n.StartsWith("PKT") || n.StartsWith("DATA")) data = true;
-        return n switch
-        {
-            _ when n.Contains("USB") || n is "DIGU" or "PKT-U" or "DATA-U" => data ? HamlibNative.ModePktUsb : HamlibNative.ModeUsb,
-            _ when n.Contains("LSB") || n is "DIGL" or "PKT-L" or "DATA-L" => data ? HamlibNative.ModePktLsb : HamlibNative.ModeLsb,
-            _ when n.StartsWith("FM") || n is "PKT-FM" or "DATA(FM)" or "WFM" => data ? HamlibNative.ModePktFm : HamlibNative.ModeFm,
-            _ when n.StartsWith("AM") => 1ul << 0,
-            _ when n.StartsWith("CW") => 1ul << 1,
-            _ when n.StartsWith("RTTY") || n.StartsWith("FSK") => 1ul << 4,
-            _ => 0,
-        };
-    }
-
-    /// <summary>Sends one CI-V message through Hamlib and returns the radio's answer to the
-    /// computer (skipping the radio's echo of the message, and messages meant for others).</summary>
-    private byte[] Exchange(byte[] frame, string what)
-    {
-        lock (_lock)
-        {
-            byte radio = frame[2];
-            var reply = new byte[200];
-            byte[] end = { IcomCiv.End };
-            var send = frame;
-            for (int attempt = 0; attempt < 4; attempt++)
-            {
-                int n = HamlibNative.rig_send_raw(Rig, send, send.Length, reply, reply.Length, end);
-                if (n < 0) { HamlibLog.WriteRecent(); throw new RadioException($"Couldn't {what}: {Explain(n)}"); }
-                if (IcomCiv.Answer(reply.AsSpan(0, Math.Min(n, reply.Length)), radio) is { } answer) return answer;
-                send = Array.Empty<byte>();   // that was the echo or someone else's: read the next message
-            }
-            throw new RadioException($"Couldn't {what}: the radio didn't answer. Check its CI-V address and baud rate.");
-        }
-    }
-
     /// <summary>14230000 → "14.230.000 MHz", the way radios show it.</summary>
     public static string FormatFrequency(double hz)
     {
@@ -523,10 +213,10 @@ public sealed class RadioConnection : IDisposable
     {
         lock (_lock)
         {
-            // Un-keyed, and the mode put back, if that hasn't happened yet (one more try).
+            // Un-keyed, and the mode put back, if that hasn't happened yet (a few more tries).
             if (_hrd is { } hrd)
             {
-                try { Unkey(); } catch (RadioException) { }
+                UnkeyForClosing();
                 StopWatching();
                 hrd.Dispose();
                 _hrd = null;
@@ -534,7 +224,7 @@ public sealed class RadioConnection : IDisposable
                 return;
             }
             if (_rig == IntPtr.Zero) return;
-            try { Unkey(); } catch (RadioException) { }
+            UnkeyForClosing();
             StopWatching();
             HamlibNative.rig_close(_rig);
             HamlibNative.rig_cleanup(_rig);
@@ -544,13 +234,6 @@ public sealed class RadioConnection : IDisposable
     }
 
     // ---- helpers ----
-
-    // (Closing.) The watcher stops; it has nothing to talk to any more.
-    private void StopWatching()
-    {
-        _guard?.Released.Set();
-        _guard = null;
-    }
 
     private IntPtr Rig => _rig != IntPtr.Zero ? _rig : throw new RadioException("Not connected to the radio.");
 

@@ -1,8 +1,8 @@
 # RFpix User Manual
 
-Version 0.6.2 beta · Nov 1, 2026 · KD9DD
+Version 0.6.3 beta · Nov 8, 2026 · KD9DD
 
-This manual covers RFpix version 0.6.2 beta for Windows 10 and 11, the Mac (macOS 14 or newer) and Linux (64-bit PCs and Raspberry Pi). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
+This manual covers RFpix version 0.6.3 beta for Windows 10 and 11, the Mac (macOS 14 or newer) and Linux (64-bit PCs and Raspberry Pi). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
 
 The manual has three parts:
 
@@ -50,14 +50,14 @@ RFpix is free to download from its [releases page on GitHub](https://github.com/
 
 | File | What it is | Choose it if |
 | --- | --- | --- |
-| **RFpix-Setup-0.6.2-beta-windows.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
-| **RFpix-0.6.2-beta-windows-portable.exe** | The program in one file, nothing to install | You want to run it from a folder or a USB stick |
+| **RFpix-Setup-0.6.3-beta-windows.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
+| **RFpix-0.6.3-beta-windows-portable.exe** | The program in one file, nothing to install | You want to run it from a folder or a USB stick |
 
 Every download's name says which system it's for (*windows*, *mac* or *linux*) and its version. (Before 0.6.2 the Windows files were *RFpix-Setup-….exe* and *RFpix.exe*.)
 
 #### Installing with the installer
 
-1. Download **RFpix-Setup-0.6.2-beta-windows.exe** and open it.
+1. Download **RFpix-Setup-0.6.3-beta-windows.exe** and open it.
 2. If Windows says *"Windows protected your PC"*, click **More info**, then **Run anyway**. Windows says this about new programs that aren't yet signed; it doesn't mean anything is wrong.
 3. Accept the licence, and choose where to put RFpix. The suggested folder needs no administrator password.
 4. Tick **Put a shortcut on the desktop** if you want one.
@@ -69,7 +69,7 @@ Every download's name says which system it's for (*windows*, *mac* or *linux*) a
 
 #### Running RFpix without installing
 
-Put **RFpix-0.6.2-beta-windows-portable.exe** in any folder and double-click it (you can rename it, to *RFpix.exe* say). The first time each new version runs, it takes a few seconds longer while it unpacks its parts into a hidden folder. The *"Windows protected your PC"* message may appear here too; click **More info**, then **Run anyway**.
+Put **RFpix-0.6.3-beta-windows-portable.exe** in any folder and double-click it (you can rename it, to *RFpix.exe* say). The first time each new version runs, it takes a few seconds longer while it unpacks its parts into a hidden folder. The *"Windows protected your PC"* message may appear here too; click **More info**, then **Run anyway**.
 
 #### Updating
 
@@ -110,10 +110,10 @@ The Linux version is new in 0.6.0 beta, and hasn't yet been tried with a radio. 
 
 | File | What it is | For |
 | --- | --- | --- |
-| **rfpix_0.6.2-beta_linux_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
-| **rfpix_0.6.2-beta_linux_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
-| **RFpix-0.6.2-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
-| **RFpix-0.6.2-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
+| **rfpix_0.6.3-beta_linux_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
+| **rfpix_0.6.3-beta_linux_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
+| **RFpix-0.6.3-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
+| **RFpix-0.6.3-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
 
 **With the .deb:** download it and open it (double-click it, or right-click it and choose to open it with the software installer), then click **Install**. Or, in a terminal, in the folder where it was downloaded: `sudo apt install ./rfpix_*_linux_amd64.deb` (`arm64` on a Raspberry Pi). RFpix then appears in the menu (under Internet, or Ham Radio), and `rfpix` starts it from a terminal.
 
@@ -613,7 +613,7 @@ The **Beta Testing** page sends ten fixed test transmissions. Each sends its own
 
 #### Receiving a test
 
-Nothing to set up: just listen on the Receive tab. When a test ends, RFpix shows how it came through, for example **"Test 2 from N0CALL: perfect · quality 24 dB (needs about 11)"**, or how many of its pieces arrived. Every test received is added to **Documents\RFpix\Test results.csv**, which opens in Excel (**Open test results** on the Receive tab). Email that file to the sender so they can see how each test did.
+Nothing to set up: just listen on the Receive tab. When a test ends, RFpix shows how it came through, for example **"Test 2 from N0CALL: perfect · quality 24 dB (needs about 11)"**, or how many of its pieces arrived. Every test received is added to **Documents\RFpix\Test results.csv**, which opens in Excel (**Open test results** on the Receive tab). Email that file to **kd9dd@qsl.net** so the tests' results can be compared.
 
 ## Part 3: Reference
 

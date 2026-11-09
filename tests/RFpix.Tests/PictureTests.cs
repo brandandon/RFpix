@@ -332,8 +332,47 @@ public class PictureTests
         Assert.False(MotReceiver.CheckCrc16(packet));
     }
 
+    // ---- damaged data groups (found by a review, Nov 8, 2026) ----
+
+    /// <summary>One packet holding a whole data group, with a good checksum (as a damaged group that
+    /// still passed its checks would arrive).</summary>
+    private static byte[] PacketWith(byte[] group)
+    {
+        var packet = new byte[2 + group.Length + 2];
+        packet[0] = 0xC8;                    // first and last packet of group 0, with a length byte
+        packet[1] = (byte)group.Length;
+        group.CopyTo(packet, 2);
+        int crc = RFpix.HamDrm.Coding.Crc.Crc16(packet.AsSpan(0, packet.Length - 2));
+        packet[^2] = (byte)(crc >> 8);
+        packet[^1] = (byte)crc;
+        return packet;
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0xA4, 0, 0, 0 })]         // extension + piece number flagged, but no room for them
+    [InlineData(new byte[] { 0x24, 0, 0 , 0 })]        // piece number flagged, room for only half of it... and no size
+    [InlineData(new byte[] { 0x14, 0, 0x1F, 0 })]      // a 15-byte user access field in a 4-byte group
+    [InlineData(new byte[] { 0x34, 0, 0x80, 1, 0x1F })] // piece number, then a user access field cut short
+    public void A_short_data_group_with_fields_it_has_no_room_for_is_ignored(byte[] group)
+    {
+        var mot = new MotReceiver();
+        Assert.Null(mot.AddPacket(PacketWith(group)));   // ignored, not read past its end
+        Assert.Equal(1, mot.PacketsGood);
+        Assert.Null(mot.Progress);
+    }
+
     [Fact]
-    public void Deinterleaver_carries_on_past_a_missing_frame()
+    public void A_header_claiming_a_huge_file_is_ignored()
+    {
+        // A file header (type 3) whose body size is 200 MB: no real picture, so it's ignored.
+        int size = 200 * 1024 * 1024;
+        var header = new byte[] { (byte)(size >> 20), (byte)(size >> 12), (byte)(size >> 4), (byte)((size & 0xF) << 4), 0, 0, 0 };
+        var group = new byte[] { 0x03, 0, (byte)(header.Length >> 8), (byte)header.Length }.Concat(header).ToArray();
+        var mot = new MotReceiver();
+        Assert.Null(mot.AddPacket(PacketWith(group)));
+        Assert.True(mot.Progress is null || mot.Progress.Size == 0);
+    }
+
     {
         var d = new TimeDeinterleaver(100, HamDrmInterleave.Long);
         var cells = Enumerable.Range(0, 100).Select(i => new Complex(i, 0)).ToArray();
@@ -371,6 +410,11 @@ public class PictureTests
         var numbers = outFrames.Select(o => o.Frame).ToList();
         Assert.Equal(numbers.OrderBy(n => n).Distinct(), numbers);   // in order, each once
         Assert.Contains(35L, numbers);                                // and it carried on to the end
+        // After the long dropout, the frames that had partly arrived before it (16 to 19: 1 to 4 of
+        // their 5 parts) still come out, for the error correction to try; 20 and 21 had no parts.
+        Assert.Contains(16L, numbers);
+        Assert.Contains(19L, numbers);
+        Assert.DoesNotContain(20L, numbers);
         foreach (var (frame, got, weights) in outFrames)
         {
             for (int j = 0; j < cells; j++)

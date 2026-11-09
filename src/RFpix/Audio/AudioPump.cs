@@ -66,7 +66,13 @@ public sealed class AudioPump : IDisposable
     /// <summary>Runs a job on the worker thread, after all the audio added before it.</summary>
     public void Post(Action job)
     {
-        try { _queue.Add(new Item(null, 0, 0, null, job)); }
+        // Waits at most 5 seconds for room: the queue is only full if decoding is 30 seconds behind,
+        // and the screen's thread mustn't freeze waiting for it. (Then the job is dropped, and noted.)
+        try
+        {
+            if (!_queue.TryAdd(new Item(null, 0, 0, null, job), TimeSpan.FromSeconds(5)))
+                RFpix.Diagnostics.AppLog.Error("Sound", "The sound processing is too far behind: a job was dropped.");
+        }
         catch (InvalidOperationException) { }   // closing down
     }
 
@@ -89,7 +95,8 @@ public sealed class AudioPump : IDisposable
             }
             catch (Exception ex)
             {
-                Failed?.Invoke(ex);
+                // Telling about it mustn't stop this thread (and with it all the sound processing).
+                try { Failed?.Invoke(ex); } catch (Exception) { }
             }
             finally
             {

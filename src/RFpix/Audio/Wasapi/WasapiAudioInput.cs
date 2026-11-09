@@ -128,8 +128,11 @@ public sealed class WasapiAudioInput : IAudioInput
             int bytesPerSample = format.BitsPerSample / 8;
             int frameSize = bytesPerSample * format.Channels;
             // Windows' shared-mode format is nearly always 32-bit floating point.
+            // (Always floating point in shared mode, which RFpix uses; an "extensible" format says
+            // which in its sub-type, so that's what's read rather than assumed.)
             bool isFloat = format.Encoding == WaveFormatEncoding.IeeeFloat
-                        || (format.Encoding == WaveFormatEncoding.Extensible && format.BitsPerSample == 32);
+                        || (format is WaveFormatExtensible extensible ? extensible.SubFormat == IeeeFloatSubtype
+                            : format.Encoding == WaveFormatEncoding.Extensible && format.BitsPerSample == 32);
             var bytes = Array.Empty<byte>();
             var buffer = Array.Empty<float>();
 
@@ -186,6 +189,9 @@ public sealed class WasapiAudioInput : IAudioInput
 
     // Windows hands us raw bytes. Convert them to one channel of numbers between
     // -1 and +1, whatever format the device happens to use.
+    /// <summary>Windows' sub-type for floating-point sound (KSDATAFORMAT_SUBTYPE_IEEE_FLOAT).</summary>
+    private static readonly Guid IeeeFloatSubtype = new("00000003-0000-0010-8000-00aa00389b71");
+
     private static void Convert(byte[] bytes, int frames, int frameSize, int bytesPerSample, bool isFloat, ref float[] buffer)
     {
         if (buffer.Length < frames) buffer = new float[frames];

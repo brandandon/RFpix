@@ -16,7 +16,7 @@ public sealed class AudioRecorder
     /// <summary>How much sound before pressing Record goes into the file.</summary>
     public static readonly TimeSpan PreRoll = TimeSpan.FromSeconds(30);
 
-    /// <summary>Recordings stop by themselves after this long (about 660 MB at 48 kHz),
+    /// <summary>Recordings stop by themselves after this long (about 350 MB at 48 kHz),
     /// in case one is left running.</summary>
     public static readonly TimeSpan MaxLength = TimeSpan.FromHours(1);
 
@@ -100,11 +100,20 @@ public sealed class AudioRecorder
             _writer = new WavWriter(path, _sampleRate);
             _path = path;
 
-            // The 30 seconds before: oldest first.
-            int start = (_ringPos - _ringFilled + _ring.Length) % _ring.Length;
-            int first = Math.Min(_ringFilled, _ring.Length - start);
-            _writer.Write(_ring.AsSpan(start, first));
-            _writer.Write(_ring.AsSpan(0, _ringFilled - first));
+            // The 30 seconds before: oldest first. If they can't be written (the disk is full, say),
+            // the recording doesn't start: the file is closed, and RFpix isn't left "recording".
+            try
+            {
+                int start = (_ringPos - _ringFilled + _ring.Length) % _ring.Length;
+                int first = Math.Min(_ringFilled, _ring.Length - start);
+                _writer.Write(_ring.AsSpan(start, first));
+                _writer.Write(_ring.AsSpan(0, _ringFilled - first));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                TryClose();
+                throw;
+            }
             return path;
         }
     }

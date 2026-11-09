@@ -339,8 +339,16 @@ public sealed class HamDrmReceiver
 
     private void TransmissionEnded()
     {
-        // Called again and again while there's no signal: only the first time counts.
-        if (_heldFile is null && TransmissionPacketsGood + TransmissionPacketsBad == 0) return;
+        // Called again and again while there's no signal: only the first time counts. A burst that
+        // brought no data has nothing to report, but its frames' times and quality readings mustn't
+        // carry into the next transmission's report.
+        if (_heldFile is null && TransmissionPacketsGood + TransmissionPacketsBad == 0)
+        {
+            _transmissionFrames.Clear();
+            _transmissionMode = null;
+            _transmissionFirstFrame = _transmissionLastFrame = null;
+            return;
+        }
         var progress = _mot.Progress;   // the file this transmission carried, if its name is known
         var seen = _mot.PiecesThisTransmission.Order().ToArray();
 

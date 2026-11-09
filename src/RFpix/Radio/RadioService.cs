@@ -74,6 +74,7 @@ public static class RadioService
     /// made, if any, for up to 3 seconds).</summary>
     public static void Close()
     {
+        _closing = true;   // a connection still being made is closed as soon as it's open (OpenAsync)
         bool turn = Turn.Wait(TimeSpan.FromSeconds(3));
         try
         {
@@ -87,10 +88,22 @@ public static class RadioService
         }
     }
 
+    private static volatile bool _closing;   // RFpix is closing
+
+    /// <summary>For closing RFpix while the radio is keyed: un-keys it, trying a few times. Returns
+    /// whether it's un-keyed (true too if nothing is connected or keyed).</summary>
+    public static bool UnkeyForClosing() => Current is not { IsKeyed: true } radio || radio.UnkeyForClosing();
+
     // (Holding the turn.)
     private static async Task<RadioConnection> OpenAsync(RadioSettings settings)
     {
         var radio = await Task.Run(() => RadioConnection.Open(settings)).ConfigureAwait(false);
+        if (_closing)
+        {
+            // RFpix started closing while this connection was being made: don't leave it open.
+            radio.Dispose();
+            throw new RadioException("RFpix is closing.");
+        }
         radio.KeyedTooLong += () => KeyedTooLong?.Invoke();
         Current = radio;
         Changed?.Invoke();

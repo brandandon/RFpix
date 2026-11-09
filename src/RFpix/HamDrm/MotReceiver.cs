@@ -70,6 +70,15 @@ public sealed class MotReceiver
 
     /// <summary>Files still missing pieces that are kept (the oldest are forgotten after this many).</summary>
     public const int KeepUnfinished = 10;
+
+    // Limits, so a damaged or odd transmission can't make RFpix set aside huge amounts of memory or
+    // count millions of pieces. Far beyond any real picture (HamDRM sends a few hundred kB at most).
+    /// <summary>The largest file accepted (its header says how big it is).</summary>
+    public const int MaxFileBytes = 16 * 1024 * 1024;
+    /// <summary>The largest data group (one piece and its headers: a piece is at most 8191 bytes).</summary>
+    public const int MaxGroupBytes = 16 * 1024;
+    /// <summary>Piece numbers have 15 bits: there can't be more pieces than this.</summary>
+    public const int MaxSegments = 0x8000;
     private readonly Dictionary<int, (List<byte> Data, int Counter)> _assembling = new();   // per packet ID
     private int? _currentId;
     private readonly HashSet<int> _seen = new();
@@ -110,6 +119,11 @@ public sealed class MotReceiver
             return null;
         }
         var group = _assembling[packetId];
+        if (group.Data.Count + length > MaxGroupBytes)
+        {
+            _assembling.Remove(packetId);   // longer than any real data group: damaged
+            return null;
+        }
         group.Data.AddRange(packet.AsSpan(start, length).ToArray());
         _assembling[packetId] = (group.Data, counter);
         if (!last) return null;
@@ -131,11 +145,14 @@ public sealed class MotReceiver
             end -= 2;
         }
 
+        // Each optional field is read only if the group really has room for it: a damaged group
+        // (which still passed its checksums) mustn't read past its end.
         int pos = 2 + (extension ? 2 : 0);   // skip header, counters and any extension
         int segment = 0;
         bool lastSegment = false;
         if (hasSegment)
         {
+            if (pos + 2 > end) return null;
             lastSegment = (g[pos] & 0x80) != 0;
             segment = ((g[pos] & 0x7F) << 8) | g[pos + 1];
             pos += 2;
@@ -143,8 +160,10 @@ public sealed class MotReceiver
         int transportId = 0;
         if (hasUser)
         {
+            if (pos + 1 > end) return null;
             int access = g[pos++];
             int fieldLength = access & 0x0F;
+            if (pos + fieldLength > end) return null;
             if ((access & 0x10) != 0 && fieldLength >= 2) transportId = (g[pos] << 8) | g[pos + 1];
             pos += fieldLength;
         }
@@ -200,7 +219,9 @@ public sealed class MotReceiver
     private static void ReadHeader(Transfer t, byte[] d)
     {
         if (d.Length < 7) return;
-        t.BodySize = (d[0] << 20) | (d[1] << 12) | (d[2] << 4) | (d[3] >> 4);
+        int bodySize = (d[0] << 20) | (d[1] << 12) | (d[2] << 4) | (d[3] >> 4);
+        if (bodySize > MaxFileBytes) return;   // damaged (or no picture): the header is ignored
+        t.BodySize = bodySize;
         int pos = 7;
         while (pos < d.Length)
         {
@@ -248,7 +269,7 @@ public sealed class MotReceiver
         int total = t.LastSegment is int last ? last + 1
                   : t.SegmentSize > 0 ? (t.BodySize + t.SegmentSize - 1) / t.SegmentSize
                   : 0;
-        if (total == 0) return null;
+        if (total == 0 || total > MaxSegments) return null;
         int have = Enumerable.Range(0, total).Count(t.Segments.ContainsKey);
 
         if (have == total && t.LastSegment is not null)
@@ -295,6 +316,7 @@ public sealed class MotReceiver
         if (t.Name is null || t.BodySize < 0 || RsFile.LevelOf(t.Name) is not int rs || t.SegmentSize <= 0) return null;
 
         int total = t.LastSegment is int last ? last + 1 : (t.BodySize + t.SegmentSize - 1) / t.SegmentSize;
+        if (total > MaxSegments) return null;
         int have = Enumerable.Range(0, total).Count(t.Segments.ContainsKey);
         if (have == total) return null;   // (a complete file is finished as its last piece arrives)
 
@@ -343,7 +365,7 @@ public sealed class MotReceiver
         int total = t.LastSegment is int last ? last + 1
                   : t.BodySize > 0 && t.SegmentSize > 0 ? (t.BodySize + t.SegmentSize - 1) / t.SegmentSize
                   : 0;
-        if (total == 0) return null;
+        if (total == 0 || total > MaxSegments) return null;
         var missing = Enumerable.Range(0, total).Where(i => !t.Segments.ContainsKey(i)).ToList();
         return missing.Count == 0 ? null : new UnfinishedFile(id, t.Name, t.SegmentSize, total, missing);
     }

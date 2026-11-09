@@ -45,10 +45,16 @@ public sealed class TimeDeinterleaver
 
         // Every original frame whose last part has now arrived (or been skipped over).
         long from = _lastOut is long l ? l + 1 : _first.Value;
-        // After a long gap, older original frames have no parts left to rebuild them from.
-        from = Math.Max(from, frame - 2 * (_depth - 1));
+        // After a long gap (a dropout of over 3 seconds), the original frames that had partly
+        // arrived before it are finished with what did arrive (the error correction may rebuild
+        // them, saving a request for missing pieces); those with no parts at all are skipped.
+        // Frames close to this one always come out, in order.
+        long recent = frame - 2 * (_depth - 1);
+        long oldestWithParts = _received.Keys.Min() - (_depth - 1);
+        from = Math.Max(from, Math.Min(oldestWithParts, recent));
         for (long original = from; original <= frame - (_depth - 1); original++)
         {
+            if (original < recent && !HasParts(original)) continue;
             var outCells = new Complex[_cells];
             var outWeights = new double[_cells];
             for (int i = 0; i < _cells; i++)
@@ -67,4 +73,11 @@ public sealed class TimeDeinterleaver
     }
 
     private long? _lastOut;
+
+    /// <summary>Whether any of the sent frames carrying parts of this original frame arrived.</summary>
+    private bool HasParts(long original)
+    {
+        for (int d = 0; d < _depth; d++) if (_received.ContainsKey(original + d)) return true;
+        return false;
+    }
 }

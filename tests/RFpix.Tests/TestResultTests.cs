@@ -175,6 +175,23 @@ public class TestResultTests
         Assert.Null(TestResults.Recognise(report with { Name = null }));
     }
 
+    [Fact]
+    public void A_burst_that_brought_no_data_leaves_nothing_in_the_next_report()
+    {
+        // The first 1.6 s of a long-interleaved transmission (its settings read, its quality measured,
+        // but no data out of the deinterleaver yet), 3 s of quiet, then a whole other transmission.
+        var burstTest = TestTransmissions.All.First(t => t.Settings.Interleave == HamDrmInterleave.Long);
+        var burst = new HamDrmTransmitter(burstTest.FileName, burstTest.Picture(), burstTest.Settings, "W1AW").Audio()[..(int)(1.6 * 48000)];
+        var test = TestTransmissions.All.Single(t => t.Number == 2);
+        var whole = new HamDrmTransmitter(test.FileName, test.Picture(), test.Settings, "KD9DD").Audio();
+
+        var alone = Reports(Pad(whole));
+        var afterBurst = Reports(Pad(burst.Concat(new float[3 * 48000]).Concat(whole).ToArray()));
+        var report = Assert.Single(afterBurst);   // the burst itself isn't reported
+        Assert.Equal(alone.Single().FrameQualities.Count, report.FrameQualities.Count);   // none of the burst's
+        Assert.False(report.ContinuesPrevious);
+    }
+
     /// <summary>Plays a transmission (or its first seconds) through a receiver and returns its report.</summary>
     private static TransmissionReport Report(HamDrmTransmitter tx, double? keepSeconds = null)
     {

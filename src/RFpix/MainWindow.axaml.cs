@@ -76,6 +76,7 @@ public partial class MainWindow : Window
 
     private static void LogSettings()
     {
+        if (AppSettings.LoadProblem is { } problem) RFpix.Diagnostics.AppLog.Error("Settings", problem);
         try
         {
             IReadOnlyList<RFpix.Audio.AudioDeviceInfo> Devices(Func<IReadOnlyList<RFpix.Audio.AudioDeviceInfo>> list)
@@ -216,7 +217,49 @@ public partial class MainWindow : Window
     protected override void OnClosing(WindowClosingEventArgs e)
     {
         base.OnClosing(e);
+        // Never close quietly with the radio still transmitting: if it's keyed and won't un-key
+        // (the radio isn't answering), stay open and say so. Closing again closes regardless.
+        if (!e.Cancel && !_warnedStillKeyed && !RFpix.Radio.RadioService.UnkeyForClosing())
+        {
+            _warnedStillKeyed = true;
+            e.Cancel = true;
+            ShowStillKeyed();
+            return;
+        }
         try { SavePlacement(); } catch (Exception) { /* not worth stopping RFpix closing over */ }
+    }
+
+    private bool _warnedStillKeyed;
+
+    private void ShowStillKeyed()
+    {
+        var ok = new Button { Content = "OK", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, MinWidth = 80, IsDefault = true };
+        var warning = new Window
+        {
+            Title = "RFpix – the radio may still be transmitting",
+            Width = 460,
+            SizeToContent = SizeToContent.Height,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Icon = Icon,
+            Content = new StackPanel
+            {
+                Margin = new Avalonia.Thickness(20, 16),
+                Spacing = 14,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                        Text = "RFpix couldn't un-key the radio: it didn't answer. It may still be transmitting.\n\n" +
+                               "Un-key it by hand (its MOX or PTT, or switch it off), then close RFpix again.",
+                    },
+                    ok,
+                },
+            },
+        };
+        ok.Click += (_, _) => warning.Close();
+        _ = warning.ShowDialog(this);
     }
 
     protected override void OnClosed(EventArgs e)

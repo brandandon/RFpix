@@ -38,7 +38,9 @@ public static class UploadService
     }
 
     /// <summary>Starts (or restarts, or stops) uploading, as the settings say: one uploader for the
-    /// Digital copies, one for the Analog ones.</summary>
+    /// Digital copies, one for the Analog ones. Restart and Stop are called on the screen's thread
+    /// only (RFpix starting and closing, and the FTP server tab's Save), so they never overlap: keep
+    /// it that way, or two could start uploaders for the same folders.</summary>
     public static void Restart()
     {
         Stop();
@@ -106,9 +108,9 @@ public static class UploadService
     internal static string SaveAs(string folder, string name, byte[] jpeg)
     {
         string part = Path.Combine(folder, $"{name}.{Guid.NewGuid():N}.part");
-        File.WriteAllBytes(part, jpeg);
         try
         {
+            File.WriteAllBytes(part, jpeg);   // inside the try: a half-written .part is removed too
             for (int n = 1; n <= 1000; n++)
             {
                 string path = Path.Combine(folder, n == 1 ? name + ".jpg" : $"{name}_{n}.jpg");
@@ -129,7 +131,8 @@ public static class UploadService
         }
         finally
         {
-            if (File.Exists(part)) File.Delete(part);   // nothing left behind if it couldn't be saved
+            // Nothing left behind if it couldn't be saved (and a failure here mustn't hide the first one).
+            try { if (File.Exists(part)) File.Delete(part); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
     }
 

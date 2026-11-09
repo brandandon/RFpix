@@ -130,7 +130,7 @@ Please try receiving first, then **Test PTT**, then sending, and report anything
    or how many of the picture's pieces arrived if it didn't come through. Each sending is judged
    on its own: if a test is sent twice, the second isn't helped by pieces from the first.
 4. Every test received is added to **Documents\RFpix\Test results.csv** (button:
-   **Open test results**). It opens in Excel. **Please email that file back** to the sender.
+   **Open test results**). It opens in Excel. **Please email that file to kd9dd@qsl.net.**
 5. If something odd happens, click **Record** before the next test: the recording
    (in Documents\RFpix\Recordings) shows exactly what your radio heard.
 
@@ -217,8 +217,8 @@ Please try receiving first, then **Test PTT**, then sending, and report anything
 - **Receive** tab: while listening, the digital boxes always show (Offset, Clock, Strength,
   Quality, Mode, Bandwidth, QAM, Interleave, Protection, Reed-Solomon, From), empty unless a
   digital picture is arriving. While an analog picture arrives they're replaced by analog boxes:
-  Mode, Line ___ of ___, and From (the sender's FSK ID). They stay 10 seconds after the picture
-  ends, then go back to the digital boxes. A picture whose FSK ID is read gets that callsign in the
+  Mode, Line ___ of ___, and From (the sender's FSK ID). When a picture ends, its boxes keep its
+  details until the next picture starts. A picture whose FSK ID is read gets that callsign in the
   Gallery.
 - **Waterfall**: with the Send tab set to Analog (or while an analog picture arrives), the marks
   change to SSTV's tones: S 1200 Hz (sync), B 1500 Hz (black), V 1900 Hz (VIS leader) and
@@ -364,6 +364,6 @@ and off afterwards, keeping the mode and filter; the status line shows it while 
   from Settings > Misc, and the level slider.
 
 QSSTV and EasyPal users can receive the tests too (they're ordinary HamDRM pictures);
-just tell the sender which ones arrived.
+just email kd9dd@qsl.net which ones arrived.
 
 73, Dan KD9DD

@@ -148,35 +148,83 @@ public sealed class AppSettings
     /// <summary>The settings in use. Loaded once when RFpix starts.</summary>
     public static AppSettings Current { get; } = Load();
 
+    /// <summary>Set when the settings file couldn't be read at start-up (and what was used instead),
+    /// for the log once it's open.</summary>
+    public static string? LoadProblem { get; private set; }
+
     private static AppSettings Load()
     {
-        try
-        {
-            if (File.Exists(FilePath))
-            {
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new AppSettings();
-            }
-        }
-        catch
-        {
-            // A damaged settings file shouldn't stop RFpix from starting.
-        }
-        return new AppSettings();
+        var (settings, problem) = ReadFile(FilePath);
+        LoadProblem = problem;
+        return settings ?? new AppSettings();
     }
+
+    private static readonly object SaveLock = new();
 
     public void Save()
     {
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
             var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(FilePath, json);
+            lock (SaveLock) WriteFile(FilePath, json);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            // Not being able to save settings isn't worth crashing over.
+            // Not worth stopping RFpix over, but worth knowing about.
+            RFpix.Diagnostics.AppLog.Error("Settings", $"Couldn't save the settings: {ex.Message}");
         }
     }
+
+    // ---- the file, written safely ----
+    // The settings are written to a new file first, which then takes the old one's place in one
+    // step, the old one kept beside it as settings.json.bak. A power cut or crash part-way through
+    // a save can't leave a half-written settings file: there's always the whole old one or the
+    // whole new one. If the file is damaged anyway, the last good copy (.bak) is used.
+
+    /// <summary>Writes <paramref name="json"/> to <paramref name="path"/> safely (see above).</summary>
+    internal static void WriteFile(string path, string json)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        string temp = $"{path}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            using (var file = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                var bytes = new System.Text.UTF8Encoding(false).GetBytes(json);
+                file.Write(bytes, 0, bytes.Length);
+                file.Flush(flushToDisk: true);   // on the disk before it replaces the old one
+            }
+            if (File.Exists(path)) File.Replace(temp, path, path + ".bak", ignoreMetadataErrors: true);
+            else File.Move(temp, path);
+        }
+        finally
+        {
+            try { if (File.Exists(temp)) File.Delete(temp); } catch (IOException) { }
+        }
+    }
+
+    /// <summary>Reads the settings from <paramref name="path"/>, or from its .bak if that's missing or
+    /// damaged. Null (and why) if neither can be read; null and no problem if there are none yet.</summary>
+    internal static (AppSettings? Settings, string? Problem) ReadFile(string path)
+    {
+        string? problem = null;
+        foreach (string file in new[] { path, path + ".bak" })
+        {
+            try
+            {
+                if (!File.Exists(file)) continue;
+                var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(file));
+                if (settings is null) throw new JsonException("it's empty");
+                return (settings, problem is null ? null : $"{problem} The last good copy ({Path.GetFileName(file)}) was used.");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or NotSupportedException)
+            {
+                problem ??= $"The settings file ({file}) couldn't be read: {ex.Message}.";
+            }
+        }
+        return (null, problem is null ? null : problem + " RFpix started with its usual settings.");
+    }
+
 }
 
 /// <summary>Where the window was: its normal (not maximized) size and position, and whether it was maximized.</summary>
