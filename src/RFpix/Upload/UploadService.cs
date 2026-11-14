@@ -116,9 +116,11 @@ public static class UploadService
                 string path = Path.Combine(folder, n == 1 ? name + ".jpg" : $"{name}_{n}.jpg");
                 try { using (new FileStream(path, FileMode.CreateNew, FileAccess.Write)) { } }
                 catch (IOException) when (File.Exists(path)) { continue; }   // taken: the next number
+                // Windows can also say "access denied" for a name another copy is just then moving into.
+                catch (UnauthorizedAccessException) when (File.Exists(path)) { continue; }
                 try
                 {
-                    File.Move(part, path, overwrite: true);   // the picture replaces our own placeholder
+                    MoveOver(part, path);   // the picture replaces our own placeholder
                 }
                 catch
                 {
@@ -133,6 +135,22 @@ public static class UploadService
         {
             // Nothing left behind if it couldn't be saved (and a failure here mustn't hide the first one).
             try { if (File.Exists(part)) File.Delete(part); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+    }
+
+    /// <summary>Moves a file onto a name, replacing what's there. Tried a few times over a quarter of a
+    /// second: on Windows, a virus checker (or the uploader) can look at a new file for a moment, and
+    /// replacing it then fails with "access denied" or "in use".</summary>
+    private static void MoveOver(string from, string to)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            try { File.Move(from, to, overwrite: true); return; }
+            catch (Exception ex) when (attempt < 6 && ex is (IOException or UnauthorizedAccessException)
+                                                     and not (FileNotFoundException or DirectoryNotFoundException))
+            {
+                Thread.Sleep(50);
+            }
         }
     }
 
