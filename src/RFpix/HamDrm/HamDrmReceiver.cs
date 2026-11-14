@@ -224,6 +224,10 @@ public sealed class HamDrmReceiver
             for (int i = 0; i < cells.Length; i++)
             {
                 var (sym, k) = layout.DataCells[i];
+                // A frame whose FAC was misread in heavy noise (claiming the narrow width, say) had
+                // its channel worked out for fewer carriers: the ones it lacks count as missing.
+                // (Before, this stopped the decoding with an error, in deep flutter.)
+                if (k >= frame.Channel[sym].Length || k >= frame.Cells[sym].Length) continue;
                 Complex h = frame.Channel[sym][k];
                 double power = h.Real * h.Real + h.Imaginary * h.Imaginary;
                 if (power < 1e-12) continue;
