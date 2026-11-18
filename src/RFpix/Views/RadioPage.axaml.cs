@@ -80,6 +80,7 @@ public partial class RadioPage : UserControl, IDisposable
         else SelectPort(s.Port);
         ShowPtt(s.Ptt);
         DataModeBox.IsChecked = s.DataModeForTransmit;
+        FmBoostBox.IsChecked = s.FmPreEmphasis;
         _loading = false;
         UpdateVisibility();
     }
@@ -99,6 +100,7 @@ public partial class RadioPage : UserControl, IDisposable
                 : PttDtr.IsChecked == true ? PttMethod.Dtr
                 : PttMethod.Cat,
             DataModeForTransmit = DataModeBox.IsChecked == true && RadioChoices.CanSwitchDataMode(choice.Id),
+            FmPreEmphasis = FmBoostBox.IsChecked != false,
         };
     }
 
@@ -122,6 +124,14 @@ public partial class RadioPage : UserControl, IDisposable
             AddressBox.Text = choice.Id switch { "flrig" => "localhost:12345", RadioChoices.HrdId => "localhost:7809", _ => "localhost:4532" };
         UpdateVisibility();
         SaveSettings();
+    }
+
+    // The FM treble-boost box counts at once (it's read as each transmission is prepared).
+    private void OnFmBoostChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_loading || StatusText is null) return;
+        AppSettings.Current.Radio.FmPreEmphasis = FmBoostBox.IsChecked == true;
+        AppSettings.Current.Save();
     }
 
     // The data-mode box counts at once: saved, and used by the open connection from its next transmission.
@@ -158,6 +168,8 @@ public partial class RadioPage : UserControl, IDisposable
             "ft991a" => "Switch the FT-991A to data mode while transmitting (FM → DATA-FM, USB → DATA-USB, LSB → DATA-LSB), and back afterwards",
             _ => "Switch the IC-9700 to data mode while transmitting (FM → FM-D, USB → USB-D), and back afterwards",
         };
+        // The FM treble boost needs to read the radio's mode, so only with radio control.
+        FmBoostBox.IsVisible = choice.Connection != "none";
         ConnectButton.IsEnabled = choice.Connection != "none" || Connection is not null;
         if (choice.Connection == "none") { ShowPtt(PttMethod.Vox); DataModeBox.IsChecked = false; }
     }

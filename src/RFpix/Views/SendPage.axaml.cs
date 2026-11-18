@@ -97,7 +97,7 @@ public partial class SendPage : UserControl, IDisposable
         QamBox.ItemsSource = Qams.Select(q => q.ToString()).ToList();
         InterleaveBox.ItemsSource = new[] { "Long", "Short" };
         ProtectionBox.ItemsSource = new[] { "High", "Low" };
-        ReedSolomonBox.ItemsSource = new[] { "None", "RS1", "RS2", "RS3", "RS4" };
+        ReedSolomonBox.ItemsSource = RepairChoices().ToArray();
         TargetBox.ItemsSource = TargetTimes.Select(Clock).ToList();
         TimeoutBox.ItemsSource = Timeouts.Select(t => t == 0 ? "None" : Clock(t)).ToList();
         LeadInBox.ItemsSource = LeadIns.Select(l => $"{l:0.0#} s").ToList();
@@ -605,7 +605,7 @@ public partial class SendPage : UserControl, IDisposable
         string? notSaved = SendSupport.RecordSent(fitted, call);
         Transmit(() => SendSupport.WithWaterfallText(fitted.Transmitter(call).Audio()), fitted.FileName,
                  $"Sent {fitted.FileName} as {call}." + (notSaved is null ? "" : $" ({notSaved})"),
-                 TimeSpan.FromSeconds(profile.LeadInSeconds));
+                 TimeSpan.FromSeconds(profile.LeadInSeconds), hamDrm: true);
     }
 
     private void SendAnalog()
@@ -666,7 +666,7 @@ public partial class SendPage : UserControl, IDisposable
     /// <summary>How long a picture keeps the transmitter on: lead-in, waterfall text, picture and tail.</summary>
     private static TimeSpan OnAir(FittedPicture fitted) => fitted.Duration + fitted.Profile.Overhead(TextTime);
 
-    private async void Transmit(Func<float[]> makeSound, string what, string done, TimeSpan? leadIn = null)
+    private async void Transmit(Func<float[]> makeSound, string what, string done, TimeSpan? leadIn = null, bool hamDrm = false)
     {
         if (_sending is not null) return;
         if (SendSupport.Problem(_output, SendSupport.Callsign) is { } problem) { ShowStatus(problem, problem: true); return; }
@@ -685,7 +685,7 @@ public partial class SendPage : UserControl, IDisposable
         {
             await SendSupport.SendSoundAsync(makeSound, what, _output,
                 () => Volatile.Read(ref _gain), m => ShowStatus(m, problem: false),
-                new Progress<double>(f => Progress.Value = f), cancel, leadIn);
+                new Progress<double>(f => Progress.Value = f), cancel, leadIn, hamDrm);
             ShowStatus(done, problem: false);
         }
         catch (OperationCanceledException)

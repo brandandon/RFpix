@@ -19,13 +19,19 @@ public class SendTests
     // ---- the test transmissions ----
 
     [Fact]
-    public void There_are_ten_tests_each_with_its_own_picture_and_settings()
+    public void There_are_nine_tests_each_with_its_own_picture_and_settings()
     {
+        // Tests 3, 7, 8 and 9 were retired (Nov 14, 2026); their numbers aren't reused.
         var all = TestTransmissions.All;
-        Assert.Equal(Enumerable.Range(1, 10), all.Select(t => t.Number));
-        Assert.Equal(10, all.Select(t => (t.Settings, t.ReedSolomon)).Distinct().Count());
-        Assert.Equal(new[] { 0, 0, 0, 0, 0, 0, 0, 0, 3, 2 }, all.Select(t => t.ReedSolomon));
-        Assert.Equal("rfpix-test-9.rs3", all[8].SendName);   // sent wrapped, as QSSTV sends RS files
+        Assert.Equal(new[] { 1, 2, 4, 5, 6, 10, 11, 12, 13 }, all.Select(t => t.Number));
+        Assert.Equal(9, all.Select(t => (t.Settings, t.ReedSolomon, t.RepairPercent)).Distinct().Count());
+        Assert.Equal(new[] { 0, 0, 0, 0, 0, 2, 0, 0, 0 }, all.Select(t => t.ReedSolomon));
+        Assert.Equal(new[] { 0, 0, 0, 0, 0, 0, 20, 50, 75 }, all.Select(t => t.RepairPercent));
+        Assert.Equal("rfpix-test-10.rs2", all[5].SendName);   // sent wrapped, as QSSTV sends RS files
+        Assert.Matches(@"^rfpix-test-12\.fc\d+$", all[7].SendName);
+        // The fountain tests have test 10's settings, so they compare directly with RS2.
+        Assert.All(all.Where(t => t.RepairPercent > 0), t => Assert.Equal(all[5].Settings, t.Settings));
+        Assert.EndsWith("Fountain 50%", all[7].SettingsText);
         foreach (var t in all)
         {
             var picture = t.Picture();

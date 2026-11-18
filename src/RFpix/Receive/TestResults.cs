@@ -1,7 +1,7 @@
 // TestResults.cs - recognises RFpix's test transmissions when they're received, says how
 // each came through, and keeps a log of them.
 //
-// A test picture is known by its name (rfpix-test-1.jpg to rfpix-test-8.jpg), and RFpix
+// A test picture is known by its name (rfpix-test-1.jpg and so on), and RFpix
 // carries the original of every one, so it can tell exactly how a test arrived:
 //   - perfect: the picture is identical to the original;
 //   - or how many of its pieces arrived, if it didn't come through;
@@ -16,6 +16,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using RFpix.HamDrm;
+using RFpix.HamDrm.Coding;
 using RFpix.Send;
 
 namespace RFpix.Receive;
@@ -30,16 +31,43 @@ public sealed record TestResult(TestTransmission Test, TransmissionReport Report
     /// <summary>The pieces this transmission brought by itself.</summary>
     public int OwnPieces => Report.PiecesSeen.Count;
 
-    /// <summary>The picture arrived from this transmission alone (with Reed-Solomon's repairs, if
-    /// any), not with the help of pieces an earlier sending of the same test brought.</summary>
-    public bool Perfect => Arrived && OwnPieces + Report.File!.RepairedPieces >= Report.PiecesExpected;
+    /// <summary>The picture arrived from this transmission alone (with Reed-Solomon's or the fountain
+    /// code's repairs, if any), not with the help of pieces an earlier sending of the same test brought.</summary>
+    public bool Perfect => Arrived && (FountainPieces is int k ? OwnPieces >= k
+                                       : OwnPieces + Report.File!.RepairedPieces >= Report.PiecesExpected);
+
+    /// <summary>For a test sent with the fountain code: how many pieces the picture itself has (any that
+    /// many rebuild it). From the file, or from the name it was sent under if it didn't come through.</summary>
+    public int? FountainPieces =>
+        Report.File?.RepairCodePieces ?? (Report.Name is { } name ? FountainFile.SourcePiecesOf(name) : null);
+
+    /// <summary>The fountain code's extra, in percent, worked out from the pieces: one of the Send page's
+    /// sizes if it matches. Null if it wasn't sent with the fountain code; 0 if it was, but the number of
+    /// pieces isn't known.</summary>
+    public int? FountainPercentReceived
+    {
+        get
+        {
+            if (FountainPieces is not int k || Report.PiecesExpected <= k) return FountainPieces is null ? null : 0;
+            int repairs = Report.PiecesExpected - k;
+            foreach (int p in SendProfile.FountainChoices.Prepend(Test.RepairPercent))
+                if (p > 0 && FountainFile.RepairPieces(k, p) == repairs) return p;
+            return (int)Math.Round(100.0 * repairs / k);
+        }
+    }
+
+    /// <summary>The repair data it came with, for the settings shown: "RS2", "Fountain 50%" or "".</summary>
+    private string RepairReceived =>
+        FountainPercentReceived is int p ? (p > 0 ? $"Fountain {p}%" : "Fountain")
+        : ReedSolomonReceived > 0 ? $"RS{ReedSolomonReceived}" : "";
 
     /// <summary>Were the test's own settings used? (Null if the settings weren't read.)</summary>
     public bool? SettingsMatch =>
         Report.Settings is not { } fac ? null
         : Report.Mode == Test.Settings.Mode && fac.Bandwidth == Test.Settings.Bandwidth && fac.Qam == Test.Settings.Qam &&
           fac.Interleave == Test.Settings.Interleave && fac.Protection == Test.Settings.Protection &&
-          ReedSolomonReceived == Test.ReedSolomon;
+          ReedSolomonReceived == Test.ReedSolomon &&
+          FountainPercentReceived switch { null => Test.RepairPercent == 0, 0 => Test.RepairPercent > 0, var p => p == Test.RepairPercent };
 
     /// <summary>The Reed-Solomon level it came with (0 for none): from the file, or from the name
     /// it was sent under (.rs1-.rs4) if it didn't come through.</summary>
@@ -48,11 +76,13 @@ public sealed record TestResult(TestTransmission Test, TransmissionReport Report
 
     /// <summary>"perfect", "41 of 51 pieces", ...</summary>
     public string Outcome =>
-        Perfect && Report.File!.RepairedPieces > 0 ? $"perfect: Reed-Solomon rebuilt {Report.File.RepairedPieces} missing pieces"
+        Perfect && Report.File!.RepairedPieces > 0
+            ? $"perfect: {(FountainPieces is null ? "Reed-Solomon" : "the fountain code")} rebuilt {Report.File.RepairedPieces} missing pieces"
         : Perfect ? "perfect"
         : Arrived ? $"{OwnPieces} of {Report.PiecesExpected} pieces (the picture was completed with pieces from an earlier send)"
         : Report.File is not null ? "arrived, but differs from the original"
-        : Report.PiecesExpected > 0 ? $"{OwnPieces} of {Report.PiecesExpected} pieces"
+        : Report.PiecesExpected > 0 ? $"{OwnPieces} of {Report.PiecesExpected} pieces" +
+                                      (FountainPieces is int needed ? $" (any {needed} would have done)" : "")
         : "nothing came through";
 
     /// <summary>The settings it was actually sent with, e.g. "Mode B · 2.5 kHz · 16-QAM · long · high".</summary>
@@ -60,7 +90,7 @@ public sealed record TestResult(TestTransmission Test, TransmissionReport Report
         Report.Settings is not { } fac ? "not read"
         : $"Mode {Report.Mode?.ToString() ?? "?"}  ·  {(fac.Bandwidth == HamDrmBandwidth.Wide ? "2.5" : "2.2")} kHz  ·  {fac.Qam}-QAM  ·  " +
           $"{fac.Interleave.ToString().ToLowerInvariant()}  ·  {fac.Protection.ToString().ToLowerInvariant()}" +
-          (ReedSolomonReceived > 0 ? $"  ·  RS{ReedSolomonReceived}" : "");
+          (RepairReceived.Length > 0 ? $"  ·  {RepairReceived}" : "");
 
     /// <summary>What the test's QAM needs, in dB.</summary>
     public double QualityNeeded => HamDrmReceiver.QualityNeeded(Test.Settings.Qam, Test.Settings.Protection);
@@ -83,8 +113,9 @@ public sealed record TestResult(TestTransmission Test, TransmissionReport Report
 
 public static class TestResults
 {
-    // The picture's own name, or (a test with Reed-Solomon that didn't come through) the name it was sent under.
-    private static readonly Regex TestName = new(@"^rfpix-test-(\d+)\.(jpg|rs[1-4])$", RegexOptions.IgnoreCase);
+    // The picture's own name, or (a test with Reed-Solomon or the fountain code that didn't come through)
+    // the name it was sent under.
+    private static readonly Regex TestName = new(@"^rfpix-test-(\d+)\.(jpg|rs[1-4]|fc\d+)$", RegexOptions.IgnoreCase);
 
     /// <summary>The test a transmission carried, or null if it wasn't one of RFpix's tests.</summary>
     public static TestResult? Recognise(TransmissionReport report, int soundGaps = 0)

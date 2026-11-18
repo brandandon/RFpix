@@ -60,8 +60,8 @@ public partial class ReceivePage : UserControl, IDisposable
     private RFpix.Analog.SstvModeInfo? _analogMode;            // the analog picture shown in the boxes
     private string _analogFrom = "";                           // its sender, from the FSK ID
     private static readonly IBrush TooQuietBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0xA8, 0x00));   // yellow
-    // The kind of picture whose details the boxes show: the last one received, until the next starts.
-    private enum BoxesShow { Nothing, Digital, Analog }
+    // The kind of picture whose details the boxes show: the last one received, until the next starts
+    // (see Receive/ReceiveBoxes.cs).
     private BoxesShow _boxes;
     private (string Folder, GalleryEntry Entry, DateTime Saved)? _lastAnalog;   // for the FSK ID that follows
     private string _analogCaption = "";
@@ -430,8 +430,7 @@ public partial class ReceivePage : UserControl, IDisposable
         // readings, Offset to Quality, are live: they empty when the signal goes.)
         bool analogNow = _sstv.Receiving is not null;   // arriving, or waiting for its signal to come back
         var heardNow = analogNow ? null : _receiver.Heard;
-        if (analogNow) _boxes = BoxesShow.Analog;
-        else if (heardNow is not null) _boxes = BoxesShow.Digital;
+        _boxes = ReceiveBoxes.Next(_boxes, analogNow, heardNow);
         bool analog = _boxes == BoxesShow.Analog;
         Show(DigitalBoxes, _boxes == BoxesShow.Digital);
         Show(AnalogBoxes, analog);
@@ -485,8 +484,8 @@ public partial class ReceivePage : UserControl, IDisposable
 
     private void ShowHeard()
     {
-        var heard = _boxes == BoxesShow.Digital ? _receiver.Heard : null;
-        if (heard is not null)
+        var heard = _receiver.Heard;
+        if (ReceiveBoxes.ShowsNewSettings(_boxes, heard) && heard is not null)
         {
             var fac = heard.Fac;
             HeardMode.Text = heard.Mode.ToString();
@@ -494,7 +493,7 @@ public partial class ReceivePage : UserControl, IDisposable
             HeardQam.Text = fac is null ? "…" : fac.Qam.ToString();
             HeardInterleave.Text = fac?.Interleave.ToString() ?? "…";
             HeardProtection.Text = fac?.Protection.ToString() ?? "…";
-            HeardReedSolomon.Text = heard.ReedSolomon switch { null => "…", 0 => "None", var rs => $"RS{rs}" };
+            HeardReedSolomon.Text = heard.RepairCode ? "Fountain" : heard.ReedSolomon switch { null => "…", 0 => "None", var rs => $"RS{rs}" };
             HeardCallsign.Text = heard.Callsign switch { null => "…", "" => "(none)", var c => c };
             int good = _receiver.FacGood, total = _receiver.FacGood + _receiver.FacFailed;
             TransmissionText.Text = fac is null ? _receiver.TransmissionText : $"Settings read from {good} of {total} frames";

@@ -44,7 +44,8 @@ public partial class ReceivePage
 
     private static string Describe(IncompleteFile i) =>
         $"{i.File.Name ?? "(name not received)"}" + (string.IsNullOrEmpty(i.Callsign) ? "" : $" from {i.Callsign}") +
-        $"  ·  {i.File.Missing.Count} of {i.File.Pieces} missing  ·  {i.Heard:HH:mm}";
+        (i.StillNeeded is int n ? $"  ·  needs {n} more piece{(n == 1 ? "" : "s")}" : $"  ·  {i.File.Missing.Count} of {i.File.Pieces} missing") +
+        $"  ·  {i.Heard:HH:mm}";
 
     private void OnMissingChanged(object? sender, SelectionChangedEventArgs e) => ShowAskHint();
 
@@ -55,8 +56,11 @@ public partial class ReceivePage
         var i = _incomplete[MissingBox.SelectedIndex];
         var seconds = i.Transmitter("X", transportId: 0).Duration.TotalSeconds;
         string who = string.IsNullOrEmpty(i.Callsign) ? "The sender's" : $"{i.Callsign}'s";
-        AskText.Text = $"Sends a short request ({seconds:0} s) in the settings the picture came with. {who} RFpix, EasyPal or QSSTV " +
-                       "can then send just those pieces, and the picture completes here. Keep listening for them.";
+        AskText.Text = i.StillNeeded is int n
+            ? $"Sends a short request ({seconds:0} s) in the settings the picture came with, for {n} more piece{(n == 1 ? "" : "s")}. " +
+              $"It came with the fountain code, so {(string.IsNullOrEmpty(i.Callsign) ? "the sender's" : who)} RFpix answers with new repair pieces: any {n} of them complete it here. Keep listening for them."
+            : $"Sends a short request ({seconds:0} s) in the settings the picture came with. {who} RFpix, EasyPal or QSSTV " +
+              "can then send just those pieces, and the picture completes here. Keep listening for them.";
     }
 
     private async void OnAskClick(object? sender, RoutedEventArgs e)
@@ -73,14 +77,14 @@ public partial class ReceivePage
         MissingBox.IsEnabled = false;
         AskProgress.Value = 0;
         AskProgress.IsVisible = true;
-        string what = $"a request for {picture.File.Missing.Count} missing pieces";
+        string what = $"a request for {picture.Asking.Count} missing pieces";
         try
         {
             await SendSupport.SendSoundAsync(() => picture.Transmitter(call).Audio(), what, _output,
                 SendSupport.SavedGain, m => ShowAskStatus(m, problem: false),
-                new Progress<double>(f => AskProgress.Value = f), _asking.Token, SendSupport.SavedLeadIn);
+                new Progress<double>(f => AskProgress.Value = f), _asking.Token, SendSupport.SavedLeadIn, hamDrm: true);
             _askedFor.Add(picture.File.TransportId);
-            ShowAskStatus($"Asked for {picture.File.Missing.Count} missing pieces of {picture.File.Name ?? "the picture"}. " +
+            ShowAskStatus($"Asked for {picture.Asking.Count} missing pieces of {picture.File.Name ?? "the picture"}. " +
                           "If the sender answers, the picture completes here and is saved.", problem: false);
         }
         catch (OperationCanceledException)

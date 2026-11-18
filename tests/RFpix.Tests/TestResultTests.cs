@@ -46,7 +46,7 @@ public class TestResultTests
     [Fact]
     public void A_test_cut_short_reports_how_many_pieces_arrived()
     {
-        var test = TestTransmissions.All.Single(t => t.Number == 3);
+        var test = TestTransmissions.All.Single(t => t.Number == 2);
         var tx = new HamDrmTransmitter(test.FileName, test.Picture(), test.Settings, "KD9DD");
         var report = Report(tx, keepSeconds: 20);   // the signal stops 20 s in
 
@@ -69,27 +69,54 @@ public class TestResultTests
         Assert.Contains("sent with other settings: Mode B  ·  2.5 kHz  ·  16-QAM", result.Text);
     }
 
+    /// <summary>Plays a test from W9BED with stretches of 4 seconds lost at these times (in seconds),
+    /// and returns its result, the transmission's parts joined back together by the test log.</summary>
+    private static TestResult Faded(int number, params double[] at)
+    {
+        var test = TestTransmissions.All.Single(t => t.Number == number);
+        var audio = Pad(test.Transmitter("W9BED").Audio());
+        foreach (double start in at) Array.Clear(audio, (int)(start * 48000), 4 * 48000);
+        string path = Path.Combine(Path.GetTempPath(), $"rfpix-faded-{Guid.NewGuid():N}.csv");
+        var log = new TestLog(path);
+        TestResult? last = null;
+        foreach (var r in Reports(audio)) if (TestResults.Recognise(r) is { } t) last = log.Add(t);
+        File.Delete(path);
+        Assert.NotNull(last);
+        return last!;
+    }
+
     [Fact]
     public void A_Reed_Solomon_test_with_pieces_missing_is_rebuilt_and_says_so()
     {
-        var test = TestTransmissions.All.Single(t => t.Number == 9);   // 4-QAM with RS3
-        var audio = Pad(test.Transmitter("W9BED").Audio());
-        // A weak path: four stretches of 4 seconds lost, about 15% of the transmission.
-        foreach (double at in new[] { 15.0, 35, 55, 75 })
-            Array.Clear(audio, (int)(at * 48000), 4 * 48000);
-        var reports = Reports(audio);
+        // A weak path: two stretches of 4 seconds lost (each dropout splits the transmission; the log
+        // joins the parts back together).
+        var result = Faded(10, 15, 35);   // RS2
+        Assert.True(result.Perfect);
+        Assert.StartsWith("perfect: Reed-Solomon rebuilt ", result.Outcome);
+        Assert.Equal(true, result.SettingsMatch);
+        Assert.EndsWith("RS2", result.SettingsReceived);
+    }
 
-        // Each dropout splits the transmission; the log joins the parts back together.
-        string path = Path.Combine(Path.GetTempPath(), $"rfpix-rs-{Guid.NewGuid():N}.csv");
-        var log = new TestLog(path);
-        TestResult? last = null;
-        foreach (var r in reports) if (TestResults.Recognise(r) is { } t) last = log.Add(t);
-        File.Delete(path);
-        Assert.NotNull(last);
-        Assert.True(last!.Perfect);
-        Assert.StartsWith("perfect: Reed-Solomon rebuilt ", last.Outcome);
-        Assert.Equal(true, last.SettingsMatch);
-        Assert.EndsWith("RS3", last.SettingsReceived);
+    [Fact]
+    public void A_fountain_test_with_pieces_missing_is_rebuilt_and_says_so()
+    {
+        var result = Faded(12, 15, 35);   // Fountain 50%, the same fades as the RS2 test above
+        Assert.True(result.Perfect);
+        Assert.StartsWith("perfect: the fountain code rebuilt ", result.Outcome);
+        Assert.Equal(true, result.SettingsMatch);
+        Assert.EndsWith("Fountain 50%", result.SettingsReceived);
+    }
+
+    [Fact]
+    public void A_fountain_test_cut_short_says_how_many_pieces_would_have_done()
+    {
+        var test = TestTransmissions.All.Single(t => t.Number == 12);
+        var report = Report(test.Transmitter("KD9DD"), keepSeconds: 20);
+        var result = TestResults.Recognise(report)!;
+        Assert.False(result.Perfect);
+        int k = result.FountainPieces!.Value;
+        Assert.Equal($"{result.OwnPieces} of {report.PiecesExpected} pieces (any {k} would have done)", result.Outcome);
+        Assert.Equal(true, result.SettingsMatch);
     }
 
     [Fact]

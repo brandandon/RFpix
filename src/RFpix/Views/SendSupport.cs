@@ -46,21 +46,23 @@ internal static class SendSupport
     public static Task SendAsync(Func<HamDrmTransmitter> transmitter, string what, IAudioOutput output,
                                  Func<double> level, Action<string> status, IProgress<double> progress,
                                  CancellationToken cancel) =>
-        SendSoundAsync(() => transmitter().Audio(), what, output, level, status, progress, cancel);
+        SendSoundAsync(() => transmitter().Audio(), what, output, level, status, progress, cancel, hamDrm: true);
 
     /// <summary>Makes any sound (48 kHz, -1 to 1: a picture with its waterfall text, Morse code, ...)
     /// and sends it: key, play, un-key (check <see cref="Problem"/> first).</summary>
     /// <param name="leadIn">Silence after keying before the sound (null: the usual 0.3 s).</param>
+    /// <param name="hamDrm">True for a HamDRM sound: on FM it gets the treble boost, if that's ticked
+    /// (see <see cref="RFpix.Dsp.PreEmphasis"/>).</param>
     public static async Task SendSoundAsync(Func<float[]> makeSound, string what, IAudioOutput output,
                                             Func<double> level, Action<string> status, IProgress<double> progress,
-                                            CancellationToken cancel, TimeSpan? leadIn = null)
+                                            CancellationToken cancel, TimeSpan? leadIn = null, bool hamDrm = false)
     {
         // One transmission at a time, whichever page starts it (a picture, a BSR request, a fix).
         if (Interlocked.Exchange(ref _sending, 1) == 1)
             throw new AudioException("RFpix is already transmitting. Wait for it to finish, or stop it first.");
         try
         {
-            await SendSoundCoreAsync(makeSound, what, output, level, status, progress, cancel, leadIn);
+            await SendSoundCoreAsync(makeSound, what, output, level, status, progress, cancel, leadIn, hamDrm);
         }
         finally
         {
@@ -75,17 +77,28 @@ internal static class SendSupport
 
     private static async Task SendSoundCoreAsync(Func<float[]> makeSound, string what, IAudioOutput output,
                                                  Func<double> level, Action<string> status, IProgress<double> progress,
-                                                 CancellationToken cancel, TimeSpan? leadIn)
+                                                 CancellationToken cancel, TimeSpan? leadIn, bool hamDrm)
     {
         var device = ChosenOutput(output) ?? throw new AudioException("The sound output chosen in Settings (Radio tab) isn't connected.");
         var radioSettings = AppSettings.Current.Radio;
         bool hasControl = RadioChoices.Find(radioSettings.Choice).Connection != "none";
         bool keyed = radioSettings.Keying() != PttMethod.Vox;
 
+        // Connect if keying or data mode needs the radio and Settings hasn't connected (first, so the
+        // radio's mode can be read for the FM treble boost).
+        var radio = RadioService.Current;
+        if (radio is null && hasControl)
+        {
+            status("Connecting to the radio…");
+            radio = await RadioService.ConnectIfNeededAsync(radioSettings);   // (if Settings connected meanwhile, that one)
+        }
+        bool boost = hamDrm && radioSettings.FmPreEmphasis && radio is not null && await Task.Run(() => OnFm(radio), cancel);
+
         status("Preparing the transmission…");
         var (sound, seconds) = await Task.Run(() =>
         {
             var signal = makeSound();
+            if (boost) signal = RFpix.Dsp.PreEmphasis.Apply(signal, Transmission.SampleRate);
             var prepared = Transmission.Prepare(signal, 1, keyed, leadIn);
             // Sound-card calibration: re-time the sound to the output's true clock.
             double ppm = AppSettings.Correction(AppSettings.Current.OutputClock, device.Id);
@@ -93,13 +106,6 @@ internal static class SendSupport
             return (prepared, (double)signal.Length / Transmission.SampleRate);
         }, cancel);
 
-        // Connect if keying or data mode needs the radio and Settings hasn't connected.
-        var radio = RadioService.Current;
-        if (radio is null && hasControl)
-        {
-            status("Connecting to the radio…");
-            radio = await RadioService.ConnectIfNeededAsync(radioSettings);   // (if Settings connected meanwhile, that one)
-        }
 
         // The IC-9700's data-mode switch, if it's on, is shown with the progress ("IC-9700 in FM-D").
         string mode = "";
@@ -109,7 +115,8 @@ internal static class SendSupport
         {
             status($"Transmitting {what} ({seconds:0} s)…");
             AppLog.Info("Send", $"Transmitting {what} ({seconds:0} s) through {device.Name}, " +
-                                $"{(keyed ? "keyed by RFpix" : "by VOX")}, level {LevelLabel(AppSettings.Current.TransmitLevelDb)}.");
+                                $"{(keyed ? "keyed by RFpix" : "by VOX")}, level {LevelLabel(AppSettings.Current.TransmitLevelDb)}" +
+                                (boost ? ", with FM's treble boost (the radio is on FM)." : "."));
             var shown = new Progress<double>(f =>
             {
                 progress.Report(f);
@@ -162,6 +169,23 @@ internal static class SendSupport
     /// <summary>Raised (on the screen's thread) when a picture is added to the Received or Sent folder.</summary>
     public static event Action? GalleryChanged;
     public static void RaiseGalleryChanged() => GalleryChanged?.Invoke();
+
+    /// <summary>True if the connected radio is on FM (or DATA-FM): it's asked. If it doesn't answer, false.</summary>
+    private static bool OnFm(RadioConnection radio)
+    {
+        try
+        {
+            ulong mode = radio.ReadMode();
+            // FM and DATA-FM, and their narrow forms (Hamlib's FMN and PKTFMN).
+            const ulong fmNarrow = 1ul << 21, dataFmNarrow = 1ul << 34;
+            return mode is HamlibNative.ModeFm or HamlibNative.ModePktFm or fmNarrow or dataFmNarrow;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            AppLog.Info("Send", $"Couldn't read the radio's mode for the FM treble boost ({ex.Message}): sent without it.");
+            return false;
+        }
+    }
 
     /// <summary>Notes a picture about to go out: in the sent log (so missing pieces can be sent
     /// again if asked), and in the Sent folder for the Gallery. Returns a problem, or null.</summary>

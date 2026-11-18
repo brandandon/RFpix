@@ -6,9 +6,14 @@
 // checks the request makes sense for that picture (the right piece size, pieces it has).
 // Then it can send just those pieces again: a "fix".
 //
+// A picture sent with RFpix's repair code (the fountain code) is answered differently: with new repair
+// pieces, numbered on from the last ones sent. Any new repair piece fills a gap in any station's copy,
+// whichever pieces it missed, so one short answer covers every station that asked.
+//
 // The log lives only while RFpix runs, as in QSSTV.
 
 using RFpix.HamDrm;
+using RFpix.HamDrm.Coding;
 
 namespace RFpix.Send;
 
@@ -20,7 +25,10 @@ public sealed record SentFile(string Name, string ShownName, byte[] Data, Transm
                               int TransportId, int PieceSize, int Pieces, DateTime Sent, double LeadInSeconds = 0.3);
 
 /// <summary>What to send in answer to a request: which picture, and which of its pieces.</summary>
-public sealed record FixPlan(SentFile File, IReadOnlyList<int> Pieces, BsrRequest Request)
+/// <param name="Fresh">For a picture with RFpix's repair code: true when the pieces are new repair pieces
+/// (added to the end of <see cref="SentFile.Data"/>), which fill every asking station's gaps at once.</param>
+/// <param name="Stations">How many requests this answers (a repair-coded picture's requests combine).</param>
+public sealed record FixPlan(SentFile File, IReadOnlyList<int> Pieces, BsrRequest Request, bool Fresh = false, int Stations = 1)
 {
     /// <summary>The fix's sound: only those pieces, with the picture's own settings.</summary>
     public HamDrmTransmitter Transmitter(string callsign) =>
@@ -65,7 +73,41 @@ public sealed class SentLog
         if (request.PieceSize > 0 && request.PieceSize != file.PieceSize) return null;
         var pieces = request.Missing.Where(p => p >= 0 && p < file.Pieces).Distinct().Order().ToList();
         if (pieces.Count == 0 || pieces.Count < request.Missing.Count) return null;
+        // A picture with RFpix's repair code: the request lists only as many pieces as the station still
+        // needs. It's answered with that many new repair pieces (and a few spare), numbered on from the
+        // last ones sent, rather than the pieces it lists.
+        if (FountainFile.SourcePiecesOf(file.Name) is int k)
+            return Fresh(file, k, FountainFile.FreshPiecesFor(pieces.Count), request, stations: 1);
         return new FixPlan(file, pieces, request);
+    }
+
+    /// <summary>Two answers for the same repair-coded picture made into one: enough new repair pieces for the
+    /// station that needs the most covers the others too. Null if they can't be combined (another picture,
+    /// or not new repair pieces).</summary>
+    public static FixPlan? Combine(FixPlan a, FixPlan b)
+    {
+        if (!a.Fresh || !b.Fresh || a.File.TransportId != b.File.TransportId || a.File.Name != b.File.Name) return null;
+        var bigger = a.Pieces.Count >= b.Pieces.Count ? a : b;
+        return bigger with { Stations = a.Stations + b.Stations };
+    }
+
+    private static FixPlan Fresh(SentFile file, int k, int count, BsrRequest request, int stations)
+    {
+        var data = FountainFile.Extend(file.Data, k, file.PieceSize, count);
+        var grown = file with { Data = data, Pieces = file.Pieces + count };
+        return new FixPlan(grown, Enumerable.Range(file.Pieces, count).ToList(), request, Fresh: true, stations);
+    }
+
+    /// <summary>Call as an answer of new repair pieces goes out: the picture in the log now includes them,
+    /// so the next answer's repair pieces are numbered on from these.</summary>
+    public void Sending(FixPlan plan)
+    {
+        if (!plan.Fresh) return;
+        lock (_lock)
+        {
+            int i = _files.FindIndex(f => f.TransportId == plan.File.TransportId && f.Name == plan.File.Name);
+            if (i >= 0 && _files[i].Pieces < plan.File.Pieces) _files[i] = plan.File;
+        }
     }
 
     public void Clear()

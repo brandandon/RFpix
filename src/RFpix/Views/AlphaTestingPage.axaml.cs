@@ -121,6 +121,8 @@ public partial class AlphaTestingPage : UserControl, IDisposable
         Progress.IsVisible = true;
         try
         {
+            // Noted as sent, so a request for its missing pieces (BSR) can be answered from here.
+            test.RecordSent(SentLog.Current);
             await SendSupport.SendAsync(() => test.Transmitter(call), $"test {test.Number}", _output,
                 () => Volatile.Read(ref _gain), m => ShowStatus(m, problem: false),
                 new Progress<double>(f => Progress.Value = f), cancel);

@@ -17,10 +17,26 @@ namespace RFpix.Send;
 /// <param name="TimeoutSeconds">The repeater's time-out: the longest it stays on the air for one
 /// transmission (0 for no repeater). Nothing longer is sent.</param>
 /// <param name="LeadInSeconds">Silence after keying, before the data, while the repeater opens.</param>
+/// <param name="RepairPercent">RFpix's repair code (the fountain code): how much extra it adds, in
+/// percent of the picture, or 0 for none. Used in place of Reed-Solomon (which is then 0).</param>
 public sealed record SendProfile(
     string Name, HamDrmMode Mode, HamDrmBandwidth Bandwidth, int Qam, HamDrmInterleave Interleave,
-    HamDrmProtection Protection, int ReedSolomon, int TargetSeconds, int TimeoutSeconds = 0, double LeadInSeconds = 0.3)
+    HamDrmProtection Protection, int ReedSolomon, int TargetSeconds, int TimeoutSeconds = 0, double LeadInSeconds = 0.3,
+    int RepairPercent = 0)
 {
+    /// <summary>The fountain code's sizes on the Send page, in percent extra. From the test bench
+    /// (Nov 14, 2026): 20% is the quickest (quicker than no repair data at all), 50% is as good as or
+    /// better than RS2 and still quicker than no repair data, 75% beats RS2 on every fading path.</summary>
+    public static IReadOnlyList<int> FountainChoices { get; } = new[] { 20, 50, 75 };
+
+    /// <summary>Which of <see cref="FountainChoices"/> is closest to <paramref name="percent"/> (its place in the list).</summary>
+    public static int NearestFountainChoice(int percent) =>
+        Enumerable.Range(0, FountainChoices.Count).MinBy(i => Math.Abs(FountainChoices[i] - percent));
+
+    /// <summary>For the screen and the log: "RS2", "fountain 20%" or "no repair data".</summary>
+    [JsonIgnore]
+    public string RepairText => RepairPercent > 0 ? $"fountain {RepairPercent}%" : ReedSolomon > 0 ? $"RS{ReedSolomon}" : "no repair data";
+
     /// <summary>The HamDRM part, for the transmitter.</summary>
     [JsonIgnore]
     public TransmitSettings Settings => new(Mode, Bandwidth, Qam, Interleave, Protection);

@@ -1,7 +1,7 @@
 # Testing RFpix on the air
 
 Thanks for helping test RFpix (now in beta), a HamDRM (digital SSTV) program for Windows, the Mac and Linux by KD9DD.
-RFpix has ten built-in **test transmissions**: fixed pictures sent with fixed settings,
+RFpix has nine built-in **test transmissions**: fixed pictures sent with fixed settings,
 and each picture says what its settings are. When you receive one, RFpix checks it against
 its own copy of the original and writes down how it came through.
 
@@ -151,14 +151,15 @@ Please try receiving first, then **Test PTT**, then sending, and report anything
 | --- | --- | --- |
 | 1 | Mode B · 2.5 kHz · 4-QAM · long · high | the toughest: try this first |
 | 2 | Mode B · 2.5 kHz · 16-QAM · long · high | the usual net setting |
-| 3 | Mode B · 2.5 kHz · 16-QAM · long · low | less error correction, a little faster |
 | 4 | Mode B · 2.5 kHz · 64-QAM · long · high | fastest, needs a very clean signal |
 | 5 | Mode A · 2.5 kHz · 16-QAM · long · high | mode A: for steady paths |
 | 6 | Mode E · 2.5 kHz · 16-QAM · long · high | mode E: for fast-changing paths |
-| 7 | Mode B · 2.2 kHz · 16-QAM · long · high | the narrow 2.2 kHz width |
-| 8 | Mode B · 2.5 kHz · 16-QAM · short · high | short interleave: less protection against fading |
-| 9 | Mode B · 2.5 kHz · 4-QAM · long · high · RS3 | test 1 with Reed-Solomon, for weak paths: rebuilds up to a third missing |
 | 10 | Mode B · 2.5 kHz · 16-QAM · long · high · RS2 | test 2 with Reed-Solomon: rebuilds up to a quarter missing |
+| 11 | Mode B · 2.5 kHz · 16-QAM · long · high · Fountain 20% | test 2 with the fountain code: the quickest (RFpix only) |
+| 12 | Mode B · 2.5 kHz · 16-QAM · long · high · Fountain 50% | everyday fountain code: compare with test 10 (RFpix only) |
+| 13 | Mode B · 2.5 kHz · 16-QAM · long · high · Fountain 75% | the fountain code for bad conditions (RFpix only) |
+
+Tests 3, 7, 8 and 9 have been retired; their numbers aren't used again.
 
 ## Sending your own pictures (new in v0.3.3)
 

@@ -29,8 +29,13 @@ public sealed record ReceivedFile(string Name, byte[] Data, int TransportId)
     /// <summary>Set if something went wrong with the file, in words for the operator.</summary>
     public string? Problem { get; init; }
 
-    /// <summary>How many pieces of the transfer never arrived and were rebuilt by Reed-Solomon.</summary>
+    /// <summary>How many pieces of the transfer never arrived and were rebuilt by Reed-Solomon (or, for
+    /// a file with RFpix's repair code, how many of the file's own pieces were rebuilt).</summary>
     public int RepairedPieces { get; init; }
+
+    /// <summary>If the file came with RFpix's repair code (a name like "tower.fc33"): how many
+    /// pieces the file itself had. Null otherwise.</summary>
+    public int? RepairCodePieces { get; init; }
 
     /// <summary>The settings it was sent with, if they were read (set by HamDrmReceiver).</summary>
     public TransmitSettings? Settings { get; init; }
@@ -202,9 +207,18 @@ public sealed class MotReceiver
             // the name, so this is rare): start that transfer afresh rather than mix them.
             var header = new Transfer();
             ReadHeader(header, data);
-            if (t.Name is not null && header.Name is not null && (header.Name != t.Name || header.BodySize != t.BodySize))
-                _transfers[transportId] = t = new Transfer();
-            ReadHeader(t, data);
+            if (header.Name is not null && header.Name == t.Name && FountainFile.SourcePiecesOf(header.Name) is not null)
+            {
+                // The same repair-coded file, sent on with new repair pieces (an answer to a request
+                // for missing pieces): it's grown. The pieces in hand stay, and its size is the larger.
+                t.BodySize = Math.Max(t.BodySize, header.BodySize);
+            }
+            else
+            {
+                if (t.Name is not null && header.Name is not null && (header.Name != t.Name || header.BodySize != t.BodySize))
+                    _transfers[transportId] = t = new Transfer();
+                ReadHeader(t, data);
+            }
         }
         else
         {
@@ -264,6 +278,7 @@ public sealed class MotReceiver
     private static ReceivedFile? TryFinish(int transportId, Transfer t)
     {
         if (t.Name is null || t.BodySize < 0) return null;
+        if (FountainFile.SourcePiecesOf(t.Name) is int k) return TryRebuild(transportId, t, k);
         int? rsLevel = RsFile.LevelOf(t.Name);
 
         int total = t.LastSegment is int last ? last + 1
@@ -284,6 +299,55 @@ public sealed class MotReceiver
         }
 
         return null;
+    }
+
+    /// <summary>A file with RFpix's repair code: rebuilt as soon as enough pieces are in (any
+    /// <paramref name="k"/> of them, now and then one more), without waiting for the rest.</summary>
+    /// <summary>A repair-coded file's piece size: every piece is the same size, the last one too.</summary>
+    private static int RepairCodedPieceSize(Transfer t) =>
+        t.SegmentSize > 0 ? t.SegmentSize : t.Segments.Values.FirstOrDefault()?.Length ?? 0;
+
+    /// <summary>How many pieces a file has. A repair-coded file goes by its size (it can grow, as new
+    /// repair pieces are sent); others by their last piece, or their size.</summary>
+    private static int TotalPieces(Transfer t)
+    {
+        if (t.Name is { } name && FountainFile.SourcePiecesOf(name) is not null)
+        {
+            int size = RepairCodedPieceSize(t);
+            return size > 0 && t.BodySize > 0 ? t.BodySize / size : 0;
+        }
+        return t.LastSegment is int last ? last + 1
+             : t.BodySize > 0 && t.SegmentSize > 0 ? (t.BodySize + t.SegmentSize - 1) / t.SegmentSize
+             : 0;
+    }
+
+    private static ReceivedFile? TryRebuild(int transportId, Transfer t, int k)
+    {
+        int size = RepairCodedPieceSize(t);
+        if (size < FountainFile.HeaderBytes || t.BodySize % size != 0) return null;
+        int total = t.BodySize / size;
+        if (total < k || total > MaxSegments) return null;
+        var arrived = new bool[total];
+        int have = 0;
+        foreach (var (n, piece) in t.Segments)
+            if (n < total && piece.Length == size) { arrived[n] = true; have++; }
+        if (have < k) return null;
+
+        var data = new byte[t.BodySize];
+        foreach (var (n, piece) in t.Segments)
+            if (n < total && arrived[n]) piece.CopyTo(data, n * size);
+        if (FountainFile.Unwrap(data, k, size, n => arrived[n]) is not var (file, extension))
+        {
+            // Rarely, the pieces in aren't quite enough: one more does it. If they're all in, it's damaged.
+            if (have < total) return null;
+            t.Done = true;
+            return new ReceivedFile(t.Name!, data, transportId)
+                   { RepairCodePieces = k, Problem = "The repair code couldn't rebuild this file." };
+        }
+        t.Done = true;
+        string name = CleanName(Path.GetFileNameWithoutExtension(t.Name!) + "." + extension);
+        return new ReceivedFile(name, file, transportId)
+               { RepairCodePieces = k, RepairedPieces = Enumerable.Range(0, k).Count(n => !arrived[n]) };
     }
 
     /// <summary>Call when the transmission has ended (after <see cref="FinishWithRepairs"/>).
@@ -362,20 +426,18 @@ public sealed class MotReceiver
 
     private static UnfinishedFile? UnfinishedOf(int id, Transfer t)
     {
-        int total = t.LastSegment is int last ? last + 1
-                  : t.BodySize > 0 && t.SegmentSize > 0 ? (t.BodySize + t.SegmentSize - 1) / t.SegmentSize
-                  : 0;
+        int total = TotalPieces(t);
         if (total == 0 || total > MaxSegments) return null;
         var missing = Enumerable.Range(0, total).Where(i => !t.Segments.ContainsKey(i)).ToList();
-        return missing.Count == 0 ? null : new UnfinishedFile(id, t.Name, t.SegmentSize, total, missing);
+        bool repairCoded = t.Name is { } name && FountainFile.SourcePiecesOf(name) is not null;
+        return missing.Count == 0 ? null
+             : new UnfinishedFile(id, t.Name, repairCoded ? RepairCodedPieceSize(t) : t.SegmentSize, total, missing);
     }
 
     private static TransferProgress ProgressOf(int id, Transfer t)
     {
-        int expected = t.LastSegment is int last ? last + 1
-                     : t.BodySize > 0 && t.SegmentSize > 0 ? (t.BodySize + t.SegmentSize - 1) / t.SegmentSize
-                     : 0;
-        int received = t.Done ? expected : t.Segments.Count;
+        int expected = TotalPieces(t);
+        int received = t.Done ? expected : t.Segments.Keys.Count(n => expected == 0 || n < expected);
         return new TransferProgress(id, t.Name, Math.Max(0, t.BodySize), received, expected);
     }
 

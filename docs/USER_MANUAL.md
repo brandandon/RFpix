@@ -1,8 +1,8 @@
 # RFpix User Manual
 
-Version 0.6.3 beta · Nov 8, 2026 · KD9DD
+Version 0.7.0 beta · Nov 18, 2026 · KD9DD
 
-This manual covers RFpix version 0.6.3 beta for Windows 10 and 11, the Mac (macOS 14 or newer) and Linux (64-bit PCs and Raspberry Pi). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
+This manual covers RFpix version 0.7.0 beta for Windows 10 and 11, the Mac (macOS 14 or newer) and Linux (64-bit PCs and Raspberry Pi). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
 
 The manual has three parts:
 
@@ -50,14 +50,14 @@ RFpix is free to download from its [releases page on GitHub](https://github.com/
 
 | File | What it is | Choose it if |
 | --- | --- | --- |
-| **RFpix-Setup-0.6.3-beta-windows.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
-| **RFpix-0.6.3-beta-windows-portable.exe** | The program in one file, nothing to install | You want to run it from a folder or a USB stick |
+| **RFpix-Setup-0.7.0-beta-windows.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
+| **RFpix-0.7.0-beta-windows-portable.exe** | The program in one file, nothing to install | You want to run it from a folder or a USB stick |
 
 Every download's name says which system it's for (*windows*, *mac* or *linux*) and its version. (Before 0.6.2 the Windows files were *RFpix-Setup-….exe* and *RFpix.exe*.)
 
 #### Installing with the installer
 
-1. Download **RFpix-Setup-0.6.3-beta-windows.exe** and open it.
+1. Download **RFpix-Setup-0.7.0-beta-windows.exe** and open it.
 2. If Windows says *"Windows protected your PC"*, click **More info**, then **Run anyway**. Windows says this about new programs that aren't yet signed; it doesn't mean anything is wrong.
 3. Accept the licence, and choose where to put RFpix. The suggested folder needs no administrator password.
 4. Tick **Put a shortcut on the desktop** if you want one.
@@ -69,7 +69,7 @@ Every download's name says which system it's for (*windows*, *mac* or *linux*) a
 
 #### Running RFpix without installing
 
-Put **RFpix-0.6.3-beta-windows-portable.exe** in any folder and double-click it (you can rename it, to *RFpix.exe* say). The first time each new version runs, it takes a few seconds longer while it unpacks its parts into a hidden folder. The *"Windows protected your PC"* message may appear here too; click **More info**, then **Run anyway**.
+Put **RFpix-0.7.0-beta-windows-portable.exe** in any folder and double-click it (you can rename it, to *RFpix.exe* say). The first time each new version runs, it takes a few seconds longer while it unpacks its parts into a hidden folder. The *"Windows protected your PC"* message may appear here too; click **More info**, then **Run anyway**.
 
 #### Updating
 
@@ -83,8 +83,8 @@ The Mac version is new in 0.5.2 beta, and hasn't yet been tried with a radio. Ea
 
 | File | For |
 | --- | --- |
-| **RFpix-0.6.0-beta-mac-apple-silicon.pkg** | Apple Silicon Macs (M1 and newer) |
-| **RFpix-0.6.0-beta-mac-intel.pkg** | Intel Macs |
+| **RFpix-0.7.0-beta-mac-apple-silicon.pkg** | Apple Silicon Macs (M1 and newer) |
+| **RFpix-0.7.0-beta-mac-intel.pkg** | Intel Macs |
 
 1. Download the installer for your Mac and open it.
 2. macOS says the installer was *"Not Opened"*, because RFpix isn't yet signed by Apple. Click **Done**. This doesn't mean anything is wrong.
@@ -110,10 +110,10 @@ The Linux version is new in 0.6.0 beta, and hasn't yet been tried with a radio. 
 
 | File | What it is | For |
 | --- | --- | --- |
-| **rfpix_0.6.3-beta_linux_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
-| **rfpix_0.6.3-beta_linux_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
-| **RFpix-0.6.3-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
-| **RFpix-0.6.3-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
+| **rfpix_0.7.0-beta_linux_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
+| **rfpix_0.7.0-beta_linux_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
+| **RFpix-0.7.0-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
+| **RFpix-0.7.0-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
 
 **With the .deb:** download it and open it (double-click it, or right-click it and choose to open it with the software installer), then click **Install**. Or, in a terminal, in the folder where it was downloaded: `sudo apt install ./rfpix_*_linux_amd64.deb` (`arm64` on a Raspberry Pi). RFpix then appears in the menu (under Internet, or Ham Radio), and `rfpix` starts it from a terminal.
 
@@ -276,6 +276,12 @@ A digital picture arrives in pieces. When some are lost to noise or fading, a **
 
 When someone asks *you* for pieces of one of your pictures, a bar appears at the top of the TX/RX page: click **Send the pieces**, or **Not now**.
 
+**Pictures sent with Fountain repair data** work a little differently, and better for a net:
+
+- The Missing pieces list says how many **more** pieces the picture needs ("needs 8 more pieces"), and the request asks for just that many. Any pieces will do.
+- The sender answers with **new repair pieces**. Each one fills a gap in anyone's copy, whichever pieces they missed.
+- If several stations ask while the bar is showing, their requests combine into **one** answer, big enough for the station that needs the most. For example, three stations each missing about 20 different pieces are all completed by about 10 new pieces, instead of sending all 58 missed pieces again.
+
 #### The picture in its own window
 
 **Double-click the picture** on the Receive tab to open it in RFpix's own picture viewer, a window you can make as big as you like (on a second monitor, say, during a net).
@@ -339,7 +345,7 @@ These say how the picture is sent. Every station receives any of them automatica
 | **QAM** | 4, 16, 64 | 64 is fastest but needs a strong, clean signal; 4 is slowest and toughest. |
 | **Interleave** | Long, Short | Long spreads the data over more time, riding out fades better. |
 | **Protection** | High, Low | High adds more error correction, at lower speed. |
-| **Reed-Solomon** | None, RS1 to RS4 | Extra repair data across the whole picture, for weak paths: RS1 rebuilds about an eighth missing, RS2 a quarter, RS3 over a third, RS4 half. It costs time. |
+| **Repair data** | None, RS1 to RS4, Fountain 20%, 50%, 75% | Extra repair data across the whole picture, for weak paths. Reed-Solomon: RS1 rebuilds about an eighth missing, RS2 a quarter, RS3 over a third, RS4 half; it costs time. Fountain: RFpix's own repair code, which rebuilds missing pieces wherever the gaps fall and sends no repeats, so it's quicker. 20% is the quickest, 50% is for everyday use (as good as RS2 or better), 75% is for bad conditions. Only RFpix stations can receive Fountain pictures. |
 | **Repeater time-out** | None, 1:00 to 10:00 | The longest your repeater stays on the air for one transmission (often 3:00). RFpix won't send anything longer. None for simplex or HF. |
 | **Lead-in** | 0.3 to 1.5 s | Quiet after keying, before the picture starts, while a repeater opens. Raise it if the start of your pictures gets lost. |
 
@@ -590,7 +596,7 @@ Other logging programs that accept contacts from WSJT-X the same way (ADIF over 
 
 ### 11. The Beta Testing page
 
-The **Beta Testing** page sends ten fixed test transmissions. Each sends its own picture with fixed settings, and the picture says what they are, so whoever receives it knows exactly what was sent and can report which tests came through. They're the quickest way to find which settings work on a path or a repeater.
+The **Beta Testing** page sends nine fixed test transmissions. Each sends its own picture with fixed settings, and the picture says what they are, so whoever receives it knows exactly what was sent and can report which tests came through. They're the quickest way to find which settings work on a path or a repeater.
 
 #### Sending a test
 
@@ -602,14 +608,15 @@ The **Beta Testing** page sends ten fixed test transmissions. Each sends its own
 | --- | --- | --- |
 | 1 | Mode B, 2.5 kHz, 4-QAM, long, high | The toughest: try this first |
 | 2 | Mode B, 2.5 kHz, 16-QAM, long, high | The usual net setting |
-| 3 | Mode B, 2.5 kHz, 16-QAM, long, low | Less error correction, a little faster |
 | 4 | Mode B, 2.5 kHz, 64-QAM, long, high | Fastest; needs a very clean signal |
 | 5 | Mode A, 2.5 kHz, 16-QAM, long, high | Mode A, for steady paths |
 | 6 | Mode E, 2.5 kHz, 16-QAM, long, high | Mode E, for fast-changing paths |
-| 7 | Mode B, 2.2 kHz, 16-QAM, long, high | The narrower 2.2 kHz width |
-| 8 | Mode B, 2.5 kHz, 16-QAM, short, high | Short interleave: less protection against fading |
-| 9 | Mode B, 2.5 kHz, 4-QAM, long, high, RS3 | Test 1 with Reed-Solomon: rebuilds up to a third missing |
 | 10 | Mode B, 2.5 kHz, 16-QAM, long, high, RS2 | Test 2 with Reed-Solomon: rebuilds up to a quarter missing |
+| 11 | Mode B, 2.5 kHz, 16-QAM, long, high, Fountain 20% | Test 2 with the fountain code: the quickest |
+| 12 | Mode B, 2.5 kHz, 16-QAM, long, high, Fountain 50% | The everyday fountain code: compare it with test 10 |
+| 13 | Mode B, 2.5 kHz, 16-QAM, long, high, Fountain 75% | The fountain code for bad conditions |
+
+Tests 11 to 13 can only be received by RFpix. Tests 3, 7, 8 and 9 have been retired, and their numbers aren't used again.
 
 #### Receiving a test
 
@@ -633,6 +640,7 @@ The **Settings** page has four tabs: **Radio**, **Misc**, **Logging** and **FTP 
 | **Address** | Only for a radio shared through another program: where to reach it. Usually localhost:4532 for rigctld, localhost:12345 for flrig, localhost:7809 for Ham Radio Deluxe. |
 | **Transmit keying (PTT)** | How RFpix keys the transmitter: **CAT command** (a command over the cable), **RTS line** or **DTR line** (a line on the COM port), or **VOX** (the radio keys itself when it hears RFpix's sound; RFpix sends no key command). RTS and DTR need a COM port; with no radio control only VOX is possible. |
 | **Switch to data mode while transmitting** | IC-9700, FT-991A, or a radio shared through Ham Radio Deluxe: RFpix switches the radio to its data mode just before keying (FM to DATA-FM or FM-D, USB to DATA-USB or USB-D; on the FT-991A, LSB to DATA-LSB too) and back after. A radio already in data mode, or in a mode without one (AM, CW), is left alone. A radio already in data mode is left alone. This box counts at once, connected or not. |
+| **On FM, add the treble boost (pre-emphasis) to RFpix's digital pictures** | On to start with. In data mode, radios send RFpix's sound without FM's usual treble boost, but receiving radios in plain FM still cut the treble, so the top of the picture arrived about 12 dB weak. With this on, RFpix adds the boost itself whenever the connected radio is on FM (or DATA-FM). It never applies on SSB, or when RFpix isn't connected to the radio (VOX only). Untick it if the stations you send to receive in data mode. |
 | **Connect / Disconnect** | Opens the connection to the radio. Once connected, the radio's frequency and mode are shown and updated every second. The radio settings above can't be changed while connected. |
 | **Test PTT (2 seconds)** | Keys the transmitter for 2 seconds with no audio, then always releases it. Use a dummy load, or low power on a clear frequency. |
 | **Sound devices** | **Receive** is the radio's sound input (what RFpix listens to); **Send** is the radio's sound output (what RFpix plays into). **Refresh** looks for devices again. A change takes effect at once, even while listening. |
@@ -706,6 +714,7 @@ When something goes wrong and you'd like help, open **Settings > Misc** and clic
 | The **Level** bar is orange | The radio's sound is too loud: move the **Receive level** slider left until the bar is no longer orange while a picture comes in (see [Setting the receive level](#setting-the-receive-level)). |
 | The **Level** bar is yellow while a picture comes in | The radio's sound is too quiet, and pictures may not decode: move the **Receive level** slider right, or turn up the radio's USB audio output level in its menu (see [Setting the receive level](#setting-the-receive-level)). |
 | A signal shows on the waterfall but nothing decodes | Check the radio is on USB (on HF) with a filter at least 2.5 kHz wide, and that the signal's three bright lines sit on the marks. If the **Quality** box is red, the signal is too weak for those settings; wait for the end and use **Ask for them (BSR)**. |
+| Pictures through an FM repeater lose pieces even with a strong signal | Two things to check. **The treble:** if the sending station's radio is in data mode, its sound goes out without FM's treble boost; RFpix 0.7.0 and later adds it (**On FM, add the treble boost** on the Radio tab, on to start with), but other programs don't. **The repeater's tone:** many radios pass the repeater's sub-audible tone (CTCSS) out with the received sound. RFpix 0.7.0 and later finds that tone and removes it by itself, so nothing needs setting; older versions could lose many pieces to it. |
 | Analog pictures come out slanted | Your sound card's clock is off: run **Sound-card calibration** on the Misc tab (section 3, step 6). A slant in only one station's pictures is their sound card. |
 | *Couldn't add a test to the test log. Is the file open in Excel?* | Close Test results.csv in Excel; RFpix can't add to it while it's open. |
 | *No sound has come from the radio yet.* (after clicking Record) | Wait a moment after **Start listening**, then click **Record** again. |

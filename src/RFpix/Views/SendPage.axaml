@@ -145,9 +145,9 @@
                               ToolTip.Tip="High adds more error correction, at lower speed." />
                   </StackPanel>
                   <StackPanel Spacing="3" Margin="0,0,10,8">
-                    <TextBlock FontSize="13" Text="Reed-Solomon" />
-                    <ComboBox x:Name="ReedSolomonBox" Width="100" SelectionChanged="OnSendSettingChanged"
-                              ToolTip.Tip="Repair data across the whole picture, for weak paths: RS1 rebuilds about an eighth missing, RS2 a quarter, RS3 over a third, RS4 half. Costs time." />
+                    <TextBlock FontSize="13" Text="Repair data" />
+                    <ComboBox x:Name="ReedSolomonBox" Width="120" SelectionChanged="OnSendSettingChanged"
+                              ToolTip.Tip="Repair data across the whole picture, for weak paths: RS1 rebuilds about an eighth missing, RS2 a quarter, RS3 over a third, RS4 half. Costs time. Fountain: RFpix's own repair code, rebuilds missing pieces wherever the gaps fall, even one long fade, and sends no repeats; only RFpix stations can read it. Fountain 20% is the quickest (quicker than no repair data), 50% for everyday use (as good as RS2 or better, still quick), 75% for bad conditions (beats RS2 on every fading path)." />
                   </StackPanel>
                   <StackPanel Spacing="3" Margin="0,0,10,8">
                     <TextBlock FontSize="13" Text="Repeater time-out" />

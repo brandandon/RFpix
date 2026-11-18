@@ -30,7 +30,7 @@ public static class LogSummary
             "Send tab: " + (s.SendAnalog
                 ? $"analog SSTV, {RFpix.Analog.SstvModes.Get(s.AnalogMode).Name}"
                 : $"HamDRM, {s.SendSettings?.Settings.Description ?? "the first settings"}" +
-                  (s.SendSettings is { } p ? $", RS{p.ReedSolomon}, lead-in {p.LeadInSeconds:0.0} s" : "")) +
+                  (s.SendSettings is { } p ? $", {p.RepairText}, lead-in {p.LeadInSeconds:0.0} s" : "")) +
                 $", transmit level {s.TransmitLevelDb:0} dB",
             $"Pictures folder: {picturesFolder}",
             $"Website copies: {(s.Upload.SaveCopies ? "on" : "off")}  ·  uploading: {(s.Upload.Upload ? $"on, by {s.Upload.Protocol}" : "off")}",

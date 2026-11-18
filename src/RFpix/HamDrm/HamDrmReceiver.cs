@@ -13,6 +13,7 @@
 
 using System.Numerics;
 using RFpix.Dsp;
+using RFpix.HamDrm.Coding;
 
 namespace RFpix.HamDrm;
 
@@ -226,7 +227,7 @@ public sealed class HamDrmReceiver
                 var (sym, k) = layout.DataCells[i];
                 // A frame whose FAC was misread in heavy noise (claiming the narrow width, say) had
                 // its channel worked out for fewer carriers: the ones it lacks count as missing.
-                // (Before, this stopped the decoding with an error, in deep flutter.)
+                // (Before, this crashed the receiver: found by the test bench, in deep flutter.)
                 if (k >= frame.Channel[sym].Length || k >= frame.Cells[sym].Length) continue;
                 Complex h = frame.Channel[sym][k];
                 double power = h.Real * h.Real + h.Imaginary * h.Imaginary;
@@ -372,7 +373,8 @@ public sealed class HamDrmReceiver
         _endedText = file is { Name: BsrRequest.FileNameOnAir } ? BsrText(file)
             : file is not null ? ReceivedText(file)
             : unfinished is { Name: { } name } ? $"Couldn't finish {name}: {unfinished.SegmentsReceived} of {unfinished.SegmentsExpected} pieces arrived" +
-                  (RsFile.LevelOf(name) is not null ? ", too few for Reed-Solomon to rebuild the rest." : ".")
+                  (RsFile.LevelOf(name) is not null ? ", too few for Reed-Solomon to rebuild the rest."
+                   : FountainFile.SourcePiecesOf(name) is int needed ? $", and the repair code needs {needed}." : ".")
             : TransmissionPacketsGood == 0 ? $"No file came through: none of the {TransmissionPacketsBad} data packets could be read."
             : "No file came through.";
 
@@ -428,6 +430,7 @@ public sealed class HamDrmReceiver
         file.Problem is not null ? $"Received {file.Name}, but: {file.Problem}"
         : $"Received {file.Name}  ·  {file.Data.Length / 1000.0:0.0} kB" +
           (file.ReedSolomonLevel is int rs ? $"  ·  Reed-Solomon RS{rs}" : "") +
+          (file.RepairCodePieces is not null ? "  ·  repair code" : "") +
           (file.RepairedPieces > 0 ? $" rebuilt {file.RepairedPieces} missing pieces" : "");
 
     /// <summary>Call when the audio stops (e.g. a recording has finished playing), so a file
@@ -530,7 +533,8 @@ public sealed class HamDrmReceiver
                     : "Waiting for a file…";
             }
             string name = progress.Name is { } n
-                ? (RsFile.LevelOf(n) is int rsLevel ? $"{n} (Reed-Solomon RS{rsLevel})" : n)
+                ? (RsFile.LevelOf(n) is int rsLevel ? $"{n} (Reed-Solomon RS{rsLevel})"
+                   : FountainFile.SourcePiecesOf(n) is int needed ? $"{n} (repair code: any {needed} pieces will do)" : n)
                 : "a file";
             string size = progress.Size > 0 ? $"  ·  {progress.Size / 1000.0:0.0} kB" : "";
             string pieces = progress.SegmentsExpected > 0
@@ -652,9 +656,18 @@ public sealed class HamDrmReceiver
         {
             if (Problem is not null || Detection.Mode is not { } mode) return null;
             int? rs = null;
-            if (FileProgress?.Name is { } name) rs = RsFile.LevelOf(name) ?? 0;
-            else if (LastFile is { } last && FileProgress?.TransportId == last.TransportId) rs = last.ReedSolomonLevel ?? 0;
-            return new HeardSettings(mode, Fac, rs, Callsign);
+            bool repairCode = false;
+            if (FileProgress?.Name is { } name)
+            {
+                rs = RsFile.LevelOf(name) ?? 0;
+                repairCode = FountainFile.SourcePiecesOf(name) is not null;
+            }
+            else if (LastFile is { } last && FileProgress?.TransportId == last.TransportId)
+            {
+                rs = last.ReedSolomonLevel ?? 0;
+                repairCode = last.RepairCodePieces is not null;
+            }
+            return new HeardSettings(mode, Fac, rs, Callsign, repairCode);
         }
     }
 
@@ -848,7 +861,18 @@ public sealed record IncompleteFile(UnfinishedFile File, TransmitSettings Settin
 {
     /// <summary>The request for its missing pieces, EasyPal style (with its name and mode).</summary>
     public BsrRequest Request() =>
-        new(File.TransportId, File.PieceSize, File.Missing, File.Name, BsrRequest.ModeCodeOf(Settings));
+        new(File.TransportId, File.PieceSize, Asking, File.Name, BsrRequest.ModeCodeOf(Settings));
+
+    /// <summary>For a picture with RFpix's repair code (a name like "tower.fc55"): how many pieces it
+    /// still needs before it can be rebuilt (any will do, at least 1). Null for other pictures.</summary>
+    public int? StillNeeded =>
+        File.Name is { } name && FountainFile.SourcePiecesOf(name) is int k
+            ? Math.Max(1, k - (File.Pieces - File.Missing.Count)) : null;
+
+    /// <summary>The pieces the request lists: all the missing ones; or, for a repair-coded picture, only
+    /// as many as it still needs (the first that many missing). The sender answers those with as many
+    /// new repair pieces, and new repair pieces fill any station's gaps.</summary>
+    public IReadOnlyList<int> Asking => StillNeeded is int n ? File.Missing.Take(n).ToList() : File.Missing;
 
     /// <summary>The request's sound: bsr.bin sent with the same settings the picture came with
     /// (as QSSTV does), from <paramref name="callsign"/>.</summary>
@@ -874,4 +898,4 @@ public sealed record SignalReading(HamDrmMode Mode, double? OffsetHz, double? Cl
 public sealed record HeardBsr(BsrRequest Request, string? Callsign, DateTime Heard);
 
 /// <summary>What's known about the transmission being received (see <see cref="HamDrmReceiver.Heard"/>).</summary>
-public sealed record HeardSettings(HamDrmMode Mode, FacInfo? Fac, int? ReedSolomon, string? Callsign);
+public sealed record HeardSettings(HamDrmMode Mode, FacInfo? Fac, int? ReedSolomon, string? Callsign, bool RepairCode = false);

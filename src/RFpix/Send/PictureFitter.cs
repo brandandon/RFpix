@@ -24,6 +24,7 @@
 
 using System.Text;
 using RFpix.HamDrm;
+using RFpix.HamDrm.Coding;
 using RFpix.Imaging;
 
 namespace RFpix.Send;
@@ -143,6 +144,14 @@ public sealed class PictureFitter
             if (DurationFor(sendName, mid, profile.Settings) <= target) lo = mid;
             else hi = mid - 1;
         }
+        if (profile.RepairPercent > 0)
+        {
+            // The repair code sends whole pieces: the file's (with an 8-byte header), then the repairs.
+            int pieceSize = HamDrmTransmitter.PieceSizeFor(profile.Settings);
+            int k = lo / pieceSize;
+            while (k > 0 && k + FountainFile.RepairPieces(k, profile.RepairPercent) > lo / pieceSize) k--;
+            return Math.Max(0, k * pieceSize - FountainFile.HeaderBytes);
+        }
         if (profile.ReedSolomon == 0) return lo;
         // Reed-Solomon sends whole blocks, and each carries fewer bytes of the file.
         int blocks = lo / 255;
@@ -157,6 +166,8 @@ public sealed class PictureFitter
         int rs = profile.ReedSolomon;
         string sendName = rs > 0 ? $"{baseName}.rs{rs}" : fileName;
         byte[] sendData = rs > 0 ? RsFile.Wrap(file, format.Extension(), rs) : file;
+        if (profile.RepairPercent > 0)
+            (sendName, sendData) = FountainFile.WrapFor(file, format.Extension(), baseName, profile.Settings, profile.RepairPercent);
         var duration = new HamDrmTransmitter(sendName, sendData, profile.Settings, "X").Duration;
         return new FittedPicture(picture, format, quality, file, fileName, sendData, sendName, profile, duration);
     }
@@ -181,7 +192,8 @@ public sealed class PictureFitter
     public FittedPicture Auto(DecodedPicture original, string baseName, PictureFormat format, SendProfile profile,
                               CancellationToken cancel = default, Func<DecodedPicture, DecodedPicture>? decorate = null)
     {
-        string sendName = profile.ReedSolomon > 0 ? $"{baseName}.rs{profile.ReedSolomon}" : $"{baseName}.{format.Extension()}";
+        string sendName = profile.RepairPercent > 0 ? FountainFile.NameFor(baseName, 9999)   // (the length is what matters here)
+                        : profile.ReedSolomon > 0 ? $"{baseName}.rs{profile.ReedSolomon}" : $"{baseName}.{format.Extension()}";
         int budget = MaxFileBytes(sendName, profile, AutoAllowance);
         int originalLong = Math.Max(original.Width, original.Height);
 

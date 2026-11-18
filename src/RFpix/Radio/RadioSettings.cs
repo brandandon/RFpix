@@ -39,6 +39,11 @@ public sealed class RadioSettings
     /// <summary>Switch the radio into data mode while transmitting (USB → USB-D) and back afterwards.</summary>
     public bool DataModeForTransmit { get; set; }
 
+    /// <summary>On FM (read from the connected radio), add FM's treble boost (pre-emphasis) to RFpix's
+    /// HamDRM sound before sending: radios in data mode send flat, and receivers in plain FM cut the
+    /// treble. On to start with.</summary>
+    public bool FmPreEmphasis { get; set; } = true;
+
     /// <summary>How the transmitter is really keyed: with no radio control it can only be VOX,
     /// whatever <see cref="Ptt"/> says (it may hold an older choice).</summary>
     public PttMethod Keying() => RadioChoices.Find(Choice).Connection == "none" ? PttMethod.Vox : Ptt;

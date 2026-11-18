@@ -23,6 +23,7 @@ public partial class TxRxPage : UserControl, IDisposable
     private readonly IAudioOutput _output = AudioSystem.CreateOutput();
     private readonly DispatcherTimer _noteTimer = new() { Interval = TimeSpan.FromSeconds(10) };
     private FixPlan? _plan;                  // the request on show
+    private readonly List<string> _askers = new();   // who asked, for a repair-coded picture's combined answer
     private CancellationTokenSource? _fixing;
 
     public TxRxPage()
@@ -136,11 +137,30 @@ public partial class TxRxPage : UserControl, IDisposable
         }
         if (_fixing is not null) return;   // already answering one: this one can be asked again
 
+        // A repair-coded picture: requests heard while one is on show combine into one answer, since
+        // new repair pieces fill every station's gaps.
+        if (_plan is { } shown && RequestBar.IsVisible && SentLog.Combine(shown, plan) is { } both) plan = both;
+        else _askers.Clear();
+        if (!_askers.Contains(who)) _askers.Add(who);
+
         _plan = plan;
         var seconds = plan.Transmitter("X").Duration.TotalSeconds + plan.File.LeadInSeconds;
-        RequestTitle.Text = $"{who} asked for {plan.Pieces.Count} missing piece{(plan.Pieces.Count == 1 ? "" : "s")} of {plan.File.ShownName}";
-        RequestText.Text = $"You sent it at {plan.File.Sent:HH:mm}. Sending the pieces takes about {(int)seconds / 60}:{(int)seconds % 60:00} " +
-                           "on the air, with the picture's own settings.";
+        string time = $"{(int)seconds / 60}:{(int)seconds % 60:00}";
+        if (plan.Fresh)
+        {
+            string askers = _askers.Count == 1 ? _askers[0]
+                          : string.Join(", ", _askers.Take(_askers.Count - 1)) + " and " + _askers[^1];
+            RequestTitle.Text = $"{askers} asked for missing pieces of {plan.File.ShownName}";
+            RequestText.Text = $"You sent it at {plan.File.Sent:HH:mm}, with the fountain code: {plan.Pieces.Count} new repair pieces " +
+                               $"fill the gaps{(plan.Stations > 1 ? $" for all {plan.Stations} stations at once" : "")}. " +
+                               $"Sending them takes about {time} on the air, with the picture's own settings.";
+        }
+        else
+        {
+            RequestTitle.Text = $"{who} asked for {plan.Pieces.Count} missing piece{(plan.Pieces.Count == 1 ? "" : "s")} of {plan.File.ShownName}";
+            RequestText.Text = $"You sent it at {plan.File.Sent:HH:mm}. Sending the pieces takes about {time} " +
+                               "on the air, with the picture's own settings.";
+        }
         RequestText.ClearValue(TextBlock.ForegroundProperty);
         SendPiecesButton.Content = "Send the pieces";
         SendPiecesButton.IsVisible = NotNowButton.IsVisible = true;
@@ -162,14 +182,16 @@ public partial class TxRxPage : UserControl, IDisposable
         RequestProgress.Value = 0;
         RequestProgress.IsVisible = true;
         bool done = false;
+        string pieces = plan.Fresh ? $"{plan.Pieces.Count} new repair pieces" : $"{plan.Pieces.Count} pieces";
+        SentLog.Current.Sending(plan);   // new repair pieces: the next answer's are numbered on from these
         try
         {
             await SendSupport.SendSoundAsync(() => plan.Transmitter(call).Audio(),
-                $"{plan.Pieces.Count} pieces of {plan.File.ShownName}", _output, SendSupport.SavedGain,
+                $"{pieces} of {plan.File.ShownName}", _output, SendSupport.SavedGain,
                 m => ShowRequestStatus(m, problem: false), new Progress<double>(f => RequestProgress.Value = f),
-                _fixing.Token, TimeSpan.FromSeconds(plan.File.LeadInSeconds));
+                _fixing.Token, TimeSpan.FromSeconds(plan.File.LeadInSeconds), hamDrm: true);
             done = true;
-            ShowRequestStatus($"Sent the {plan.Pieces.Count} pieces of {plan.File.ShownName}.", problem: false);
+            ShowRequestStatus($"Sent the {pieces} of {plan.File.ShownName}.", problem: false);
         }
         catch (OperationCanceledException)
         {
@@ -200,6 +222,7 @@ public partial class TxRxPage : UserControl, IDisposable
         RequestBar.IsVisible = false;
         NotNowButton.Content = "Not now";
         _plan = null;
+        _askers.Clear();
     }
 
     private void ShowRequestStatus(string message, bool problem) => StatusLine.Show(RequestText, message, problem, "BSR");

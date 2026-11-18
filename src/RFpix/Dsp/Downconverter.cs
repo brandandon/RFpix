@@ -8,7 +8,11 @@
 // frequencies above and below the centre can be told apart. That's what makes
 // the later maths simple and immune to small tuning errors.
 //
-// Three steps, for every incoming sample:
+// First, a steady low tone in the sound (a repeater's sub-audible tone, or mains hum) is found and
+// notched out (see SubTones.cs): FM radios often pass the repeater's tone out with the received sound,
+// and a strong one spoiled the decoding. With no such tone, the sound is untouched.
+//
+// Then three steps, for every incoming sample:
 //   1. Mix: multiply by a 1575 Hz wave going "backwards", which slides the
 //      HamDRM band down so its middle sits at 0 Hz (it now spans about -1250 to +1250).
 //   2. Filter: a low-pass filter removes everything further than about 1.5 kHz
@@ -44,6 +48,10 @@ public sealed class Downconverter
     private readonly Complex _rotate;              // turns the mixing wave a little each sample
     private Complex _phase = Complex.One;
     private int _renormalise;
+    private readonly SubTones _subTones;
+
+    /// <summary>The low tones being notched out now (a repeater's sub-audible tone, hum), in Hz.</summary>
+    public IReadOnlyList<double> TonesRemoved => _subTones.Removing;
 
     public int InputRate { get; }
 
@@ -61,6 +69,7 @@ public sealed class Downconverter
 
         InputRate = inputRate;
         _step = inputRate / OutputRate;
+        _subTones = new SubTones(inputRate);
         // Keep the edge equally sharp at any rate: more samples per second need more taps.
         _filterLength = (int)((long)TapsAt48kHz * inputRate / 48000) | 1;   // always an odd number
         _history = new Complex[_filterLength];
@@ -88,8 +97,11 @@ public sealed class Downconverter
     /// <summary>Converts a chunk of audio. Converted samples are added to <paramref name="output"/>.</summary>
     public void Process(ReadOnlySpan<float> input, List<Complex> output)
     {
-        foreach (float s in input)
+        foreach (float sample in input)
         {
+            // 0. Remove a sub-audible tone or hum, if there is one.
+            double s = _subTones.Process(sample);
+
             // 1. Mix.
             _history[_historyPos] = s * _phase;
             _historyPos = (_historyPos + 1) % _filterLength;

@@ -66,6 +66,9 @@
         <CheckBox x:Name="DataModeBox" IsCheckedChanged="OnDataModeChanged"
                   Content="Switch the IC-9700 to data mode while transmitting (FM → FM-D, USB → USB-D), and back afterwards"
                   ToolTip.Tip="RFpix turns the radio's DATA setting on just before keying and off after, keeping the mode and filter. With it on, the IC-9700 takes RFpix's sound from USB without changing its microphone setting." />
+        <CheckBox x:Name="FmBoostBox" IsCheckedChanged="OnFmBoostChanged"
+                  Content="On FM, add the treble boost (pre-emphasis) to RFpix's digital pictures"
+                  ToolTip.Tip="In data mode, radios send RFpix's sound without FM's usual treble boost, but receivers in plain FM still cut the treble, so the top of the picture arrives weak. RFpix adds the boost itself when the connected radio is on FM (never on SSB). Untick it if the stations you send to receive in data mode." />
       </StackPanel>
 
       <!-- Connect and test -->

@@ -19,6 +19,11 @@
 //   made the fifth, so 4 of them go out.)
 // Pieces sent twice give the receiver a second chance at any it missed.
 //
+// A file with RFpix's repair code (a name like "tower.fc33", see FountainFile) goes out
+// differently: the header twice, then every piece once, with the header again every 25. Repeats
+// are wasted on such a file (any piece is as good as any other for rebuilding it), so the time a
+// run-in and run-out would take is better spent on repair pieces.
+//
 // A "fix" (the answer to a request for missing pieces, see Bsr.cs) sends the run-in, then
 // only the pieces asked for, then the run-out. (QSSTV means to repeat the header every 30
 // pieces in a fix too, but its counter never moves, so it doesn't; RFpix does the same.)
@@ -70,7 +75,7 @@ public sealed class MotSender
     {
         if (data.Length == 0) throw new ArgumentException("There's nothing to send: the file is empty.");
         if (string.IsNullOrEmpty(name)) throw new ArgumentException("The file needs a name.");
-        PieceSize = frameBytes - PacketOverhead - GroupOverhead;
+        PieceSize = PieceSizeFor(frameBytes);
         if (PieceSize < 1) throw new ArgumentException($"A frame of {frameBytes} bytes is too small to carry data.");
 
         _name = Encoding.Latin1.GetBytes(name.Length > MaxNameLength ? name[..MaxNameLength] : name);
@@ -82,8 +87,12 @@ public sealed class MotSender
             onlyPieces = onlyPieces.Where(p => p >= 0 && p < _bodyPieces.Count).Distinct().Order().ToList();
             if (onlyPieces.Count == 0) throw new ArgumentException("None of the pieces asked for are in this file.");
         }
-        Order = MakeOrder(_headerPieces.Count, _bodyPieces.Count, onlyPieces);
+        bool repairCoded = FountainFile.SourcePiecesOf(Encoding.Latin1.GetString(_name)) is not null;
+        Order = MakeOrder(_headerPieces.Count, _bodyPieces.Count, onlyPieces, repairCoded);
     }
+
+    /// <summary>Bytes of the file in each body piece, for frames of <paramref name="frameBytes"/>.</summary>
+    public static int PieceSizeFor(int frameBytes) => frameBytes - PacketOverhead - GroupOverhead;
 
     /// <summary>QSSTV's "special hamcode": a sum and an exclusive-or of the name's characters.</summary>
     public static int TransportIdFor(byte[] name)
@@ -196,9 +205,25 @@ public sealed class MotSender
         return pieces;
     }
 
-    private static List<int> MakeOrder(int headers, int bodies, IReadOnlyList<int>? only = null)
+    /// <summary>How often the header is repeated among a repair-coded file's pieces.</summary>
+    public const int RepairCodedHeaderEvery = 25;
+
+    private static List<int> MakeOrder(int headers, int bodies, IReadOnlyList<int>? only = null, bool repairCoded = false)
     {
         var order = new List<int>();
+        if (repairCoded)
+        {
+            for (int copy = 0; copy < 2; copy++)
+                for (int k = 0; k < headers; k++) order.Add(-1 - k);
+            var pieces = only ?? Enumerable.Range(0, bodies).ToList();
+            for (int i = 0; i < pieces.Count; i++)
+            {
+                if (i > 0 && i % RepairCodedHeaderEvery == 0)
+                    for (int k = 0; k < headers; k++) order.Add(-1 - k);
+                order.Add(pieces[i]);
+            }
+            return order;
+        }
         void HeaderAndLast()
         {
             for (int k = 0; k < headers; k++) order.Add(-1 - k);

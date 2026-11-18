@@ -81,6 +81,13 @@ public sealed class HamDrmTransmitter
         Frames = _packets.Count - 1;
     }
 
+    /// <summary>The size of the pieces a file is cut into with these settings (one piece per frame).</summary>
+    public static int PieceSizeFor(TransmitSettings settings)
+    {
+        var layout = CellLayout.For(settings.Mode, settings.Bandwidth);
+        return MotSender.PieceSizeFor(new MscEncoder(layout.DataCellsPerFrame, settings.Qam, settings.Protection).DataBits / 8);
+    }
+
     /// <summary>The frame's bits: its packet, then zeros up to what the frame holds.</summary>
     public byte[] FrameBits(int frame)
     {

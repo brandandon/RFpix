@@ -31,10 +31,23 @@ public partial class SendPage
         Qams[Math.Max(0, QamBox.SelectedIndex)],
         Interleaves[Math.Max(0, InterleaveBox.SelectedIndex)],
         Protections[Math.Max(0, ProtectionBox.SelectedIndex)],
-        Math.Max(0, ReedSolomonBox.SelectedIndex),
+        ReedSolomonBox.SelectedIndex is >= 1 and <= 4 ? ReedSolomonBox.SelectedIndex : 0,
         TargetTimes[Math.Max(0, TargetBox.SelectedIndex)],
         Timeouts[Math.Max(0, TimeoutBox.SelectedIndex)],
-        LeadIns[Math.Max(0, LeadInBox.SelectedIndex)]);
+        LeadIns[Math.Max(0, LeadInBox.SelectedIndex)],
+        FountainPercentAt(ReedSolomonBox.SelectedIndex));
+
+    // The repair-data choices: None, RS1-RS4, then RFpix's repair code (the fountain code) at
+    // each of its sizes, which only RFpix stations can read.
+    private const int FirstFountain = 5;
+    private static int FountainPercentAt(int index)
+    {
+        int f = index - FirstFountain;
+        return f >= 0 && f < SendProfile.FountainChoices.Count ? SendProfile.FountainChoices[f] : 0;
+    }
+
+    private static IEnumerable<string> RepairChoices() =>
+        new[] { "None", "RS1", "RS2", "RS3", "RS4" }.Concat(SendProfile.FountainChoices.Select(p => $"Fountain {p}%"));
 
     private void ShowSendSettings(SendProfile p)
     {
@@ -43,7 +56,8 @@ public partial class SendPage
         QamBox.SelectedIndex = Math.Max(0, Array.IndexOf(Qams, p.Qam));
         InterleaveBox.SelectedIndex = Array.IndexOf(Interleaves, p.Interleave);
         ProtectionBox.SelectedIndex = Array.IndexOf(Protections, p.Protection);
-        ReedSolomonBox.SelectedIndex = Math.Clamp(p.ReedSolomon, 0, 4);
+        ReedSolomonBox.SelectedIndex = p.RepairPercent > 0 ? FirstFountain + SendProfile.NearestFountainChoice(p.RepairPercent)
+                                                           : Math.Clamp(p.ReedSolomon, 0, 4);
         int target = Array.IndexOf(TargetTimes, p.TargetSeconds);
         TargetBox.SelectedIndex = target >= 0 ? target : Array.IndexOf(TargetTimes, 120);
         int timeout = Array.IndexOf(Timeouts, p.TimeoutSeconds);
