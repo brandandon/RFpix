@@ -14,12 +14,14 @@ running EasyPal or QSSTV.
 > **Status:** beta, for on-air testing, on Windows, and (new, not yet tried with a radio) the Mac and Linux. Download the newest test release from
 > [Releases](https://github.com/brandandon/RFpix/releases/latest); how to test it is in
 > [docs/TESTING.md](docs/TESTING.md). The user manual is in
-> [docs/USER_MANUAL.md](docs/USER_MANUAL.md).
+> [docs/USER_MANUAL.md](docs/USER_MANUAL.md). RFpix FM, RFpix's own signal for FM radios, is documented
+> publicly in [docs/RFPIX_FM_SPEC.md](docs/RFPIX_FM_SPEC.md).
 
 ## Progress
 
 | Date (2026) | Done |
 | --- | --- |
+| Nov 20 | RFpix FM's public technical specification ([docs/RFPIX_FM_SPEC.md](docs/RFPIX_FM_SPEC.md)), for the FCC's rule that a new digital mode be documented publicly: the whole signal, its tables, check values, and a reference transmitter in Python that RFpix decodes |
 | Nov 20 | RFpix FM, RFpix's own signal for FM radios (simplex or a repeater): about twice as fast as HamDRM for the same signal, at five speeds (FM 1 to FM 5), always with the fountain code; received automatically beside HamDRM, with missing-piece requests answered by new repair pieces; test transmissions 14-17 (FM 2 to FM 5); no analog picture starts by mistake at the end of a digital one; the waterfall marks follow the FM signal; the FT-991A's SSB data settings in the manual (v0.7.1 beta) |
 | Nov 18 | The fountain code, RFpix's own repair data (Fountain 20%, 50%, 75%): it rebuilds missing pieces wherever the gaps fall, sends no repeats (Fountain 20% is quicker than no repair data at all) and answers requests for missing pieces with new repair pieces that fill every station's gaps at once; a repeater's sub-audible tone (CTCSS) in the received sound is found and removed; on FM, RFpix adds the treble boost radios leave out in data mode; test transmissions 11-13 (Fountain), and tests sent from Beta Testing can be asked for their missing pieces; the Receive tab's boxes no longer lose the last picture's details to noise (v0.7.0 beta) |
 | Nov 8 | Reliability tidy-up from two reviews: settings saved safely (with a backup), damaged data checked before it's read, size limits on received files, frames that partly arrived before a long dropout kept for the error correction, un-keying retried when closing (and a warning if the radio won't release), safer recording start and picture naming, the long code files split up; test results to kd9dd@qsl.net (v0.6.3 beta) |

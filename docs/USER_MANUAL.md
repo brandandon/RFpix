@@ -359,7 +359,7 @@ RFpix can send pictures with its own signal, made for FM radios (simplex or thro
 | Speed | Picture data | What it's for |
 | --- | --- | --- |
 | **FM 1** | 1.8 kbit/s | The toughest, for the weakest signals |
-| **FM 2** | 3.2 kbit/s | Tough: comes through where HamDRM's toughest settings do, about 50% faster |
+| **FM 2** | 3.1 kbit/s | Tough: comes through where HamDRM's toughest settings do, about 50% faster |
 | **FM 3** | 4.9 kbit/s | The usual choice: as tough as HamDRM's B 16-QAM with Fountain 20%, at twice the speed |
 | **FM 4** | 6.7 kbit/s | Fast, for a fair signal: about 1.4 times the data of HamDRM's fastest setting (A 64-QAM low), and tougher |
 | **FM 5** | 8.9 kbit/s | The fastest, for a strong signal, with the transmit level a little hot |
@@ -370,6 +370,7 @@ RFpix can send pictures with its own signal, made for FM radios (simplex or thro
 - **It goes out in frames of about 3 seconds.** A station that tunes in late, or loses the repeater for a few seconds, picks up at the next frame. The sender's callsign and the picture's name go out every few frames, so a late station still gets them.
 - **On the Receive tab,** while an RFpix FM signal arrives, the digital boxes show its speed (**Mode** reads FM 1 to FM 5, **QAM** the QAM in the middle of the band, **Protection** the error correction), the sender's callsign, and the **Quality** (green when it's enough for that speed). The line under the picture says how many of the pieces needed have arrived.
 - **Missing pieces work as for Fountain pictures** (section 4, Missing pieces): the request goes out in RFpix's FM signal itself, one frame of about 3 seconds, and the sender's RFpix answers with new repair pieces at the picture's own speed.
+- **It's documented publicly,** as the FCC asks of a new digital mode: the full technical description is in [RFPIX_FM_SPEC.md](RFPIX_FM_SPEC.md). Identify your station by voice or CW as usual: the callsign RFpix sends inside the signal is handy for the stations receiving, but it doesn't count as your identification.
 
 #### Profiles
 

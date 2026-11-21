@@ -39,3 +39,6 @@ publish-folder/
 # Mac packaging (tools/mac/package.sh)
 /build/
 /dist/
+
+# Python
+__pycache__/
