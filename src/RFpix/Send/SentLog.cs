@@ -10,8 +10,13 @@
 // pieces, numbered on from the last ones sent. Any new repair piece fills a gap in any station's copy,
 // whichever pieces it missed, so one short answer covers every station that asked.
 //
+// Pictures sent with RFpix's FM signal are kept here too (by their number in the signal), and
+// a station's request for more pieces (FmRequest, heard by the FM receiver) is answered the same way, with
+// new repair pieces in the FM signal at the picture's own speed.
+//
 // The log lives only while RFpix runs, as in QSSTV.
 
+using RFpix.FmSignal;
 using RFpix.HamDrm;
 using RFpix.HamDrm.Coding;
 
@@ -21,8 +26,11 @@ namespace RFpix.Send;
 /// <param name="Name">The name it went out under (e.g. "tower.rs2").</param>
 /// <param name="ShownName">The picture's own name, for the screen (e.g. "tower.jp2").</param>
 /// <param name="LeadInSeconds">The key-up lead-in it was sent with (a fix uses the same).</param>
+/// <param name="FmMode">For a picture sent with RFpix's FM signal: its speed (TransportId is then its number
+/// in the signal, and FmSourcePieces how many pieces rebuild it). Null for HamDRM.</param>
 public sealed record SentFile(string Name, string ShownName, byte[] Data, TransmitSettings Settings,
-                              int TransportId, int PieceSize, int Pieces, DateTime Sent, double LeadInSeconds = 0.3);
+                              int TransportId, int PieceSize, int Pieces, DateTime Sent, double LeadInSeconds = 0.3,
+                              FmSignalMode? FmMode = null, int FmSourcePieces = 0);
 
 /// <summary>What to send in answer to a request: which picture, and which of its pieces.</summary>
 /// <param name="Fresh">For a picture with RFpix's repair code: true when the pieces are new repair pieces
@@ -30,9 +38,20 @@ public sealed record SentFile(string Name, string ShownName, byte[] Data, Transm
 /// <param name="Stations">How many requests this answers (a repair-coded picture's requests combine).</param>
 public sealed record FixPlan(SentFile File, IReadOnlyList<int> Pieces, BsrRequest Request, bool Fresh = false, int Stations = 1)
 {
-    /// <summary>The fix's sound: only those pieces, with the picture's own settings.</summary>
+    /// <summary>The fix's sound: only those pieces, with the picture's own settings (HamDRM only).</summary>
     public HamDrmTransmitter Transmitter(string callsign) =>
         new(File.Name, File.Data, File.Settings, callsign, onlyPieces: Pieces);
+
+    /// <summary>The fix's sound: HamDRM, or RFpix's FM signal for a picture sent with it (the new repair pieces
+    /// at its own speed, with the sender's callsign and the picture's name).</summary>
+    public float[] Audio(string callsign) => File.FmMode is { } mode
+        ? FmSignalTransmitter.Audio(File.Data, File.FmSourcePieces, mode, (ushort)File.TransportId,
+                                    new FmFileInfo(callsign, File.ShownName), firstPiece: Pieces[0])
+        : Transmitter(callsign).Audio();
+
+    /// <summary>How long the fix is on the air, in seconds (the lead-in not included).</summary>
+    public double Seconds => File.FmMode is { } mode ? FmSignalTransmitter.Seconds(Pieces.Count, mode)
+                                                     : Transmitter("X").Duration.TotalSeconds;
 }
 
 public sealed class SentLog
@@ -62,11 +81,50 @@ public sealed class SentLog
         return file;
     }
 
+    /// <summary>Notes a picture being sent with RFpix's FM signal: the pieces as they go out (the room left in
+    /// the last frame is filled with more repair pieces, so they're added here too).</summary>
+    public SentFile AddFm(string shownName, byte[] data, int sourcePieces, FmSignalMode mode, ushort fileNumber, double leadInSeconds = 0.3)
+    {
+        int pieces = data.Length / mode.PieceBytes;
+        int slots = FmSignalTransmitter.Slots(pieces, mode);
+        if (slots > pieces) data = FountainFile.Extend(data, sourcePieces, mode.PieceBytes, slots - pieces);
+        var file = new SentFile(shownName, shownName, data, new TransmitSettings(HamDrmMode.B, HamDrmBandwidth.Wide, 16, HamDrmInterleave.Long, HamDrmProtection.High), fileNumber, mode.PieceBytes, slots, DateTime.Now, leadInSeconds,
+                                mode, sourcePieces);
+        lock (_lock)
+        {
+            _files.RemoveAll(f => f.FmMode is not null && f.TransportId == file.TransportId);
+            _files.Add(file);
+            while (_files.Count > Keep) _files.RemoveAt(0);
+        }
+        return file;
+    }
+
+    /// <summary>The answer to a request for more pieces of a picture sent with RFpix's FM signal, or null if
+    /// it isn't one sent from here.</summary>
+    public FixPlan? Answer(FmRequest request)
+    {
+        SentFile? file;
+        lock (_lock) file = _files.LastOrDefault(f => f.FmMode is not null && f.TransportId == request.FileNumber &&
+                                                      f.FmSourcePieces == request.SourcePieces && f.PieceSize == request.PieceBytes);
+        if (file is null || request.Needed <= 0) return null;
+        var bsr = new BsrRequest(file.TransportId, file.PieceSize, Enumerable.Range(0, Math.Min(request.Needed, file.Pieces)).ToList(), file.ShownName);
+        return FreshFm(file, FountainFile.FreshPiecesFor(request.Needed), bsr);
+    }
+
+    private static FixPlan FreshFm(SentFile file, int count, BsrRequest request)
+    {
+        // Whole frames: as many new repair pieces as fill the frames they need.
+        count = FmSignalTransmitter.Slots(count, file.FmMode!);
+        var data = FountainFile.Extend(file.Data, file.FmSourcePieces, file.PieceSize, count);
+        var grown = file with { Data = data, Pieces = file.Pieces + count };
+        return new FixPlan(grown, Enumerable.Range(file.Pieces, count).ToList(), request, Fresh: true);
+    }
+
     /// <summary>The answer to a request, or null if it isn't for a picture sent from here.</summary>
     public FixPlan? Answer(BsrRequest request)
     {
         SentFile? file;
-        lock (_lock) file = _files.LastOrDefault(f => f.TransportId == request.TransportId);
+        lock (_lock) file = _files.LastOrDefault(f => f.FmMode is null && f.TransportId == request.TransportId);
         if (file is null) return null;
         // Another station's picture can share the number by chance: the piece size (when given)
         // must match, and the pieces asked for must be ones this picture has.
@@ -86,7 +144,7 @@ public sealed class SentLog
     /// or not new repair pieces).</summary>
     public static FixPlan? Combine(FixPlan a, FixPlan b)
     {
-        if (!a.Fresh || !b.Fresh || a.File.TransportId != b.File.TransportId || a.File.Name != b.File.Name) return null;
+        if (!a.Fresh || !b.Fresh || a.File.TransportId != b.File.TransportId || a.File.Name != b.File.Name || a.File.FmMode != b.File.FmMode) return null;
         var bigger = a.Pieces.Count >= b.Pieces.Count ? a : b;
         return bigger with { Stations = a.Stations + b.Stations };
     }
@@ -105,7 +163,7 @@ public sealed class SentLog
         if (!plan.Fresh) return;
         lock (_lock)
         {
-            int i = _files.FindIndex(f => f.TransportId == plan.File.TransportId && f.Name == plan.File.Name);
+            int i = _files.FindIndex(f => f.TransportId == plan.File.TransportId && f.Name == plan.File.Name && f.FmMode == plan.File.FmMode);
             if (i >= 0 && _files[i].Pieces < plan.File.Pieces) _files[i] = plan.File;
         }
     }

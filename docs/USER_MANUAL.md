@@ -1,8 +1,8 @@
 # RFpix User Manual
 
-Version 0.7.0 beta · Nov 18, 2026 · KD9DD
+Version 0.7.1 beta · Nov 20, 2026 · KD9DD
 
-This manual covers RFpix version 0.7.0 beta for Windows 10 and 11, the Mac (macOS 14 or newer) and Linux (64-bit PCs and Raspberry Pi). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
+This manual covers RFpix version 0.7.1 beta for Windows 10 and 11, the Mac (macOS 14 or newer) and Linux (64-bit PCs and Raspberry Pi). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
 
 The manual has three parts:
 
@@ -16,7 +16,7 @@ Words in **bold** are what you see on the screen: a page, tab, button or box.
 
 ### 1. What RFpix is
 
-RFpix sends and receives pictures by radio in two ways: **digital** (HamDRM, the same as EasyPal and QSSTV's digital mode) and **analog SSTV** (the same as MMSSTV and QSSTV's analog modes). It listens for both at once, so you don't have to say which is coming.
+RFpix sends and receives pictures by radio in two ways: **digital** (HamDRM, the same as EasyPal and QSSTV's digital mode) and **analog SSTV** (the same as MMSSTV and QSSTV's analog modes). It listens for both at once, so you don't have to say which is coming. For FM radios (simplex or a repeater), RFpix also has a digital signal of its own, **RFpix FM**, about twice as fast as HamDRM; only RFpix stations receive it (section 5).
 
 |  | Digital (HamDRM) | Analog SSTV |
 | --- | --- | --- |
@@ -280,6 +280,7 @@ When someone asks *you* for pieces of one of your pictures, a bar appears at the
 
 - The Missing pieces list says how many **more** pieces the picture needs ("needs 8 more pieces"), and the request asks for just that many. Any pieces will do.
 - The sender answers with **new repair pieces**. Each one fills a gap in anyone's copy, whichever pieces they missed.
+- **RFpix FM pictures** are marked "RFpix FM" in the list. Their request goes out in the FM signal itself (about 3 seconds, at its toughest speed), and the answer comes back in the FM signal at the picture's speed.
 - If several stations ask while the bar is showing, their requests combine into **one** answer, big enough for the station that needs the most. For example, three stations each missing about 20 different pieces are all completed by about 10 new pieces, instead of sending all 58 missed pieces again.
 
 #### The picture in its own window
@@ -296,9 +297,9 @@ When someone asks *you* for pieces of one of your pictures, a bar appears at the
 
 Click **Pop out Receive** at the top right of the TX/RX page to move the Receive tab into a window of its own, so you can watch receiving while you send, or put it on a second monitor. Listening carries on. Close that window (or click **Bring Receive back**) to put it back.
 
-### 5. Sending digital pictures (HamDRM)
+### 5. Sending digital pictures (HamDRM or RFpix FM)
 
-On the **Send** tab, choose **Digital (HamDRM)**, open a picture, pick how long it should take, and click **Send**. RFpix works out the size and quality that fit that time, and shows the picture exactly as it will go out.
+On the **Send** tab, choose **Digital**, open a picture, pick how long it should take, and click **Send**. RFpix works out the size and quality that fit that time, and shows the picture exactly as it will go out.
 
 ![The Send tab in Digital, with a picture open and the green time box](images/send-digital.png)
 
@@ -340,6 +341,8 @@ These say how the picture is sent. Every station receives any of them automatica
 
 | Setting | Choices | What it does |
 | --- | --- | --- |
+| **Signal** | HamDRM, RFpix FM | HamDRM is what EasyPal, QSSTV and RFpix all receive. RFpix FM is RFpix's own signal for FM radios (below); only RFpix 0.7.1 or newer receives it. |
+| **Speed** | FM 1 to FM 5 | RFpix FM only, in place of Mode, Bandwidth, QAM, Interleave and Protection (below). |
 | **Mode** | A, B, E | A carries the most data; B and E hold up better on fading paths, more slowly. |
 | **Bandwidth** | 2.2 kHz, 2.5 kHz | 2.5 kHz is faster; 2.2 kHz fits narrower radio filters. |
 | **QAM** | 4, 16, 64 | 64 is fastest but needs a strong, clean signal; 4 is slowest and toughest. |
@@ -348,6 +351,25 @@ These say how the picture is sent. Every station receives any of them automatica
 | **Repair data** | None, RS1 to RS4, Fountain 20%, 50%, 75% | Extra repair data across the whole picture, for weak paths. Reed-Solomon: RS1 rebuilds about an eighth missing, RS2 a quarter, RS3 over a third, RS4 half; it costs time. Fountain: RFpix's own repair code, which rebuilds missing pieces wherever the gaps fall and sends no repeats, so it's quicker. 20% is the quickest, 50% is for everyday use (as good as RS2 or better), 75% is for bad conditions. Only RFpix stations can receive Fountain pictures. |
 | **Repeater time-out** | None, 1:00 to 10:00 | The longest your repeater stays on the air for one transmission (often 3:00). RFpix won't send anything longer. None for simplex or HF. |
 | **Lead-in** | 0.3 to 1.5 s | Quiet after keying, before the picture starts, while a repeater opens. Raise it if the start of your pictures gets lost. |
+
+#### RFpix FM: RFpix's own signal for FM radios
+
+RFpix can send pictures with its own signal, made for FM radios (simplex or through a repeater), instead of HamDRM. Pick **RFpix FM** in the **Signal** list, then a **Speed**. For the same signal, it's about twice as fast as HamDRM's settings that come through it. Only stations running RFpix 0.7.1 or newer receive it (not EasyPal or QSSTV); they receive it automatically, alongside HamDRM, with nothing to switch. It's for FM: on SSB, use HamDRM.
+
+| Speed | Picture data | What it's for |
+| --- | --- | --- |
+| **FM 1** | 1.8 kbit/s | The toughest, for the weakest signals |
+| **FM 2** | 3.2 kbit/s | Tough: comes through where HamDRM's toughest settings do, about 50% faster |
+| **FM 3** | 4.9 kbit/s | The usual choice: as tough as HamDRM's B 16-QAM with Fountain 20%, at twice the speed |
+| **FM 4** | 6.7 kbit/s | Fast, for a fair signal: about 1.4 times the data of HamDRM's fastest setting (A 64-QAM low), and tougher |
+| **FM 5** | 8.9 kbit/s | The fastest, for a strong signal, with the transmit level a little hot |
+
+- **It always carries the fountain code.** The **Repair data** list offers Fountain 20%, 50% or 75% (20% unless you pick more). A station that misses part of a picture can catch the rest when it's sent again, as with HamDRM's Fountain pictures.
+- **Tested on the air** through the net's repeater (Nov 20, 2026): FM 2 and FM 3 came through reliably, and FM 4 too once the receiver was improved (checked on the recordings). FM 5 came through radio to radio on the first try; through the repeater it's still to be tried with 0.7.1.
+- **The transmit level matters more than with HamDRM.** The faster speeds come through weaker signals with the level a little hotter than you'd use for HamDRM. FM 5 needs it.
+- **It goes out in frames of about 3 seconds.** A station that tunes in late, or loses the repeater for a few seconds, picks up at the next frame. The sender's callsign and the picture's name go out every few frames, so a late station still gets them.
+- **On the Receive tab,** while an RFpix FM signal arrives, the digital boxes show its speed (**Mode** reads FM 1 to FM 5, **QAM** the QAM in the middle of the band, **Protection** the error correction), the sender's callsign, and the **Quality** (green when it's enough for that speed). The line under the picture says how many of the pieces needed have arrived.
+- **Missing pieces work as for Fountain pictures** (section 4, Missing pieces): the request goes out in RFpix's FM signal itself, one frame of about 3 seconds, and the sender's RFpix answers with new repair pieces at the picture's own speed.
 
 #### Profiles
 
@@ -596,7 +618,7 @@ Other logging programs that accept contacts from WSJT-X the same way (ADIF over 
 
 ### 11. The Beta Testing page
 
-The **Beta Testing** page sends nine fixed test transmissions. Each sends its own picture with fixed settings, and the picture says what they are, so whoever receives it knows exactly what was sent and can report which tests came through. They're the quickest way to find which settings work on a path or a repeater.
+The **Beta Testing** page sends thirteen fixed test transmissions. Each sends its own picture with fixed settings, and the picture says what they are, so whoever receives it knows exactly what was sent and can report which tests came through. They're the quickest way to find which settings work on a path or a repeater.
 
 #### Sending a test
 
@@ -615,12 +637,16 @@ The **Beta Testing** page sends nine fixed test transmissions. Each sends its ow
 | 11 | Mode B, 2.5 kHz, 16-QAM, long, high, Fountain 20% | Test 2 with the fountain code: the quickest |
 | 12 | Mode B, 2.5 kHz, 16-QAM, long, high, Fountain 50% | The everyday fountain code: compare it with test 10 |
 | 13 | Mode B, 2.5 kHz, 16-QAM, long, high, Fountain 75% | The fountain code for bad conditions |
+| 14 | RFpix FM 2, Fountain 20% | RFpix FM: tough |
+| 15 | RFpix FM 3, Fountain 20% | RFpix FM: the usual speed, as tough as test 11 at twice the speed |
+| 16 | RFpix FM 4, Fountain 20% | RFpix FM: fast, needs a fair signal |
+| 17 | RFpix FM 5, Fountain 20% | RFpix FM: the fastest, strong signal, level a little hot |
 
-Tests 11 to 13 can only be received by RFpix. Tests 3, 7, 8 and 9 have been retired, and their numbers aren't used again.
+Tests 11 to 13 can only be received by RFpix, and tests 14 to 17 only by RFpix 0.7.1 or newer (they're for FM radios: simplex or a repeater). Tests 3, 7, 8 and 9 have been retired, and their numbers aren't used again.
 
 #### Receiving a test
 
-Nothing to set up: just listen on the Receive tab. When a test ends, RFpix shows how it came through, for example **"Test 2 from N0CALL: perfect · quality 24 dB (needs about 11)"**, or how many of its pieces arrived. Every test received is added to **Documents\RFpix\Test results.csv**, which opens in Excel (**Open test results** on the Receive tab). Email that file to **kd9dd@qsl.net** so the tests' results can be compared.
+Nothing to set up: just listen on the Receive tab. When a test ends, RFpix shows how it came through, for example **"Test 2 from N0CALL: perfect · quality 24 dB (needs about 11) · at 19:13"**, or how many of its pieces arrived. Every test received is added to **Documents\RFpix\Test results.csv**, which opens in Excel (**Open test results** on the Receive tab). Email that file to **kd9dd@qsl.net** so the tests' results can be compared.
 
 ## Part 3: Reference
 
@@ -730,7 +756,7 @@ When something goes wrong and you'd like help, open **Settings > Misc** and clic
 | Log QSO says the contact was sent, but it isn't in HRD Logbook | In HRD Logbook's **QSO Forwarding**, check **UDP Receive** is ticked with port **2237**, the same as **Settings > Logging**, and that the log chosen to receive into is the one you're looking at. The contact is in RFpix's own log file either way, to import later. |
 | The radio doesn't key | Click **Test PTT** on the Radio tab. With VOX, check VOX is on in the radio and its level is high enough for RFpix's sound to trip it. |
 | The radio keys, but your pictures go out weak, distorted or silent (FT-991A) | When keyed by CAT, the FT-991A sends the sound its menus choose for the mode it's in. Set the pair for your mode to **REAR** and **USB**: data modes **070** and **072**; FM **074** and **077**; USB and LSB **106** and **109** (see section 3, step 2). The port menus start out on DATA (the rear 6-pin jack), which sends no sound from RFpix. Tick **Switch the FT-991A to data mode while transmitting** on **Settings > Radio** (DATA-FM is known to work). If it still won't, use the radio's **Data VOX**: menu **142 VOX SELECT** set to **DATA**, **VOX** on in the **F** menu, and **VOX** under **Transmit keying (PTT)** (section 3, step 3). With other radios, check the radio takes its transmit sound from the USB cable (its data or USB input) rather than the microphone. |
-| On SSB, pictures come out green or don't decode, and the signal sits below the waterfall's marks (FM works) | The two stations are off frequency from each other: on SSB, every few hundred Hz between them moves the whole picture down (or up) the waterfall by the same amount. Check, on both radios: the **same dial frequency**; **USB**, never LSB (SSTV is always sent on USB, on every band); the **Clarifier** (CLAR/RIT) **off**. On the FT-991A in DATA-USB, also check menus **062 DATA MODE**, **064 OTHER DISP** and **065 OTHER SHIFT**: a shift there moves the radio's carrier away from the frequency shown. To test, tune slowly while the other station sends until an analog picture sits between the marks (its lowest tone on 1200 Hz); how far you had to tune is the offset. |
+| On SSB, pictures come out green or don't decode, and the signal sits below the waterfall's marks (FM works) | The two stations are off frequency from each other: on SSB, every few hundred Hz between them moves the whole picture down (or up) the waterfall by the same amount. Check, on both radios: the **same dial frequency**; **USB**, never LSB (SSTV is always sent on USB, on every band); the **Clarifier** (CLAR/RIT) **off**. On the FT-991A, set menu **059** to **DIRECT FREQ** (although it's listed with the CW settings, it moves the data modes too), and leave **062 DATA MODE** on **PSK** and **065 OTHER SHIFT** on **0**, their factory settings (found by KD9DD, Nov 20, 2026). With 062 on OTHERS and 065 at 0, the radio's receive filter sits low and the waterfall stops at about 1500 Hz. To test, tune slowly while the other station sends until an analog picture sits between the marks (its lowest tone on 1200 Hz); how far you had to tune is the offset. |
 | The start of your pictures is lost on the repeater | Raise **Lead-in** so the repeater has time to open before the picture starts. |
 | Pictures don't decode at the other end, though their settings do | The transmit level is too high: lower the **Transmit level** until the radio's ALC barely moves. |
 | *The transmit time limit was reached, so RFpix released the transmitter.* | A safety limit stopped a transmission that ran too long. If it happens again, please report it. |

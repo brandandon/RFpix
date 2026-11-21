@@ -127,13 +127,20 @@ public sealed class SstvReceiver
 
     private long _nextVisCheck;
 
+    /// <summary>True to start no new picture (a picture already arriving carries on): set while a digital
+    /// transmission is arriving and for a few seconds after, when its sound (or the waterfall text after
+    /// it) can briefly look like an analog picture (seen on the air, Nov 20, 2026: "Robot 72" at the end
+    /// of an RFpix FM picture, and "Martin 1, joined partway" during a HamDRM one).</summary>
+    public bool HoldNewPictures { get => Volatile.Read(ref _hold); set => Volatile.Write(ref _hold, value); }
+    private bool _hold;
+
     private void OnTrack()
     {
         long end = TrackEnd;
         if (end >= _nextVisCheck)
         {
             _nextVisCheck = end + TrackRate / 1000;   // once a millisecond
-            if (FindVis(end) is (var mode, long pictureStart)) Begin(mode, pictureStart);
+            if (FindVis(end) is (var mode, long pictureStart) && !HoldNewPictures) Begin(mode, pictureStart);
         }
         if (_image is not null) _image.Advance(end);
         else
@@ -144,7 +151,7 @@ public sealed class SstvReceiver
             {
                 // On the waiting picture's beat: the same transmission, after a fade. Carry on with it.
                 if (_faded is { } faded && faded.Mode == lateMode && faded.LineAt(lateStart) is int line) Resume(line);
-                else Begin(lateMode, lateStart, joinedLate: true);
+                else if (!HoldNewPictures) Begin(lateMode, lateStart, joinedLate: true);
             }
             // (While a picture waits, all its sound is kept: it's drawn again from the start at the end.)
             else if (_faded is null && _track.Count > TrackRate * 12)

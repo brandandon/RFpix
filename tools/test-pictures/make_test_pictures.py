@@ -2,7 +2,7 @@
 #
 # Each picture states its own settings, so anyone receiving it (in RFpix, QSSTV or
 # EasyPal) can see what was sent. The colour bars and fine stripes make damage easy to spot.
-# Run:  python3 make_test_pictures.py <output folder>     (needs Pillow and the DejaVu fonts)
+# Run:  python3 make_test_pictures.py <output folder> [test numbers]     (needs Pillow and the DejaVu fonts)
 import sys
 from PIL import Image, ImageDraw, ImageFont
 
@@ -17,6 +17,12 @@ TESTS = [  # number, mode, bandwidth, QAM, interleave, protection, repair data (
     (11, "B", "2.5", 16, "long", "high", "Fountain 20%", (150, 90, 20)),
     (12, "B", "2.5", 16, "long", "high", "Fountain 50%", (30, 120, 50)),
     (13, "B", "2.5", 16, "long", "high", "Fountain 75%", (20, 80, 130)),
+    # RFpix 0.7.1: RFpix's own FM signal (mode "FM n", the QAM and error correction in place of
+    # bandwidth and QAM; the interleave and protection unused), always with the fountain code.
+    (14, "FM 2", "", "16-QAM 1/2", "", "", "Fountain 20%", (90, 60, 30)),
+    (15, "FM 3", "", "16-QAM 2/3", "", "", "Fountain 20%", (40, 90, 100)),
+    (16, "FM 4", "", "64-QAM 2/3", "", "", "Fountain 20%", (100, 40, 90)),
+    (17, "FM 5", "", "64-QAM 3/4", "", "", "Fountain 20%", (40, 100, 40)),
 ]
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FONT_REG = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
@@ -30,17 +36,26 @@ def draw(test, folder):
         w = d.textlength(text, font=font)
         d.text(((320 - w) / 2, y), text, font=font, fill="white")
     centre(10, f"RFpix TEST {n}", big)
-    centre(52, f"Mode {mode}  ·  {bw} kHz  ·  {qam}-QAM", mid)
-    line = (f"{il}  ·  {prot}  ·  {repair}" if repair.startswith("Fountain")   # (longer: shortened to fit)
-            else f"{il}  ·  {prot} protection  ·  {repair}" if repair else f"{il} interleave  ·  {prot} protection")
+    fm = mode.startswith("FM")
+    if fm:
+        centre(52, f"RFpix {mode}  ·  {qam}", mid)
+        line = f"{repair}  ·  RFpix only"
+    else:
+        centre(52, f"Mode {mode}  ·  {bw} kHz  ·  {qam}-QAM", mid)
+        line = (f"{il}  ·  {prot}  ·  {repair}" if repair.startswith("Fountain")   # (longer: shortened to fit)
+                else f"{il}  ·  {prot} protection  ·  {repair}" if repair else f"{il} interleave  ·  {prot} protection")
     centre(76, line, mid)
     colours = [(255, 255, 255), (255, 220, 0), (0, 220, 220), (0, 200, 0), (220, 0, 220), (230, 0, 0), (0, 0, 230), (0, 0, 0)]
     for i, c in enumerate(colours):
         d.rectangle([20 + i * 35, 108, 20 + i * 35 + 34, 168], fill=c)
     for x in range(20, 300, 8):   # fine stripes: smear easily if the picture is damaged
         d.rectangle([x, 176, x + 3, 196], fill="white")
-    centre(212, "HamDRM test transmission  ·  rfpix", small)
+    centre(212, "RFpix FM test transmission  ·  rfpix" if fm else "HamDRM test transmission  ·  rfpix", small)
     im.save(f"{folder}/rfpix-test-{n}.jpg", quality=35, optimize=True)
 
+# Only the numbers given after the folder, if any (a test's picture never changes once released:
+# receivers check what arrives against their own copy).
+wanted = {int(a) for a in sys.argv[2:]}
 for t in TESTS:
-    draw(t, sys.argv[1])
+    if not wanted or t[0] in wanted:
+        draw(t, sys.argv[1])

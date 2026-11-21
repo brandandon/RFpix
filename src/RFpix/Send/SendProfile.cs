@@ -19,11 +19,22 @@ namespace RFpix.Send;
 /// <param name="LeadInSeconds">Silence after keying, before the data, while the repeater opens.</param>
 /// <param name="RepairPercent">RFpix's repair code (the fountain code): how much extra it adds, in
 /// percent of the picture, or 0 for none. Used in place of Reed-Solomon (which is then 0).</param>
+/// <param name="FmSpeed">0 to send HamDRM; 1 to 5 to send RFpix's own FM signal at that speed
+/// (FM 1 to FM 5), which always carries the fountain code (RepairPercent). The HamDRM settings are kept
+/// but not used then.</param>
 public sealed record SendProfile(
     string Name, HamDrmMode Mode, HamDrmBandwidth Bandwidth, int Qam, HamDrmInterleave Interleave,
     HamDrmProtection Protection, int ReedSolomon, int TargetSeconds, int TimeoutSeconds = 0, double LeadInSeconds = 0.3,
-    int RepairPercent = 0)
+    int RepairPercent = 0, int FmSpeed = 0)
 {
+    /// <summary>RFpix's FM signal at the chosen speed, or null for HamDRM.</summary>
+    [JsonIgnore]
+    public RFpix.FmSignal.FmSignalMode? FmMode => FmSpeed > 0 ? RFpix.FmSignal.FmSignalMode.ById(FmSpeed - 1) : null;
+
+    /// <summary>For the screen, the log and the Gallery: "B, 2.5 kHz, 16-QAM..." or "RFpix FM 3 (16-QAM 2/3), fountain 20%".</summary>
+    [JsonIgnore]
+    public string SignalText => FmMode is { } m ? $"{m.Description}, fountain {Math.Max(RepairPercent, FountainChoices[0])}%" : Settings.Description;
+
     /// <summary>The fountain code's sizes on the Send page, in percent extra. From the test bench
     /// (Nov 14, 2026): 20% is the quickest (quicker than no repair data at all), 50% is as good as or
     /// better than RS2 and still quicker than no repair data, 75% beats RS2 on every fading path.</summary>
@@ -35,7 +46,7 @@ public sealed record SendProfile(
 
     /// <summary>For the screen and the log: "RS2", "fountain 20%" or "no repair data".</summary>
     [JsonIgnore]
-    public string RepairText => RepairPercent > 0 ? $"fountain {RepairPercent}%" : ReedSolomon > 0 ? $"RS{ReedSolomon}" : "no repair data";
+    public string RepairText => FmMode is not null ? $"fountain {Math.Max(RepairPercent, FountainChoices[0])}%" : RepairPercent > 0 ? $"fountain {RepairPercent}%" : ReedSolomon > 0 ? $"RS{ReedSolomon}" : "no repair data";
 
     /// <summary>The HamDRM part, for the transmitter.</summary>
     [JsonIgnore]

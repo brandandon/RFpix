@@ -23,6 +23,9 @@
 //  10. A picture that ends with pieces missing is listed under "Missing pieces": Ask for
 //      them sends a request (BSR) to its sender. A request someone else sends is passed
 //      to the TX/RX page (BsrHeard), which offers to answer it.
+//  12. The same sound goes to the receiver for RFpix's own FM signal too
+//      (FmSignal/FmSignalLiveReceiver.cs). While one arrives, the digital boxes show its speed and
+//      quality; its pictures are saved and shown as HamDRM ones are.
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -35,6 +38,7 @@ using Avalonia.VisualTree;
 using RFpix.Audio;
 using RFpix.Diagnostics;
 using RFpix.Dsp;
+using RFpix.FmSignal;
 using RFpix.Gallery;
 using RFpix.HamDrm;
 using RFpix.Radio;
@@ -55,6 +59,9 @@ public partial class ReceivePage : UserControl, IDisposable
     private readonly DispatcherTimer _meterTimer;
     private readonly SpectrumAnalyzer _analyzer = new(maxFrequency: 3000);
     private readonly HamDrmReceiver _receiver = new();
+    private readonly FmSignalLiveReceiver _fm = new();   // RFpix's own FM signal
+    private long _samplesHeard, _lastDigitalAt = long.MinValue / 2;   // for holding analog starts after digital
+    private const int DigitalHoldSeconds = 10;
     private readonly RFpix.Analog.SstvReceiver _sstv = new();   // analog SSTV, alongside HamDRM
     private volatile int _analogLines;                         // lines of the analog picture so far
     private RFpix.Analog.SstvModeInfo? _analogMode;            // the analog picture shown in the boxes
@@ -73,6 +80,9 @@ public partial class ReceivePage : UserControl, IDisposable
 
     /// <summary>Raised (on the screen's thread) when a request for missing pieces (BSR) is heard.</summary>
     public event Action<HeardBsr>? BsrHeard;
+
+    /// <summary>Another station asked for more pieces of a picture sent with RFpix's FM signal.</summary>
+    public event Action<FmRequest>? FmRequestHeard;
     private readonly AudioRecorder _recorder = new();
     // Takes audio off the sound card's thread at once; the work happens on its own thread.
     private readonly AudioPump _pump;
@@ -103,6 +113,7 @@ public partial class ReceivePage : UserControl, IDisposable
             // The recording is over (and all its audio processed), so its transmission is
             // too: show any picture still waiting.
             _receiver.EndOfAudio();
+            _fm.EndOfAudio();
             _sstv.End();
             Dispatcher.UIThread.Post(() =>
             {
@@ -121,6 +132,21 @@ public partial class ReceivePage : UserControl, IDisposable
         };
         _receiver.BsrReceived += bsr => Dispatcher.UIThread.Post(() => BsrHeard?.Invoke(bsr));
 
+        // RFpix's FM signal: a finished file is saved and shown the same way.
+        _fm.FileReceived += (file, quality) =>
+        {
+            var received = FmFile(file);
+            AppLog.Info("Receive", $"RFpix FM signal: \"{file.Name}\" complete from {file.PiecesReceived} pieces ({file.SourcePieces} needed)" +
+                                   (quality is double q ? $", quality {q:0} dB" : "") + ".");
+            Dispatcher.UIThread.Post(() => { ShowReceivedFile(received, file.Callsign, quality); ShowIncomplete(); });
+        };
+        _fm.RequestHeard += request =>
+        {
+            AppLog.Info("Receive", $"RFpix FM signal: {(request.Callsign.Length > 0 ? request.Callsign : "a station")} asked for " +
+                                   $"{request.Needed} more pieces of file {request.FileNumber}.");
+            Dispatcher.UIThread.Post(() => FmRequestHeard?.Invoke(request));
+        };
+
         // Analog SSTV (on the audio thread): show each picture as it arrives, and save it at the end.
         _sstv.Started += mode => { _analogLines = 0; Dispatcher.UIThread.Post(() => ShowAnalogStart(mode)); };
         _sstv.Progress += (picture, lines) => { _analogLines = lines; Dispatcher.UIThread.Post(() => ShowAnalogProgress(picture, lines)); };
@@ -135,21 +161,21 @@ public partial class ReceivePage : UserControl, IDisposable
         {
             AppLog.Info("Receive", LogSummary.Transmission(report));
             Dispatcher.UIThread.Post(ShowIncomplete);
-            int gaps = _input.Gaps - _gapsAtLastReport;
-            _gapsAtLastReport = _input.Gaps;
-            if (TestResults.Recognise(report, Math.Max(0, gaps)) is not { } result) return;
-            string? problem = null;
-            try { result = _testLog.Add(result); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            ReportTest(report);
+        };
+        // The same for RFpix's FM signal: each file it carried, as HamDRM reports it.
+        _fm.TransmissionEnded += reports =>
+        {
+            Dispatcher.UIThread.Post(ShowIncomplete);
+            foreach (var r in reports)
             {
-                problem = $"Couldn't add it to the test log ({ex.Message}). Is the file open in Excel?";
+                AppLog.Info("Receive", $"RFpix FM transmission ended: \"{r.Name ?? "(name not heard)"}\"" +
+                                       (r.Callsign is { } c ? $" from {c}" : "") + $", {r.PiecesSeen.Count} pieces this time ({r.SourcePieces} needed), " +
+                                       (r.File is not null ? "complete" : "not complete") + ".");
+                var file = r.File is { } f ? FmFile(f) : null;
+                ReportTest(new TransmissionReport(r.Ended, r.Name, file, r.File is not null ? r.SourcePieces : r.PiecesSeen.Count,
+                                                  r.PiecesSent, r.Callsign, null, null, r.FrameQualities, 0, 0) { PiecesSeen = r.PiecesSeen });
             }
-            Dispatcher.UIThread.Post(() =>
-            {
-                TestResultText.Text = result.Text;
-                TestPanel.IsVisible = true;
-                if (problem is not null) ShowError(problem);
-            });
         };
 
         // A recording that stops by itself (too long, disk full): say so on the screen's thread.
@@ -344,6 +370,7 @@ public partial class ReceivePage : UserControl, IDisposable
         _pump.Post(() =>
         {
             _receiver.Reset();
+            _fm.Reset();
             _sstv.End();
             Dispatcher.UIThread.Post(ShowIncomplete);
         });
@@ -397,10 +424,44 @@ public partial class ReceivePage : UserControl, IDisposable
         _analyzer.AddSamples(e.Samples, e.Count, e.SampleRate);
         // ...and to the HamDRM receiver, and the analog SSTV one.
         _receiver.AddSamples(e.Samples, e.Count, e.SampleRate);
+        _fm.AddSamples(e.Samples, e.Count, e.SampleRate);
+        // While a digital transmission arrives (HamDRM with its settings read, or RFpix's FM signal), and for
+        // 10 seconds after, no new analog picture starts: its sound can briefly look like one.
+        _samplesHeard += e.Count;
+        if (_receiver.Heard is { Fac: not null } || _fm.Heard is not null) _lastDigitalAt = _samplesHeard;
+        _sstv.HoldNewPictures = _samplesHeard - _lastDigitalAt < DigitalHoldSeconds * (long)e.SampleRate;
         if (e.SampleRate == RFpix.Analog.SstvReceiver.InputRate) _sstv.AddSamples(e.Samples.AsSpan(0, e.Count));
         // The radio's sound is also kept for recording (the last 30 seconds, or all of it while recording).
         if (source == _input) _recorder.AddSamples(e.Samples, e.Count, e.SampleRate);
     }
+
+    /// <summary>If a transmission was one of RFpix's test transmissions, says how it came through and adds
+    /// it to the test log (on the audio thread).</summary>
+    private void ReportTest(TransmissionReport report)
+    {
+        int gaps = _input.Gaps - _gapsAtLastReport;
+        _gapsAtLastReport = _input.Gaps;
+        if (TestResults.Recognise(report, Math.Max(0, gaps)) is not { } result) return;
+        string? problem = null;
+        try { result = _testLog.Add(result); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            problem = $"Couldn't add it to the test log ({ex.Message}). Is the file open in Excel?";
+        }
+        Dispatcher.UIThread.Post(() =>
+        {
+            TestResultText.Text = $"{result.Text}  ·  at {DateTime.Now:HH:mm}";
+            TestPanel.IsVisible = true;
+            if (problem is not null) ShowError(problem);
+        });
+    }
+
+    /// <summary>A file from RFpix's FM signal, as the rest of the Receive tab handles files.</summary>
+    private static ReceivedFile FmFile(FmReceivedFile file) => new(file.Name, file.Data, file.FileNumber)
+    {
+        RepairCodePieces = file.SourcePieces,
+        SentAs = file.Mode is { } m ? $"{m.Description}, fountain" : "RFpix FM, fountain",
+    };
 
     // The radio was unplugged (or a recording couldn't be played): show why, on the screen's own thread.
     private void OnAudioFailed(object? sender, string message)
@@ -430,13 +491,14 @@ public partial class ReceivePage : UserControl, IDisposable
         // readings, Offset to Quality, are live: they empty when the signal goes.)
         bool analogNow = _sstv.Receiving is not null;   // arriving, or waiting for its signal to come back
         var heardNow = analogNow ? null : _receiver.Heard;
-        _boxes = ReceiveBoxes.Next(_boxes, analogNow, heardNow);
+        var fm = analogNow ? null : _fm.Heard;
+        _boxes = fm is not null ? BoxesShow.Digital : ReceiveBoxes.Next(_boxes, analogNow, heardNow);
         bool analog = _boxes == BoxesShow.Analog;
         Show(DigitalBoxes, _boxes == BoxesShow.Digital);
         Show(AnalogBoxes, analog);
         // The marks follow the kind last received (a HamDRM transmission counts once its FAC, the
         // settings it sends, has been read, so noise doesn't switch them), or Send when it changes.
-        Waterfall.Analog = _marks.Update(AppSettings.Current.SendAnalog, analogNow, heardNow is { Fac: not null });
+        Waterfall.Analog = _marks.Update(AppSettings.Current.SendAnalog, analogNow, heardNow is { Fac: not null } || fm is not null);
         if (analog)
         {
             AnalogMode.Text = _analogMode?.Name ?? Empty;
@@ -446,13 +508,27 @@ public partial class ReceivePage : UserControl, IDisposable
             return;
         }
 
+        if (fm is not null)
+        {
+            // RFpix's FM signal: no offset to tune (it's FM) and no strength reading; its quality.
+            SignalOffset.Text = SignalClock.Text = SignalStrength.Text = Empty;
+            SignalQuality.Text = $"{fm.QualityDb:0} dB ({fm.Mode.QualityNeededDb:0})";
+            ShowQualityColour(fm.QualityDb >= fm.Mode.QualityNeededDb);
+            return;
+        }
+
         // The boxes stay, empty until there's a reading (a no-break space keeps each one's height).
         var s = _receiver.Signal;
         SignalOffset.Text = s?.OffsetHz is double hz ? $"{hz:+0.0;-0.0;0.0} Hz" : Empty;
         SignalClock.Text = s?.ClockPpm is double ppm ? $"{Math.Clamp(ppm, -999, 999):+0;-0;0} ppm" : Empty;
         SignalStrength.Text = s is not null ? $"{s.Strength:P0}" : Empty;
         SignalQuality.Text = s?.QualityDb is double q ? $"{q:0} dB" + (s.QualityNeededDb is double n ? $" ({n:0})" : "") : Empty;
-        switch (s?.QualityGood)
+        ShowQualityColour(s?.QualityGood);
+    }
+
+    private void ShowQualityColour(bool? good)
+    {
+        switch (good)
         {
             case true:
                 QualityBox.Background = GoodBrush;
@@ -484,6 +560,20 @@ public partial class ReceivePage : UserControl, IDisposable
 
     private void ShowHeard()
     {
+        if (_boxes == BoxesShow.Digital && _fm.Heard is { } fm)
+        {
+            // RFpix's FM signal: its speed, in the boxes HamDRM's settings use.
+            HeardMode.Text = fm.Mode.ShortName;
+            HeardBandwidth.Text = "2.7 kHz";
+            HeardQam.Text = (1 << fm.Mode.MidBits).ToString();
+            HeardInterleave.Text = "3 s";
+            var (top, bottom) = Ldpc.Rates[fm.Mode.RateIndex];
+            HeardProtection.Text = $"{top}/{bottom}";
+            HeardReedSolomon.Text = "Fountain";
+            HeardCallsign.Text = fm.Callsign ?? "…";
+            TransmissionText.Text = $"RFpix FM signal  ·  {fm.Good} of {fm.Blocks} blocks came through in the last frame";
+            return;
+        }
         var heard = _receiver.Heard;
         if (ReceiveBoxes.ShowsNewSettings(_boxes, heard) && heard is not null)
         {
@@ -543,14 +633,16 @@ public partial class ReceivePage : UserControl, IDisposable
 
         ShowSignal();
         ShowHeard();
-        FileText.Text = _receiver.FileText;
+        FileText.Text = _fm.Heard is { File: { } fmFile }
+            ? $"{fmFile.Name ?? "A picture"}: {fmFile.PiecesReceived} of the {fmFile.SourcePieces} pieces needed"
+            : _receiver.FileText;
 
         // While recording, show how long and how big, and note any callsign heard for the file's name.
         if (_recorder.IsRecording)
         {
             var (length, bytes) = _recorder.Progress;
             RecordText.Text = $"● Recording  ·  {length:h\\:mm\\:ss}  ·  {bytes / 1e6:0.0} MB  (includes the 30 seconds before)";
-            if (_receiver.Callsign is { Length: > 0 } call && !_recordingCallsigns.Contains(call)) _recordingCallsigns.Add(call);
+            if ((_receiver.Callsign ?? _fm.Heard?.Callsign) is { Length: > 0 } call && !_recordingCallsigns.Contains(call)) _recordingCallsigns.Add(call);
         }
 
         // Sound Windows lost on the way in (each gap is filled with silence so the timing holds),
@@ -610,7 +702,7 @@ public partial class ReceivePage : UserControl, IDisposable
             savedAs = Path.GetFileName(ReceivedFileSaver.Save(file, DigitalFolder, callsign, when));
             // What the Gallery shows about it.
             GalleryIndex.Add(DigitalFolder, new GalleryEntry(savedAs, when, file.Name, string.IsNullOrEmpty(callsign) ? null : callsign,
-                file.Settings?.Description, file.ReedSolomonLevel ?? (file.Settings is null ? null : 0), quality,
+                file.SentAs ?? file.Settings?.Description, file.ReedSolomonLevel ?? (file.Settings is null ? null : 0), quality,
                 file.RepairedPieces, _askedFor.Remove(file.TransportId)));
             SendSupport.RaiseGalleryChanged();
             // A JPEG copy for the website, stamped with the time (Settings, FTP server tab).
@@ -623,7 +715,7 @@ public partial class ReceivePage : UserControl, IDisposable
             return;
         }
         AppLog.Info("Receive", $"Received \"{file.Name}\"{from} ({file.Data.Length:N0} bytes): saved as \"{savedAs}\".");
-        if (!string.IsNullOrEmpty(callsign)) LastPicture = new(callsign, DateTime.UtcNow, Digital: true, "HamDRM");
+        if (!string.IsNullOrEmpty(callsign)) LastPicture = new(callsign, DateTime.UtcNow, Digital: true, file.SentAs is null ? "HamDRM" : "RFpix FM");
         if (file.Problem is not null) ShowError($"{file.Name}: {file.Problem}");
         string caption = $"{file.Name}{from}  ·  {DateTime.Now:HH:mm}\nSaved as \"{savedAs}\"";
         int number = ++_pictureCount;

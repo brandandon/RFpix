@@ -17,6 +17,8 @@
 //   6. CW sends the callsign in Morse code; ID writes it on the waterfall.
 //   8. An overlay template (Templates/) can be picked: it's drawn on the picture at the size
 //      that goes out, with its codes (%to, %rst...) filled from the boxes beside it.
+//   9. The Signal list sends RFpix's own FM signal (FmSignal/) instead of HamDRM, at the
+//      chosen speed, always with the fountain code (SendPage.Profiles.cs).
 //   7. "Send as Analog SSTV": the picture is fitted to the chosen mode's frame instead (each
 //      mode has a fixed size and time) and sent as analog SSTV (Analog/SstvEncoder.cs), without
 //      waterfall text (ID, WF TXT and WF PIC are hidden then; they come back in Digital).
@@ -98,6 +100,8 @@ public partial class SendPage : UserControl, IDisposable
         InterleaveBox.ItemsSource = new[] { "Long", "Short" };
         ProtectionBox.ItemsSource = new[] { "High", "Low" };
         ReedSolomonBox.ItemsSource = RepairChoices().ToArray();
+        SignalBox.ItemsSource = Signals;
+        SpeedBox.ItemsSource = SpeedChoices().ToList();
         TargetBox.ItemsSource = TargetTimes.Select(Clock).ToList();
         TimeoutBox.ItemsSource = Timeouts.Select(t => t == 0 ? "None" : Clock(t)).ToList();
         LeadInBox.ItemsSource = LeadIns.Select(l => $"{l:0.0#} s").ToList();
@@ -603,7 +607,7 @@ public partial class SendPage : UserControl, IDisposable
         if (SendSupport.IsSending) { ShowStatus(AlreadySending, problem: true); return; }
         // Kept so missing pieces can be sent again if a station asks (BSR), and saved for the Gallery.
         string? notSaved = SendSupport.RecordSent(fitted, call);
-        Transmit(() => SendSupport.WithWaterfallText(fitted.Transmitter(call).Audio()), fitted.FileName,
+        Transmit(() => SendSupport.WithWaterfallText(fitted.Audio(call)), fitted.FileName,
                  $"Sent {fitted.FileName} as {call}." + (notSaved is null ? "" : $" ({notSaved})"),
                  TimeSpan.FromSeconds(profile.LeadInSeconds), hamDrm: true);
     }
@@ -734,7 +738,7 @@ public partial class SendPage : UserControl, IDisposable
         {
             ShowStatus("Making the sound file…", problem: false);
             await SendSupport.SaveSoundAsync(analog ? AnalogSound(analogPicture!, analogMode)
-                                                    : () => SendSupport.WithWaterfallText(fitted!.Transmitter(call).Audio()),
+                                                    : () => SendSupport.WithWaterfallText(fitted!.Audio(call)),
                                              path, SendSupport.Gain(LevelSlider.Value));
             ShowStatus($"Saved {Path.GetFileName(path)}.", problem: false);
         }

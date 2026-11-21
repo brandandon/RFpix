@@ -1,5 +1,5 @@
 // SendTests.cs - checks the Send page's parts without a screen or sound card:
-//   - the eight test transmissions: their pictures are built in, and every one decodes
+//   - the test transmissions: their pictures are built in, and every one decodes
 //     in RFpix's receiver to the exact picture, with its settings and the callsign;
 //   - the level, which follows the slider while the sound plays;
 //   - the send sequence: the radio (Hamlib's pretend "Dummy" radio) is keyed before the
@@ -19,18 +19,20 @@ public class SendTests
     // ---- the test transmissions ----
 
     [Fact]
-    public void There_are_nine_tests_each_with_its_own_picture_and_settings()
+    public void There_are_thirteen_tests_each_with_its_own_picture_and_settings()
     {
-        // Tests 3, 7, 8 and 9 were retired (Nov 14, 2026); their numbers aren't reused.
+        // Tests 3, 7, 8 and 9 were retired (Nov 14, 2026); their numbers aren't reused. Tests 14 to 17
+        // send RFpix's FM signal at FM 2 to FM 5.
         var all = TestTransmissions.All;
-        Assert.Equal(new[] { 1, 2, 4, 5, 6, 10, 11, 12, 13 }, all.Select(t => t.Number));
-        Assert.Equal(9, all.Select(t => (t.Settings, t.ReedSolomon, t.RepairPercent)).Distinct().Count());
-        Assert.Equal(new[] { 0, 0, 0, 0, 0, 2, 0, 0, 0 }, all.Select(t => t.ReedSolomon));
-        Assert.Equal(new[] { 0, 0, 0, 0, 0, 0, 20, 50, 75 }, all.Select(t => t.RepairPercent));
+        Assert.Equal(new[] { 1, 2, 4, 5, 6, 10, 11, 12, 13, 14, 15, 16, 17 }, all.Select(t => t.Number));
+        Assert.Equal(13, all.Select(t => (t.Settings, t.ReedSolomon, t.RepairPercent, t.FmSpeed)).Distinct().Count());
+        Assert.Equal(new[] { 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 }, all.Select(t => t.ReedSolomon));
+        Assert.Equal(new[] { 0, 0, 0, 0, 0, 0, 20, 50, 75, 20, 20, 20, 20 }, all.Select(t => t.RepairPercent));
+        Assert.Equal(new[] { 2, 3, 4, 5 }, all.Where(t => t.FmMode is not null).Select(t => t.FmSpeed));
         Assert.Equal("rfpix-test-10.rs2", all[5].SendName);   // sent wrapped, as QSSTV sends RS files
         Assert.Matches(@"^rfpix-test-12\.fc\d+$", all[7].SendName);
         // The fountain tests have test 10's settings, so they compare directly with RS2.
-        Assert.All(all.Where(t => t.RepairPercent > 0), t => Assert.Equal(all[5].Settings, t.Settings));
+        Assert.All(all.Where(t => t.RepairPercent > 0 && t.FmMode is null), t => Assert.Equal(all[5].Settings, t.Settings));
         Assert.EndsWith("Fountain 50%", all[7].SettingsText);
         foreach (var t in all)
         {
@@ -41,7 +43,27 @@ public class SendTests
         }
     }
 
-    public static IEnumerable<object[]> Numbers() => TestTransmissions.All.Select(t => new object[] { t.Number });
+    public static IEnumerable<object[]> Numbers() => TestTransmissions.All.Where(t => t.FmMode is null).Select(t => new object[] { t.Number });
+    public static IEnumerable<object[]> FmNumbers() => TestTransmissions.All.Where(t => t.FmMode is not null).Select(t => new object[] { t.Number });
+
+    [Theory]
+    [MemberData(nameof(FmNumbers))]
+    public void Every_FM_test_transmission_decodes_to_its_exact_picture(int number)
+    {
+        var test = TestTransmissions.All.Single(t => t.Number == number);
+        Assert.InRange(test.Duration.TotalSeconds, 5, 30);
+        var sound = test.Audio("N0CALL");
+        Assert.Equal(test.Duration.TotalSeconds, sound.Length / 48000.0, 3);
+        var live = new RFpix.FmSignal.FmSignalLiveReceiver();
+        RFpix.FmSignal.FmReceivedFile? received = null;
+        live.FileReceived += (f, _) => received = f;
+        var all = new float[24000].Concat(sound).Concat(new float[48000 * 7]).ToArray();
+        for (int pos = 0; pos + 480 <= all.Length; pos += 480) live.AddSamples(all[pos..(pos + 480)], 480, 48000);
+        Assert.Equal(test.FileName, received?.Name);
+        Assert.Equal("N0CALL", received!.Callsign);
+        Assert.Equal(test.Picture(), received.Data);
+        Assert.Equal(test.FmMode, received.Mode);
+    }
 
     [Theory]
     [MemberData(nameof(Numbers))]

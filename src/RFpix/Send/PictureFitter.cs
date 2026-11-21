@@ -23,6 +23,7 @@
 // try it with JPEG 2000 alone or with a stand-in.
 
 using System.Text;
+using RFpix.FmSignal;
 using RFpix.HamDrm;
 using RFpix.HamDrm.Coding;
 using RFpix.Imaging;
@@ -53,8 +54,18 @@ public sealed record FittedPicture(
     /// <summary>True if it goes out within the target time (for Auto, within its allowance).</summary>
     public bool FitsTarget => Fit == TimeFit.Fits;
 
-    /// <summary>A transmitter for it, from <paramref name="callsign"/>.</summary>
+    /// <summary>A transmitter for it, from <paramref name="callsign"/> (HamDRM only).</summary>
     public HamDrmTransmitter Transmitter(string callsign) => new(SendName, SendData, Profile.Settings, callsign);
+
+    /// <summary>RFpix's FM signal: how many pieces rebuild the file, and its number in the signal (the same
+    /// each time this picture is sent, so a station that missed pieces the first time can add the second's).</summary>
+    public int FmSourcePieces { get; init; }
+    public ushort FmFileNumber { get; init; }
+
+    /// <summary>The sound of the picture going out from <paramref name="callsign"/>: HamDRM, or RFpix's FM signal.</summary>
+    public float[] Audio(string callsign) => Profile.FmMode is { } mode
+        ? FmSignalTransmitter.Audio(SendData, FmSourcePieces, mode, FmFileNumber, new FmFileInfo(callsign, FileName))
+        : Transmitter(callsign).Audio();
 }
 
 /// <summary>How a picture's time compares with the target.</summary>
@@ -135,6 +146,17 @@ public sealed class PictureFitter
     public static int MaxFileBytes(string sendName, SendProfile profile, TimeSpan extra = default)
     {
         var target = TimeSpan.FromSeconds(profile.TargetSeconds) + extra;
+        if (profile.FmMode is { } fm)
+        {
+            // RFpix's FM signal sends whole frames of pieces: the most source pieces whose frames (with the
+            // repair pieces) fit the time.
+            int percent = Math.Max(profile.RepairPercent, SendProfile.FountainChoices[0]);
+            int pieces = 1;
+            while (FmSignalTransmitter.Seconds(pieces + 1 + FountainFile.RepairPieces(pieces + 1, percent), fm) <= target.TotalSeconds
+                   && pieces < FountainFile.MaxSourcePieces)
+                pieces++;
+            return Math.Max(0, pieces * fm.PieceBytes - FountainFile.HeaderBytes);
+        }
         // Double until it's too long, then find the most bytes that fit, halving the range each time.
         int lo = 0, hi = 1024;
         while (hi < 1 << 24 && DurationFor(sendName, hi, profile.Settings) <= target) { lo = hi; hi *= 2; }
@@ -166,6 +188,17 @@ public sealed class PictureFitter
         int rs = profile.ReedSolomon;
         string sendName = rs > 0 ? $"{baseName}.rs{rs}" : fileName;
         byte[] sendData = rs > 0 ? RsFile.Wrap(file, format.Extension(), rs) : file;
+        if (profile.FmMode is { } fm)
+        {
+            int percent = Math.Max(profile.RepairPercent, SendProfile.FountainChoices[0]);
+            var (data, k) = FmSignalTransmitter.Wrap(file, format.Extension(), fm, percent);
+            var seconds = FmSignalTransmitter.Seconds(data.Length / fm.PieceBytes, fm);
+            return new FittedPicture(picture, format, quality, file, fileName, data, fileName, profile, TimeSpan.FromSeconds(seconds))
+            {
+                FmSourcePieces = k,
+                FmFileNumber = (ushort)Random.Shared.Next(1, 65536),
+            };
+        }
         if (profile.RepairPercent > 0)
             (sendName, sendData) = FountainFile.WrapFor(file, format.Extension(), baseName, profile.Settings, profile.RepairPercent);
         var duration = new HamDrmTransmitter(sendName, sendData, profile.Settings, "X").Duration;

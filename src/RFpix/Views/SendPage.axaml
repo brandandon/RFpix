@@ -21,8 +21,8 @@
       <!-- Digital (HamDRM) or analog SSTV -->
       <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="16">
         <TextBlock Text="Send as" FontWeight="SemiBold" VerticalAlignment="Center" />
-        <RadioButton x:Name="DigitalButton" GroupName="SendAs" Content="Digital (HamDRM)"
-                     ToolTip.Tip="HamDRM, as EasyPal and QSSTV send: the picture as a file, error-corrected, at the size and quality you choose." />
+        <RadioButton x:Name="DigitalButton" GroupName="SendAs" Content="Digital"
+                     ToolTip.Tip="The picture as a file, error-corrected, at the size and quality you choose: HamDRM, as EasyPal and QSSTV send, or RFpix's own FM signal (the Signal list below)." />
         <RadioButton x:Name="AnalogButton" GroupName="SendAs" Content="Analog SSTV"
                      ToolTip.Tip="Classic SSTV (Martin, Scottie, Robot, PD), as MMSSTV and QSSTV send: a fixed size and time for each mode." />
       </StackPanel>
@@ -119,27 +119,37 @@
                           ToolTip.Tip="Deletes the chosen profile (not the ones that come with RFpix)." />
                 </WrapPanel>
                 <WrapPanel x:Name="SettingsWrap">
-                  <StackPanel Spacing="3" Margin="0,0,10,8">
+                  <StackPanel x:Name="SignalPanel" Spacing="3" Margin="0,0,10,8">
+                    <TextBlock FontSize="13" Text="Signal" />
+                    <ComboBox x:Name="SignalBox" Width="110" SelectionChanged="OnSendSettingChanged"
+                              ToolTip.Tip="HamDRM: what EasyPal, QSSTV and RFpix all receive. RFpix FM: RFpix's own signal for FM radios (simplex or a repeater), about twice as fast as HamDRM for the same signal; only RFpix 0.7.1 or newer receives it." />
+                  </StackPanel>
+                  <StackPanel x:Name="SpeedPanel" Spacing="3" Margin="0,0,10,8">
+                    <TextBlock FontSize="13" Text="Speed" />
+                    <ComboBox x:Name="SpeedBox" Width="150" SelectionChanged="OnSendSettingChanged"
+                              ToolTip.Tip="FM 1 is the toughest and slowest; FM 5 the fastest, for a strong signal with the transmit level a little hot. FM 3 is as tough as HamDRM's toughest setting, at twice the speed." />
+                  </StackPanel>
+                  <StackPanel x:Name="ModePanel" Spacing="3" Margin="0,0,10,8">
                     <TextBlock FontSize="13" Text="Mode" />
                     <ComboBox x:Name="ModeBox" Width="70" SelectionChanged="OnSendSettingChanged"
                               ToolTip.Tip="A carries the most data; B and E hold up better on fading paths, more slowly." />
                   </StackPanel>
-                  <StackPanel Spacing="3" Margin="0,0,10,8">
+                  <StackPanel x:Name="BandwidthPanel" Spacing="3" Margin="0,0,10,8">
                     <TextBlock FontSize="13" Text="Bandwidth" />
                     <ComboBox x:Name="BandwidthBox" Width="96" SelectionChanged="OnSendSettingChanged"
                               ToolTip.Tip="2.5 kHz is faster; 2.2 kHz fits narrower radio filters." />
                   </StackPanel>
-                  <StackPanel Spacing="3" Margin="0,0,10,8">
+                  <StackPanel x:Name="QamPanel" Spacing="3" Margin="0,0,10,8">
                     <TextBlock FontSize="13" Text="QAM" />
                     <ComboBox x:Name="QamBox" Width="80" SelectionChanged="OnSendSettingChanged"
                               ToolTip.Tip="64 is fastest but needs a strong, clean signal; 4 is slowest and toughest." />
                   </StackPanel>
-                  <StackPanel Spacing="3" Margin="0,0,10,8">
+                  <StackPanel x:Name="InterleavePanel" Spacing="3" Margin="0,0,10,8">
                     <TextBlock FontSize="13" Text="Interleave" />
                     <ComboBox x:Name="InterleaveBox" Width="90" SelectionChanged="OnSendSettingChanged"
                               ToolTip.Tip="Long spreads the data over more time, riding out fades better." />
                   </StackPanel>
-                  <StackPanel Spacing="3" Margin="0,0,10,8">
+                  <StackPanel x:Name="ProtectionPanel" Spacing="3" Margin="0,0,10,8">
                     <TextBlock FontSize="13" Text="Protection" />
                     <ComboBox x:Name="ProtectionBox" Width="90" SelectionChanged="OnSendSettingChanged"
                               ToolTip.Tip="High adds more error correction, at lower speed." />
@@ -160,6 +170,8 @@
                               ToolTip.Tip="Quiet after keying, before the picture starts, while a repeater opens. Raise it if the start of your pictures gets lost." />
                   </StackPanel>
                 </WrapPanel>
+                <TextBlock x:Name="FmHint" Classes="Hint" FontSize="13" TextWrapping="Wrap" IsVisible="False"
+                           Text="RFpix's FM signal is for FM radios, simplex or through a repeater, and only RFpix (0.7.1 or newer) receives it. It always carries the fountain code. The faster speeds like the transmit level a little hotter than for HamDRM (FM 5 needs it)." />
               </StackPanel>
             </StackPanel>
               <TextBlock Grid.Row="0" Grid.Column="1" x:Name="SentLabel" Classes="Hint" FontSize="13" Text="As sent" />

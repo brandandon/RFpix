@@ -192,13 +192,16 @@ internal static class SendSupport
     public static string? RecordSent(FittedPicture fitted, string callsign)
     {
         var profile = fitted.Profile;
-        SentLog.Current.Add(fitted.SendName, fitted.FileName, fitted.SendData, profile.Settings, profile.LeadInSeconds);
+        if (profile.FmMode is { } fm)
+            SentLog.Current.AddFm(fitted.FileName, fitted.SendData, fitted.FmSourcePieces, fm, fitted.FmFileNumber, profile.LeadInSeconds);
+        else
+            SentLog.Current.Add(fitted.SendName, fitted.FileName, fitted.SendData, profile.Settings, profile.LeadInSeconds);
         try
         {
             var when = DateTime.Now;
             string path = GalleryIndex.SaveSent(SentFolder, fitted.FileName, fitted.File, when);
             GalleryIndex.Add(SentFolder, new GalleryEntry(Path.GetFileName(path), when, fitted.FileName, callsign,
-                profile.Settings.Description, profile.ReedSolomon));
+                profile.SignalText, profile.FmMode is null ? profile.ReedSolomon : null));
             RaiseGalleryChanged();
             var picture = fitted.File;
             _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(picture, when, analog: false, sent: true));

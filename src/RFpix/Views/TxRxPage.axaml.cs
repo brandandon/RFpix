@@ -30,6 +30,7 @@ public partial class TxRxPage : UserControl, IDisposable
     {
         InitializeComponent();
         ReceiveTab.BsrHeard += OnBsrHeard;
+        ReceiveTab.FmRequestHeard += OnFmRequestHeard;
         _noteTimer.Tick += (_, _) => { _noteTimer.Stop(); NoteBar.IsVisible = false; };
         // Popped out when RFpix last closed: pop out again once the main window is up.
         Loaded += (_, _) => { if (AppSettings.Current.ReceivePoppedOut && _receiveWindow is null) PopOut(); };
@@ -123,10 +124,15 @@ public partial class TxRxPage : UserControl, IDisposable
 
     // ---- requests for missing pieces ----
 
-    private void OnBsrHeard(HeardBsr heard)
+    private void OnBsrHeard(HeardBsr heard) =>
+        ShowRequest(string.IsNullOrEmpty(heard.Callsign) ? "A station" : heard.Callsign, SentLog.Current.Answer(heard.Request));
+
+    /// <summary>A station asked for more pieces of a picture sent with RFpix's FM signal.</summary>
+    private void OnFmRequestHeard(RFpix.FmSignal.FmRequest request) =>
+        ShowRequest(string.IsNullOrEmpty(request.Callsign) ? "A station" : request.Callsign, SentLog.Current.Answer(request));
+
+    private void ShowRequest(string who, FixPlan? plan)
     {
-        string who = string.IsNullOrEmpty(heard.Callsign) ? "A station" : heard.Callsign;
-        var plan = SentLog.Current.Answer(heard.Request);
         if (plan is null)
         {
             NoteText.Text = $"{who} asked for missing pieces of a picture that wasn't sent from here.";
@@ -144,7 +150,7 @@ public partial class TxRxPage : UserControl, IDisposable
         if (!_askers.Contains(who)) _askers.Add(who);
 
         _plan = plan;
-        var seconds = plan.Transmitter("X").Duration.TotalSeconds + plan.File.LeadInSeconds;
+        var seconds = plan.Seconds + plan.File.LeadInSeconds;
         string time = $"{(int)seconds / 60}:{(int)seconds % 60:00}";
         if (plan.Fresh)
         {
@@ -153,7 +159,8 @@ public partial class TxRxPage : UserControl, IDisposable
             RequestTitle.Text = $"{askers} asked for missing pieces of {plan.File.ShownName}";
             RequestText.Text = $"You sent it at {plan.File.Sent:HH:mm}, with the fountain code: {plan.Pieces.Count} new repair pieces " +
                                $"fill the gaps{(plan.Stations > 1 ? $" for all {plan.Stations} stations at once" : "")}. " +
-                               $"Sending them takes about {time} on the air, with the picture's own settings.";
+                               $"Sending them takes about {time} on the air, with the picture's own settings" +
+                               (plan.File.FmMode is { } fm ? $" (RFpix {fm.ShortName})." : ".");
         }
         else
         {
@@ -186,7 +193,7 @@ public partial class TxRxPage : UserControl, IDisposable
         SentLog.Current.Sending(plan);   // new repair pieces: the next answer's are numbered on from these
         try
         {
-            await SendSupport.SendSoundAsync(() => plan.Transmitter(call).Audio(),
+            await SendSupport.SendSoundAsync(() => plan.Audio(call),
                 $"{pieces} of {plan.File.ShownName}", _output, SendSupport.SavedGain,
                 m => ShowRequestStatus(m, problem: false), new Progress<double>(f => RequestProgress.Value = f),
                 _fixing.Token, TimeSpan.FromSeconds(plan.File.LeadInSeconds), hamDrm: true);

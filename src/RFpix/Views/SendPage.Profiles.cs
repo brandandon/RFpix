@@ -35,7 +35,33 @@ public partial class SendPage
         TargetTimes[Math.Max(0, TargetBox.SelectedIndex)],
         Timeouts[Math.Max(0, TimeoutBox.SelectedIndex)],
         LeadIns[Math.Max(0, LeadInBox.SelectedIndex)],
-        FountainPercentAt(ReedSolomonBox.SelectedIndex));
+        FountainPercentAt(ReedSolomonBox.SelectedIndex),
+        SignalBox.SelectedIndex == 1 ? Math.Max(0, SpeedBox.SelectedIndex) + 1 : 0);
+
+    // The Signal list (HamDRM or RFpix's FM signal) and the FM speeds.
+    private static readonly string[] Signals = { "HamDRM", "RFpix FM" };
+    private const int DefaultFmSpeed = 3;
+
+    private static IEnumerable<string> SpeedChoices() =>
+        RFpix.FmSignal.FmSignalMode.Offered.Select(m => $"{m.ShortName}  ·  {m.BitsPerSecond / 1000:0.0} kbit/s");
+
+    /// <summary>Shows the boxes for the signal chosen: HamDRM's settings, or the FM speed. The FM signal
+    /// always carries the fountain code, so Reed-Solomon or none becomes fountain 20%.</summary>
+    private void ShowSignalChoice()
+    {
+        bool fm = SignalBox.SelectedIndex == 1;
+        if (_analog) { FmHint.IsVisible = false; return; }   // analog SSTV: none of these show (ShowSendAs)
+        SignalPanel.IsVisible = true;
+        SpeedPanel.IsVisible = FmHint.IsVisible = fm;
+        ModePanel.IsVisible = BandwidthPanel.IsVisible = QamPanel.IsVisible = InterleavePanel.IsVisible = ProtectionPanel.IsVisible = !fm;
+        if (fm && ReedSolomonBox.SelectedIndex < FirstFountain)
+        {
+            bool was = _updating;
+            _updating = true;
+            ReedSolomonBox.SelectedIndex = FirstFountain;
+            _updating = was;
+        }
+    }
 
     // The repair-data choices: None, RS1-RS4, then RFpix's repair code (the fountain code) at
     // each of its sizes, which only RFpix stations can read.
@@ -51,6 +77,8 @@ public partial class SendPage
 
     private void ShowSendSettings(SendProfile p)
     {
+        SignalBox.SelectedIndex = p.FmSpeed > 0 ? 1 : 0;
+        SpeedBox.SelectedIndex = Math.Clamp((p.FmSpeed > 0 ? p.FmSpeed : DefaultFmSpeed) - 1, 0, RFpix.FmSignal.FmSignalMode.Offered.Count - 1);
         ModeBox.SelectedIndex = Array.IndexOf(Modes, p.Mode);
         BandwidthBox.SelectedIndex = Array.IndexOf(Bandwidths, p.Bandwidth);
         QamBox.SelectedIndex = Math.Max(0, Array.IndexOf(Qams, p.Qam));
@@ -64,6 +92,7 @@ public partial class SendPage
         TimeoutBox.SelectedIndex = timeout >= 0 ? timeout : 0;
         int lead = Array.FindIndex(LeadIns, l => Math.Abs(l - p.LeadInSeconds) < 0.01);
         LeadInBox.SelectedIndex = lead >= 0 ? lead : 0;
+        ShowSignalChoice();
     }
 
     /// <summary>Keeps the transmit time within the repeater's time-out (the longer choices can't be picked).</summary>
@@ -117,6 +146,10 @@ public partial class SendPage
     private void OnSendSettingChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_updating) return;
+        bool repairWas = ReedSolomonBox.SelectedIndex >= FirstFountain;
+        ShowSignalChoice();
+        if (SignalBox.SelectedIndex == 1 && sender == ReedSolomonBox && !repairWas)
+            ShowStatus("RFpix's FM signal always carries the fountain code: pick 20, 50 or 75%.", problem: false);
         if (KeepTargetInsideTimeout())
             ShowStatus("The transmit time can't be longer than the repeater's time-out.", problem: false);
         FillProfiles();   // the chosen profile no longer matches, perhaps (or another now does)

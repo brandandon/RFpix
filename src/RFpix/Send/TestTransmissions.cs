@@ -18,8 +18,12 @@
 // settings with RFpix's own repair code (the fountain code) at 20%, 50% and 75% in place of RS2, to
 // compare the two on the air. They go out as "rfpix-test-11.fc39" and so on; only RFpix can read
 // them. Numbers are never reused, so a station with an older RFpix never mistakes one test for another.
+//
+// RFpix 0.7.1 (Nov 2026): tests 14 to 17 send RFpix's own FM signal (FmSignal/) at speeds FM 2 to FM 5,
+// with fountain 20%, for checking it on the air through FM radios. Only RFpix 0.7.1 or newer receives them.
 
 using System.Reflection;
+using RFpix.FmSignal;
 using RFpix.HamDrm;
 using RFpix.HamDrm.Coding;
 
@@ -30,8 +34,29 @@ namespace RFpix.Send;
 /// <param name="Purpose">What it tests, in a few words.</param>
 /// <param name="ReedSolomon">0 for none, or RS1 to RS4.</param>
 /// <param name="RepairPercent">RFpix's repair code (the fountain code): the extra, in percent; 0 for none.</param>
-public sealed record TestTransmission(int Number, TransmitSettings Settings, string Purpose, int ReedSolomon = 0, int RepairPercent = 0)
+/// <param name="FmSpeed">1 to 5 to send RFpix's FM signal at that speed (Settings unused); 0 for HamDRM.</param>
+public sealed record TestTransmission(int Number, TransmitSettings Settings, string Purpose, int ReedSolomon = 0, int RepairPercent = 0,
+                                      int FmSpeed = 0)
 {
+    /// <summary>RFpix's FM signal at this test's speed, or null for a HamDRM test.</summary>
+    public FmSignalMode? FmMode => FmSpeed > 0 ? FmSignalMode.ById(FmSpeed - 1) : null;
+
+    /// <summary>Its number in the FM signal: the same every time, so a station that missed pieces can add
+    /// the next sending's.</summary>
+    public ushort FmFileNumber => (ushort)(0xF000 + Number);
+
+    /// <summary>The sound of this test going out from <paramref name="callsign"/>.</summary>
+    public float[] Audio(string callsign)
+    {
+        if (FmMode is not { } mode) return Transmitter(callsign).Audio();
+        var (data, k) = FmSignalTransmitter.Wrap(Picture(), "jpg", mode, RepairPercent);
+        return FmSignalTransmitter.Audio(data, k, mode, FmFileNumber, new FmFileInfo(callsign, FileName));
+    }
+
+    /// <summary>How long it is on the air.</summary>
+    public TimeSpan Duration => FmMode is { } mode
+        ? TimeSpan.FromSeconds(FmSignalTransmitter.Seconds(FmSignalTransmitter.Wrap(Picture(), "jpg", mode, RepairPercent).Data.Length / mode.PieceBytes, mode))
+        : Transmitter("TEST").Duration;
     /// <summary>The picture's name: what the receiver saves it as.</summary>
     public string FileName => $"rfpix-test-{Number}.jpg";
 
@@ -58,6 +83,11 @@ public sealed record TestTransmission(int Number, TransmitSettings Settings, str
     /// pieces can ask for them (a BSR) and be answered, as for a picture sent from the Send tab.</summary>
     public SentFile RecordSent(SentLog log)
     {
+        if (FmMode is { } fm)
+        {
+            var (fmData, k) = FmSignalTransmitter.Wrap(Picture(), "jpg", fm, RepairPercent);
+            return log.AddFm(FileName, fmData, k, fm, FmFileNumber);
+        }
         var (name, data) = Wrapped();
         return log.Add(name, FileName, data, Settings);
     }
@@ -76,7 +106,7 @@ public sealed record TestTransmission(int Number, TransmitSettings Settings, str
     }
 
     /// <summary>Short settings for the list, e.g. "Mode B · 2.5 kHz · 16-QAM · long · high".</summary>
-    public string SettingsText =>
+    public string SettingsText => FmMode is { } fm ? $"{fm.Description}  ·  {RepairText}  ·  RFpix only" :
         $"Mode {Settings.Mode}  ·  {(Settings.Bandwidth == HamDrmBandwidth.Wide ? "2.5" : "2.2")} kHz  ·  {Settings.Qam}-QAM  ·  " +
         $"{Settings.Interleave.ToString().ToLowerInvariant()}  ·  {Settings.Protection.ToString().ToLowerInvariant()}" +
         (RepairText.Length > 0 ? $"  ·  {RepairText}" : "");
@@ -109,5 +139,12 @@ public static class TestTransmissions
             "test 2 with Fountain 50%: everyday, compare with test 10 (RS2)", RepairPercent: 50),
         new TestTransmission(13, S(HamDrmMode.B, HamDrmBandwidth.Wide, 16, HamDrmInterleave.Long, HamDrmProtection.High),
             "test 2 with Fountain 75%: for bad conditions", RepairPercent: 75),
+        new TestTransmission(14, FmSettings, "RFpix FM 2: tough, through FM radios", RepairPercent: 20, FmSpeed: 2),
+        new TestTransmission(15, FmSettings, "RFpix FM 3: as tough as test 11, twice as fast", RepairPercent: 20, FmSpeed: 3),
+        new TestTransmission(16, FmSettings, "RFpix FM 4: fast, needs a fair signal", RepairPercent: 20, FmSpeed: 4),
+        new TestTransmission(17, FmSettings, "RFpix FM 5: fastest, strong signal, level a little hot", RepairPercent: 20, FmSpeed: 5),
     };
+
+    // (For the FM tests, unused: the FM signal has its own settings.)
+    private static TransmitSettings FmSettings => S(HamDrmMode.B, HamDrmBandwidth.Wide, 16, HamDrmInterleave.Long, HamDrmProtection.High);
 }

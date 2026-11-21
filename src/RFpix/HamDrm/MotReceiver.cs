@@ -39,6 +39,10 @@ public sealed record ReceivedFile(string Name, byte[] Data, int TransportId)
 
     /// <summary>The settings it was sent with, if they were read (set by HamDrmReceiver).</summary>
     public TransmitSettings? Settings { get; init; }
+
+    /// <summary>How it was sent, in words, when it didn't come by HamDRM (RFpix's FM signal: "RFpix FM 3
+    /// (16-QAM 2/3), fountain"). Null for HamDRM, whose settings say.</summary>
+    public string? SentAs { get; init; }
 }
 
 /// <summary>A file that's still missing pieces, kept so a repeat or a fix can complete it.</summary>

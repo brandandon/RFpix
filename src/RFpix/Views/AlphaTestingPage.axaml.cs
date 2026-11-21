@@ -55,8 +55,7 @@ public partial class AlphaTestingPage : UserControl, IDisposable
     /// <summary>How long a test takes on the air, e.g. "41 s".</summary>
     private static string Duration(TestTransmission t)
     {
-        var tx = t.Transmitter("TEST");
-        return $"{tx.Duration.TotalSeconds:0} s";
+        return $"{t.Duration.TotalSeconds:0} s";
     }
 
     private TestTransmission? Selected => (TestList.SelectedItem as TestListItem)?.Test;
@@ -123,9 +122,9 @@ public partial class AlphaTestingPage : UserControl, IDisposable
         {
             // Noted as sent, so a request for its missing pieces (BSR) can be answered from here.
             test.RecordSent(SentLog.Current);
-            await SendSupport.SendAsync(() => test.Transmitter(call), $"test {test.Number}", _output,
+            await SendSupport.SendSoundAsync(() => test.Audio(call), $"test {test.Number}", _output,
                 () => Volatile.Read(ref _gain), m => ShowStatus(m, problem: false),
-                new Progress<double>(f => Progress.Value = f), cancel);
+                new Progress<double>(f => Progress.Value = f), cancel, hamDrm: true);
             ShowStatus($"Sent test {test.Number} as {call}.", problem: false);
         }
         catch (OperationCanceledException)
@@ -164,7 +163,7 @@ public partial class AlphaTestingPage : UserControl, IDisposable
         try
         {
             ShowStatus("Making the sound file…", problem: false);
-            await SendSupport.SaveAsync(() => test.Transmitter(call), path, Gain);
+            await SendSupport.SaveSoundAsync(() => test.Audio(call), path, Gain);
             ShowStatus($"Saved {Path.GetFileName(path)}.", problem: false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

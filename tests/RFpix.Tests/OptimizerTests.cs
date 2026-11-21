@@ -309,6 +309,26 @@ public class OptimizerTests
     }
 
     [Fact]
+    public void A_picture_fitted_for_RFpix_FM_fills_the_time_and_arrives_exactly()
+    {
+        // FM 4 with fountain 20%, fitted to 30 s, sent and received by the FM signal's receiver.
+        var profile = SendProfile.NetRepeater with { FmSpeed = 4, RepairPercent = 20, TargetSeconds = 30 };
+        Assert.Equal("RFpix FM 4 (64-QAM 2/3), fountain 20%", profile.SignalText);
+        var fitter = new PictureFitter((p, _, q) => Jpeg2000.Encode(p, q));
+        var fitted = fitter.Auto(TestPhoto(), "tower", PictureFormat.Jpeg2000, profile);
+        Assert.InRange(fitted.Duration.TotalSeconds, 20, 33);   // most of the 30 s (+3 s for Auto), in whole 3 s frames
+        Assert.True(fitted.File.Length > 15000, $"only {fitted.File.Length} bytes in 30 s");   // HamDRM B 64-QAM fits about 11 kB
+
+        var sound = fitted.Audio("N0CALL");
+        Assert.Equal(fitted.Duration.TotalSeconds, sound.Length / 48000.0, 3);
+        var received = RFpix.FmSignal.FmSignalReceiver.Decode(new float[24000].Concat(sound).Concat(new float[24000]).ToArray());
+        var file = Assert.Single(received.Files);
+        Assert.Equal("tower.jp2", file.Name);
+        Assert.Equal("N0CALL", file.Callsign);
+        Assert.Equal(fitted.File, file.Data);
+    }
+
+    [Fact]
     public void The_repeater_time_out_shortens_the_fit_only_when_it_has_to()
     {
         var net = SendProfile.NetRepeater;   // 2:00 target, 3:00 time-out, 0.3 s lead-in

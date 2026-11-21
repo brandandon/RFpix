@@ -93,7 +93,7 @@ public sealed record TestResult(TestTransmission Test, TransmissionReport Report
           (RepairReceived.Length > 0 ? $"  ·  {RepairReceived}" : "");
 
     /// <summary>What the test's QAM needs, in dB.</summary>
-    public double QualityNeeded => HamDrmReceiver.QualityNeeded(Test.Settings.Qam, Test.Settings.Protection);
+    public double QualityNeeded => Test.FmMode?.QualityNeededDb ?? HamDrmReceiver.QualityNeeded(Test.Settings.Qam, Test.Settings.Protection);
 
     /// <summary>One line for the screen.</summary>
     public string Text

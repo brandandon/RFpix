@@ -567,4 +567,33 @@ public class SstvTests
         Assert.False(finished[0].Complete);
         Assert.True(finished[1].JoinedLate);
     }
+
+    // ---- no new picture while a digital one arrives ----
+
+    [Fact]
+    public void While_held_no_picture_starts_but_one_already_arriving_carries_on()
+    {
+        // (Set by the Receive tab while a digital transmission arrives, and for 10 s after: its sound
+        // once looked like a Robot 72 picture, Nov 20, 2026.)
+        var m = SstvModes.Get(SstvMode.Robot36);
+        var audio = SstvEncoder.Audio(Flat(320, 240, 200, 30, 90), m);
+        var quiet = new float[48000];
+
+        var held = new SstvReceiver { HoldNewPictures = true };
+        int starts = 0;
+        held.Started += _ => starts++;
+        Feed(held, quiet.Concat(audio).Concat(quiet).ToArray());
+        Assert.Equal(0, starts);   // neither by its VIS code nor by its syncs
+
+        var rx = new SstvReceiver();
+        SstvPicture? got = null;
+        rx.Finished += p => got = p;
+        int half = audio.Length / 2;
+        Feed(rx, quiet.Concat(audio[..half]).ToArray());
+        Assert.NotNull(rx.Receiving);
+        rx.HoldNewPictures = true;   // a digital signal heard part-way: the picture already arriving goes on
+        Feed(rx, audio[half..].Concat(quiet).ToArray());
+        Assert.NotNull(got);
+        Assert.True(got!.Complete);
+    }
 }

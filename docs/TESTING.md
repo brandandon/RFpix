@@ -1,7 +1,7 @@
 # Testing RFpix on the air
 
 Thanks for helping test RFpix (now in beta), a HamDRM (digital SSTV) program for Windows, the Mac and Linux by KD9DD.
-RFpix has nine built-in **test transmissions**: fixed pictures sent with fixed settings,
+RFpix has thirteen built-in **test transmissions**: fixed pictures sent with fixed settings,
 and each picture says what its settings are. When you receive one, RFpix checks it against
 its own copy of the original and writes down how it came through.
 
@@ -20,6 +20,27 @@ signed. Click **More info**, then **Run anyway**.
 
 Your settings live in %AppData%\RFpix, and your received pictures, recordings and test results
 in Documents\RFpix. Uninstalling asks whether to remove the settings, and never removes your files.
+
+## RFpix FM: RFpix's own signal for FM radios (new in v0.7.1 beta)
+
+RFpix can now send pictures with its own signal made for FM radios, simplex or through a repeater:
+on the Send tab, **Signal** list, **RFpix FM**, then a **Speed** (FM 1 to FM 5). On the test bench
+it's about twice as fast as HamDRM for the same signal. RFpix 0.7.1 receives it automatically, beside
+HamDRM (EasyPal and QSSTV don't). Please try:
+
+1. **Tests 14 to 17** (Beta Testing page) through the repeater and on simplex, at your normal
+   transmit level, then test 16 and 17 again with the level 6 dB higher.
+2. **Record** each one on the receiving computer (Receive tab), and note the Quality box.
+3. A picture of your own from the Send tab with **RFpix FM**, **FM 3**.
+4. **Missing pieces:** send test 16, and on the receiving computer stop listening (or turn the
+   volume down) partway through. When it ends, the picture is listed under **Missing pieces**
+   ("RFpix FM"): click **Ask for them (BSR)**. On the sending computer a bar appears at the top of the
+   TX/RX page: click **Send the pieces**. The picture should complete on the receiving computer.
+
+Send the test results file and the recordings to kd9dd@qsl.net.
+
+**FT-991A on SSB:** set menu 059 to DIRECT FREQ, and leave 062 DATA MODE on PSK and 065 OTHER SHIFT
+on 0 (their factory settings), or pictures land off the marks or the waterfall stops at about 1500 Hz.
 
 ## Linux, moving the Gallery, and replying with their picture (new in v0.6.0 beta)
 
@@ -158,6 +179,10 @@ Please try receiving first, then **Test PTT**, then sending, and report anything
 | 11 | Mode B · 2.5 kHz · 16-QAM · long · high · Fountain 20% | test 2 with the fountain code: the quickest (RFpix only) |
 | 12 | Mode B · 2.5 kHz · 16-QAM · long · high · Fountain 50% | everyday fountain code: compare with test 10 (RFpix only) |
 | 13 | Mode B · 2.5 kHz · 16-QAM · long · high · Fountain 75% | the fountain code for bad conditions (RFpix only) |
+| 14 | RFpix FM 2 · Fountain 20% | RFpix FM: tough (RFpix 0.7.1 or newer, FM radios) |
+| 15 | RFpix FM 3 · Fountain 20% | RFpix FM: the usual speed (RFpix 0.7.1 or newer) |
+| 16 | RFpix FM 4 · Fountain 20% | RFpix FM: fast, needs a fair signal (RFpix 0.7.1 or newer) |
+| 17 | RFpix FM 5 · Fountain 20% | RFpix FM: fastest, level a little hot (RFpix 0.7.1 or newer) |
 
 Tests 3, 7, 8 and 9 have been retired; their numbers aren't used again.
 

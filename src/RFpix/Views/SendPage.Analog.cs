@@ -45,6 +45,8 @@ public partial class SendPage
         ProfileWrap.IsVisible = !_analog;
         var settings = SettingsWrap.Children;
         for (int i = 0; i < settings.Count - 2; i++) settings[i].IsVisible = !_analog;
+        if (!_analog) ShowSignalChoice();   // only the boxes for the chosen signal (HamDRM or RFpix FM)
+        else FmHint.IsVisible = false;
         FitPanel.IsVisible = AnalogPanel.IsVisible = _analog;
         TargetRow.IsVisible = SizePanel.IsVisible = QualityPanel.IsVisible = FormatPanel.IsVisible = !_analog;
         if (_analog) ZoomBox.IsChecked = false;
