@@ -50,14 +50,14 @@ RFpix is free to download from its [releases page on GitHub](https://github.com/
 
 | File | What it is | Choose it if |
 | --- | --- | --- |
-| **RFpix-Setup-0.7.0-beta-windows.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
-| **RFpix-0.7.0-beta-windows-portable.exe** | The program in one file, nothing to install | You want to run it from a folder or a USB stick |
+| **RFpix-Setup-0.7.1-beta-windows.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
+| **RFpix-0.7.1-beta-windows-portable.exe** | The program in one file, nothing to install | You want to run it from a folder or a USB stick |
 
 Every download's name says which system it's for (*windows*, *mac* or *linux*) and its version. (Before 0.6.2 the Windows files were *RFpix-Setup-….exe* and *RFpix.exe*.)
 
 #### Installing with the installer
 
-1. Download **RFpix-Setup-0.7.0-beta-windows.exe** and open it.
+1. Download **RFpix-Setup-0.7.1-beta-windows.exe** and open it.
 2. If Windows says *"Windows protected your PC"*, click **More info**, then **Run anyway**. Windows says this about new programs that aren't yet signed; it doesn't mean anything is wrong.
 3. Accept the licence, and choose where to put RFpix. The suggested folder needs no administrator password.
 4. Tick **Put a shortcut on the desktop** if you want one.
@@ -69,7 +69,7 @@ Every download's name says which system it's for (*windows*, *mac* or *linux*) a
 
 #### Running RFpix without installing
 
-Put **RFpix-0.7.0-beta-windows-portable.exe** in any folder and double-click it (you can rename it, to *RFpix.exe* say). The first time each new version runs, it takes a few seconds longer while it unpacks its parts into a hidden folder. The *"Windows protected your PC"* message may appear here too; click **More info**, then **Run anyway**.
+Put **RFpix-0.7.1-beta-windows-portable.exe** in any folder and double-click it (you can rename it, to *RFpix.exe* say). The first time each new version runs, it takes a few seconds longer while it unpacks its parts into a hidden folder. The *"Windows protected your PC"* message may appear here too; click **More info**, then **Run anyway**.
 
 #### Updating
 
@@ -83,8 +83,8 @@ The Mac version is new in 0.5.2 beta, and hasn't yet been tried with a radio. Ea
 
 | File | For |
 | --- | --- |
-| **RFpix-0.7.0-beta-mac-apple-silicon.pkg** | Apple Silicon Macs (M1 and newer) |
-| **RFpix-0.7.0-beta-mac-intel.pkg** | Intel Macs |
+| **RFpix-0.7.1-beta-mac-apple-silicon.pkg** | Apple Silicon Macs (M1 and newer) |
+| **RFpix-0.7.1-beta-mac-intel.pkg** | Intel Macs |
 
 1. Download the installer for your Mac and open it.
 2. macOS says the installer was *"Not Opened"*, because RFpix isn't yet signed by Apple. Click **Done**. This doesn't mean anything is wrong.
@@ -110,10 +110,10 @@ The Linux version is new in 0.6.0 beta, and hasn't yet been tried with a radio. 
 
 | File | What it is | For |
 | --- | --- | --- |
-| **rfpix_0.7.0-beta_linux_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
-| **rfpix_0.7.0-beta_linux_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
-| **RFpix-0.7.0-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
-| **RFpix-0.7.0-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
+| **rfpix_0.7.1-beta_linux_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
+| **rfpix_0.7.1-beta_linux_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
+| **RFpix-0.7.1-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
+| **RFpix-0.7.1-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
 
 **With the .deb:** download it and open it (double-click it, or right-click it and choose to open it with the software installer), then click **Install**. Or, in a terminal, in the folder where it was downloaded: `sudo apt install ./rfpix_*_linux_amd64.deb` (`arm64` on a Raspberry Pi). RFpix then appears in the menu (under Internet, or Ham Radio), and `rfpix` starts it from a terminal.
 
@@ -180,7 +180,7 @@ Work through these steps in order the first time you run RFpix. Everything is sa
 - [ ] **5. Pick the sound devices.** At the bottom of the **Radio** tab, under **Sound devices**, choose the radio's sound input and output. Radios usually show as *USB Audio CODEC*. Don't pick the computer's own speakers or microphone. Tip: rename the radio's devices in Windows' Sound settings (to *FT-991A*, say) to tell them apart.
 - [ ] **6. Calibrate the sound card.** Back on the **Misc** tab, first check Windows' clock is right (Windows **Settings > Time & language > Date & time > Sync now**). Then click **Measure (2 minutes)** under **Sound-card calibration**. The radio stays receiving; RFpix doesn't key it. This corrects for a sound card that runs a little fast or slow, which would otherwise slant analog pictures and upset digital ones.
 - [ ] **7. Receive something.** Open **TX/RX**, then the **Receive** tab, and click **Start listening**. The level bar should move with the band noise. While a picture is coming in, adjust the **Receive level** slider for the best image reception: yellow means too quiet for pictures to decode, and orange means too loud. See [Setting the receive level](#setting-the-receive-level). Tune to a frequency where pictures are being sent and wait: pictures appear on the right and are saved automatically.
-- [ ] **8. Send your first picture.** Open the **Send** tab and click **Open picture…** (or drag a picture onto the tab). Choose **Digital (HamDRM)** or **Analog SSTV**, and set **Transmit time** or the analog mode. Then click **Send**.
+- [ ] **8. Send your first picture.** Open the **Send** tab and click **Open picture…** (or drag a picture onto the tab). Choose **Digital** or **Analog SSTV**, and set **Transmit time** or the analog mode (with Digital, the **Signal** list picks HamDRM or RFpix FM). Then click **Send**.
 - [ ] **9. Set the transmit level.** While sending, watch the radio's ALC meter and move the **Transmit level** slider until the ALC barely moves. The slider works during a transmission, and RFpix remembers where you leave it.
 
 ![Settings, Radio tab, set up for a Yaesu FT-991A, with the sound devices at the bottom](images/settings-radio.png)
@@ -412,7 +412,7 @@ On the **Send** tab, choose **Analog SSTV**, open a picture, pick a **Mode**, an
 
 *The same photo in Scottie 2: filled to the mode's 320 × 256 frame, 1:13 on the air, inside the repeater's 3:00 time-out.*
 
-In analog, the digital-only parts of the tab are hidden (the send settings apart from Repeater time-out and Lead-in, profiles, transmit time, size, quality and format, and the ID, WF TXT and WF PIC buttons). They come back, as you left them, when you switch to **Digital (HamDRM)**.
+In analog, the digital-only parts of the tab are hidden (the send settings, Signal and Speed included, apart from Repeater time-out and Lead-in, profiles, transmit time, size, quality and format, and the ID, WF TXT and WF PIC buttons). They come back, as you left them, when you switch to **Digital**.
 
 #### The modes
 
