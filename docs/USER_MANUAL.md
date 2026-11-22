@@ -18,13 +18,14 @@ Words in **bold** are what you see on the screen: a page, tab, button or box.
 
 RFpix sends and receives pictures by radio in two ways: **digital** (HamDRM, the same as EasyPal and QSSTV's digital mode) and **analog SSTV** (the same as MMSSTV and QSSTV's analog modes). It listens for both at once, so you don't have to say which is coming. For FM radios (simplex or a repeater), RFpix also has a digital signal of its own, **RFpix FM**, about twice as fast as HamDRM; only RFpix stations receive it (section 5).
 
-|  | Digital (HamDRM) | Analog SSTV |
-| --- | --- | --- |
-| Talks to | EasyPal, QSSTV (DRM), other RFpix stations | MMSSTV, QSSTV, most SSTV programs and apps |
-| Sounds like | A steady hiss about 2.5 kHz wide | One warbling tone |
-| The picture | Any size; arrives as an exact copy of the file sent | A fixed size for each mode; painted line by line |
-| When the signal is weak | Pieces go missing; RFpix can ask for just those pieces again | Noise shows as speckles and streaks |
-| Time on the air | You choose (RFpix fits the picture to it) | Set by the mode: 36 seconds to almost 5 minutes |
+|  | Digital (HamDRM) | RFpix FM (digital) | Analog SSTV |
+| --- | --- | --- | --- |
+| For | HF (SSB) and FM | FM radios only: simplex or a repeater | HF (SSB) and FM |
+| Talks to | EasyPal, QSSTV (DRM), other RFpix stations | Other RFpix stations (0.7.1 or newer) only | MMSSTV, QSSTV, most SSTV programs and apps |
+| Sounds like | A steady hiss about 2.5 kHz wide | A steady hiss about 2.7 kHz wide | One warbling tone |
+| The picture | Any size; arrives as an exact copy of the file sent | Any size; arrives as an exact copy of the file sent | A fixed size for each mode; painted line by line |
+| When the signal is weak | Pieces go missing; RFpix can ask for just those pieces again | Its repair data makes up lost pieces; RFpix can ask for more | Noise shows as speckles and streaks |
+| Time on the air | You choose (RFpix fits the picture to it) | You choose; about twice as fast as HamDRM for the same signal | Set by the mode: 36 seconds to almost 5 minutes |
 
 RFpix has four pages, chosen from the list on the left:
 
