@@ -85,6 +85,11 @@ public sealed class AppSettings
     /// <see cref="RFpix.Upload.UploadSettings.NoVisPercents"/>).</summary>
     public int KeepNoVisMinPercent { get; set; } = 50;
 
+    /// <summary>Analog Auto slant (Settings): each picture's line length measured from its syncs, so
+    /// either station's sound card running a little fast or slow doesn't slant it. Off: the mode's
+    /// standard line length, as MMSSTV with its Auto slant off.</summary>
+    public bool AutoSlant { get; set; } = true;
+
     /// <summary>Whether an analog picture is saved to the Gallery. Pictures that started with their
     /// VIS code always are, even cut short; one found without it only by the two settings above.
     /// <paramref name="lines"/> of the picture's <paramref name="height"/> arrived.</summary>

@@ -37,6 +37,7 @@ public static class LogSummary
             "Analog pictures without their VIS code: " +
                 (s.KeepNoVis ? $"kept in the Gallery from {s.KeepNoVisMinPercent}%" : "not kept in the Gallery") + ", " +
                 (s.Upload.UploadNoVis ? $"uploaded from {s.Upload.NoVisMinPercent}%" : "not uploaded"),
+            $"Analog auto slant: {(s.AutoSlant ? "on" : "off")}",
         };
         return lines;
     }

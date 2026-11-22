@@ -430,6 +430,7 @@ public partial class ReceivePage : UserControl, IDisposable
         _samplesHeard += e.Count;
         if (_receiver.Heard is { Fac: not null } || _fm.Heard is not null) _lastDigitalAt = _samplesHeard;
         _sstv.HoldNewPictures = _samplesHeard - _lastDigitalAt < DigitalHoldSeconds * (long)e.SampleRate;
+        _sstv.AutoSlant = AppSettings.Current.AutoSlant;
         if (e.SampleRate == RFpix.Analog.SstvReceiver.InputRate) _sstv.AddSamples(e.Samples.AsSpan(0, e.Count));
         // The radio's sound is also kept for recording (the last 30 seconds, or all of it while recording).
         if (source == _input) _recorder.AddSamples(e.Samples, e.Count, e.SampleRate);

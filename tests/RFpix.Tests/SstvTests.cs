@@ -161,9 +161,9 @@ public class SstvTests
         return 10 * Math.Log10(255 * 255 / mse);
     }
 
-    private static SstvPicture? Receive(float[] audio, out SstvModeInfo? started)
+    private static SstvPicture? Receive(float[] audio, out SstvModeInfo? started, bool autoSlant = true)
     {
-        var rx = new SstvReceiver();
+        var rx = new SstvReceiver { AutoSlant = autoSlant };
         SstvPicture? got = null;
         SstvModeInfo? s = null;
         rx.Started += m => s = m;
@@ -205,6 +205,89 @@ public class SstvTests
         var got = Receive(audio, out _);
         Assert.NotNull(got);
         Assert.True(Psnr(picture, got!.Picture) > 30);
+    }
+
+    [Fact]
+    public void With_auto_slant_off_a_fast_sound_card_slants_the_picture_as_in_MMSSTV()
+    {
+        var m = SstvModes.Get(SstvMode.Martin2);
+        var picture = SstvEncoder.Fit(Pattern(400, 300), m);
+        var audio = RFpix.Audio.ClockCorrector.Resample(SstvEncoder.Audio(picture, m), 1 / (1 + 400e-6));
+        var straight = Receive(audio, out _, autoSlant: true)!.Picture;
+        var slanted = Receive(audio, out _, autoSlant: false)!.Picture;
+        // Off, the lines drift across by 0.09 ms a line: 23 ms (about 100 pixels) by the bottom of Martin 2.
+        Assert.True(Psnr(picture, straight) > 30);
+        Assert.True(Psnr(picture, slanted) < Psnr(picture, straight) - 6, $"off {Psnr(picture, slanted):0.0} dB, on {Psnr(picture, straight):0.0} dB");
+        // A steady sound card: the same either way.
+        var steady = SstvEncoder.Audio(picture, m);
+        Assert.True(Psnr(picture, Receive(steady, out _, autoSlant: false)!.Picture) > 30);
+    }
+
+    // ---- weak and fading signals (measured on the HF bench, Nov 2026) ----
+
+    /// <summary>The picture's sound with a second of silence either side and noise at
+    /// <paramref name="snrDb"/> (in 2.5 kHz, as the HF bench).</summary>
+    private static float[] Noisy(float[] audio, double snrDb, int seed = 3)
+    {
+        var padded = new float[audio.Length + 96000];
+        audio.CopyTo(padded, 48000);
+        return TestAudio.AddNoise(padded, snrDb, seed);
+    }
+
+    [Fact]
+    public void A_VIS_code_in_heavy_noise_still_starts_the_picture_from_its_top()
+    {
+        // At 8 dB the frequency of each moment flickers wildly; the VIS code's tones still stand out.
+        // (Before Nov 2026 RFpix missed it below about 16 dB and found the picture late, from its syncs.)
+        var m = SstvModes.Get(SstvMode.PD50);
+        var picture = SstvEncoder.Fit(Pattern(320, 256), m);
+        var got = Receive(Noisy(SstvEncoder.Audio(picture, m), 8), out var started);
+        Assert.Equal(SstvMode.PD50, started!.Mode);
+        Assert.NotNull(got);
+        Assert.False(got!.JoinedLate);
+        Assert.True(got.Complete);
+    }
+
+    [Fact]
+    public void A_short_dropout_in_the_VIS_code_doesnt_lose_it()
+    {
+        // A fade that takes out 12 ms of the stop bit and of two data bits.
+        var m = SstvModes.Get(SstvMode.Martin2);
+        var audio = SstvEncoder.Audio(SstvEncoder.Fit(Pattern(320, 256), m), m);
+        double visEndMs = SstvModes.VisTime.TotalMilliseconds;
+        foreach (double at in new[] { visEndMs - 20, visEndMs - 100, visEndMs - 190 })
+            for (int i = (int)(at * 48); i < (int)((at + 12) * 48); i++) audio[i] = 0;
+        var got = Receive(Noisy(audio, 25), out var started);
+        Assert.Equal(SstvMode.Martin2, started!.Mode);
+        Assert.False(got!.JoinedLate);
+        Assert.True(got.Complete);
+    }
+
+    [Fact]
+    public void Lines_lost_in_a_deep_fade_are_drawn_from_the_lines_above_not_as_random_colour()
+    {
+        // A plain picture, its sound faded 30 dB for two seconds in the middle, in noise at 20 dB.
+        var m = SstvModes.Get(SstvMode.Martin2);
+        var picture = Flat(m.Width, m.Height, 150, 110, 70);
+        var audio = SstvEncoder.Audio(picture, m);
+        int from = audio.Length / 2, to = from + 2 * 48000;
+        for (int i = from; i < to; i++) audio[i] *= 0.03f;
+        var got = Receive(Noisy(audio, 20), out _)!.Picture;
+        // The faded lines (about 9 of them) stay close to the picture's colour.
+        double lineMs = m.LineMs, visMs = SstvModes.VisTime.TotalMilliseconds;
+        int first = (int)((from / 48.0 - visMs) / lineMs) + 1, last = (int)((to / 48.0 - visMs) / lineMs) - 1;
+        double worst = 0;
+        for (int y = first; y <= last; y++)
+        {
+            double sum = 0;
+            for (int x = 20; x < m.Width - 20; x++)
+            {
+                int i = 4 * (y * m.Width + x);
+                sum += Math.Abs(got.Bgra[i + 2] - 150) + Math.Abs(got.Bgra[i + 1] - 110) + Math.Abs(got.Bgra[i] - 70);
+            }
+            worst = Math.Max(worst, sum / (3 * (m.Width - 40)));
+        }
+        Assert.True(worst < 20, $"faded lines off by {worst:0} on average");
     }
 
     [Fact]

@@ -68,6 +68,14 @@
                          Text="When Receive is left running, RFpix also picks up pictures partway through (their VIS code at the start was missed), and noise can look like one. These settings keep the small scraps out of the Gallery. A picture that isn't kept still shows on the Receive tab until the next one. Pictures that started with their VIS code are always kept. Whether pictures go to your website is set separately, on the FTP server tab." />
             </StackPanel>
 
+            <!-- Analog Auto slant (AppSettings.AutoSlant, SstvReceiver.AutoSlant). -->
+            <StackPanel Spacing="6">
+              <TextBlock Text="Analog slant" FontWeight="SemiBold" />
+              <CheckBox x:Name="AutoSlantBox" Content="Auto slant" />
+              <TextBlock Classes="Hint" TextWrapping="Wrap"
+                         Text="On (to start with): RFpix measures each analog picture's line length from its sync pulses, so a picture stays straight even when the sending station's sound card runs a little fast or slow. Off: every line is the mode's standard length, as in MMSSTV with Auto slant off, so a sound card that's off slants the picture (Sound-card calibration, below, corrects your own). Changes apply from the next picture." />
+            </StackPanel>
+
             <StackPanel Spacing="6">
               <TextBlock Text="Theme" FontWeight="SemiBold" />
               <!-- Picking an item runs OnThemeChanged in SettingsPage.axaml.cs. -->

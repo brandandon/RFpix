@@ -55,6 +55,14 @@ public partial class SettingsPage : UserControl, IDisposable
             AppSettings.Current.Save();
         };
 
+        // Analog Auto slant.
+        AutoSlantBox.IsChecked = AppSettings.Current.AutoSlant;
+        AutoSlantBox.IsCheckedChanged += (_, _) =>
+        {
+            AppSettings.Current.AutoSlant = AutoSlantBox.IsChecked != false;
+            AppSettings.Current.Save();
+        };
+
         CheckForUpdatesBox.IsChecked = AppSettings.Current.CheckForUpdates;
         CheckForUpdatesBox.IsCheckedChanged += (_, _) =>
         {
