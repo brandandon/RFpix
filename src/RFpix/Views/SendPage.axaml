@@ -233,6 +233,9 @@
               <ComboBox Grid.Column="1" x:Name="TargetBox" Width="100" SelectionChanged="OnSendSettingChanged"
                         ToolTip.Tip="How long the picture should take on the air. Keep it under your repeater's time-out." />
             </Grid>
+            <!-- Digital: the callsign in CW after the picture (AppSettings.DigitalCw; Analog has its own box). -->
+            <CheckBox x:Name="DigitalCwBox" Content="Send my callsign in CW after the picture"
+                      ToolTip.Tip="Half a second after the picture (and its waterfall text) ends, your callsign in Morse code: the same 750 Hz tone at 15 words per minute as the CW button. Only for pictures sent from this tab." />
             <StackPanel x:Name="SizePanel" Spacing="4">
               <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Text="Size" FontWeight="SemiBold" />

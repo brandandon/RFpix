@@ -123,6 +123,7 @@ public partial class SendPage : UserControl, IDisposable
         AnalogModeBox.SelectedIndex = Math.Max(0, SstvModes.All.ToList().FindIndex(m => m.Mode == settings.AnalogMode));
         (settings.AnalogWhole ? WholeButton : FillButton).IsChecked = true;
         AnalogCwBox.IsChecked = settings.AnalogCw;
+        DigitalCwBox.IsChecked = settings.DigitalCw;
         _analog = settings.SendAnalog;
         (_analog ? AnalogButton : DigitalButton).IsChecked = true;
         ShowSendAs();
@@ -146,6 +147,13 @@ public partial class SendPage : UserControl, IDisposable
         FillButton.IsCheckedChanged += (_, _) => { if (FillButton.IsChecked == true) OnAnalogChanged(); };
         WholeButton.IsCheckedChanged += (_, _) => { if (WholeButton.IsChecked == true) OnAnalogChanged(); };
         AnalogCwBox.IsCheckedChanged += (_, _) => OnAnalogChanged();
+        DigitalCwBox.IsCheckedChanged += (_, _) =>
+        {
+            if (_updating) return;
+            AppSettings.Current.DigitalCw = DigitalCwBox.IsChecked == true;
+            AppSettings.Current.Save();
+            if (!_analog) Refit(auto: true);   // the CW adds a few seconds: the time box, and a repeater's time-out
+        };
 
         _refitTimer.Tick += (_, _) => { _refitTimer.Stop(); Refit(auto: false); };
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
@@ -437,7 +445,7 @@ public partial class SendPage : UserControl, IDisposable
 
         var chosen = CurrentSettings();
         // Fit to the chosen time, shortened if the whole transmission must stay inside a repeater's time-out.
-        var profile = chosen with { TargetSeconds = chosen.FittingSeconds(TextTime) };
+        var profile = chosen with { TargetSeconds = chosen.FittingSeconds(ExtraTime) };
         var format = CurrentFormat;
         int side = (int)Math.Round(SizeSlider.Value), quality = (int)Math.Round(QualitySlider.Value);
         string name = _baseName;
@@ -531,9 +539,10 @@ public partial class SendPage : UserControl, IDisposable
                                       : "  ·  make it smaller or lower the quality");
                 break;
         }
-        var extra = TextTime;
+        var extra = ExtraTime;
         if (extra > TimeSpan.Zero)
-            EstimateDetail.Text += $"\nPlus {extra.TotalSeconds:0} s of waterfall text.";
+            EstimateDetail.Text += $"\nPlus {extra.TotalSeconds:0} s of " +
+                (TextTime > TimeSpan.Zero && DigitalCw ? "waterfall text and the CW ID." : DigitalCw ? "the CW ID." : "waterfall text.");
 
         // A repeater's time-out: the whole transmission must stay inside it.
         var p = fitted.Profile;
@@ -607,7 +616,8 @@ public partial class SendPage : UserControl, IDisposable
         if (SendSupport.IsSending) { ShowStatus(AlreadySending, problem: true); return; }
         // Kept so missing pieces can be sent again if a station asks (BSR), and saved for the Gallery.
         string? notSaved = SendSupport.RecordSent(fitted, call);
-        Transmit(() => SendSupport.WithWaterfallText(fitted.Audio(call)), fitted.FileName,
+        bool cw = DigitalCw;
+        Transmit(() => DigitalSound(fitted, call, cw), fitted.FileName,
                  $"Sent {fitted.FileName} as {call}." + (notSaved is null ? "" : $" ({notSaved})"),
                  TimeSpan.FromSeconds(profile.LeadInSeconds), hamDrm: true);
     }
@@ -668,7 +678,20 @@ public partial class SendPage : UserControl, IDisposable
     /// <summary>Sends a sound (a picture, CW or ID). Send becomes Stop meanwhile, and the
     /// buttons that would start another sending are off.</summary>
     /// <summary>How long a picture keeps the transmitter on: lead-in, waterfall text, picture and tail.</summary>
-    private static TimeSpan OnAir(FittedPicture fitted) => fitted.Duration + fitted.Profile.Overhead(TextTime);
+    private TimeSpan OnAir(FittedPicture fitted) => fitted.Duration + fitted.Profile.Overhead(ExtraTime);
+
+    /// <summary>Digital: the callsign in CW after the picture is ticked (and there's a callsign to send).</summary>
+    private bool DigitalCw => DigitalCwBox.IsChecked == true && SendSupport.Callsign.Length > 0;
+
+    /// <summary>What a digital picture adds to its time on the air: the waterfall text and, if ticked, the CW ID.</summary>
+    private TimeSpan ExtraTime => TextTime + (DigitalCw ? MorseCode.AfterPictureTime(SendSupport.Callsign) : TimeSpan.Zero);
+
+    /// <summary>A digital picture's whole sound: the waterfall text around it, then the CW ID if <paramref name="cw"/>.</summary>
+    private static float[] DigitalSound(FittedPicture fitted, string call, bool cw)
+    {
+        var sound = SendSupport.WithWaterfallText(fitted.Audio(call));
+        return cw ? MorseCode.AfterPicture(sound, call) : sound;
+    }
 
     private async void Transmit(Func<float[]> makeSound, string what, string done, TimeSpan? leadIn = null, bool hamDrm = false)
     {
@@ -723,6 +746,7 @@ public partial class SendPage : UserControl, IDisposable
         var analogMode = AnalogMode;
         bool analog = _analog;
         string call = SendSupport.Callsign;
+        bool cw = DigitalCw;
         if (call.Length == 0) { ShowStatus("Set your callsign in Settings (Misc tab) first: it's sent with the transmission.", problem: true); return; }
 
         var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
@@ -738,7 +762,7 @@ public partial class SendPage : UserControl, IDisposable
         {
             ShowStatus("Making the sound file…", problem: false);
             await SendSupport.SaveSoundAsync(analog ? AnalogSound(analogPicture!, analogMode)
-                                                    : () => SendSupport.WithWaterfallText(fitted!.Audio(call)),
+                                                    : () => DigitalSound(fitted!, call, cw),
                                              path, SendSupport.Gain(LevelSlider.Value));
             ShowStatus($"Saved {Path.GetFileName(path)}.", problem: false);
         }

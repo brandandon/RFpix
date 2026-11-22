@@ -68,6 +68,9 @@ public sealed class AppSettings
     public bool AnalogWhole { get; set; }
     /// <summary>Analog SSTV: send your callsign in CW after the picture (and its FSK ID), half a second later.</summary>
     public bool AnalogCw { get; set; }
+    /// <summary>Digital (HamDRM or RFpix FM), Send tab pictures only: send your callsign in CW after the
+    /// picture (and its waterfall text), half a second later. Its own setting, unticked to start with.</summary>
+    public bool DigitalCw { get; set; }
 
     /// <summary>When RFpix starts, ask GitHub whether there's a newer version.</summary>
     public bool CheckForUpdates { get; set; } = true;

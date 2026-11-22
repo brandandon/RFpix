@@ -21,6 +21,19 @@ signed. Click **More info**, then **Run anyway**.
 Your settings live in %AppData%\RFpix, and your received pictures, recordings and test results
 in Documents\RFpix. Uninstalling asks whether to remove the settings, and never removes your files.
 
+## A better analog receiver, Auto slant, and a CW ID after digital pictures (new in v0.7.2 beta)
+
+- **Analog receiving** is much better on weak and fading signals: RFpix now reads the VIS start code
+  through heavy noise and fading, has much less speckle on weak pictures, and draws lines lost in a fade
+  from the lines above instead of as random colour. On a strong, clean signal the very finest detail is a
+  little softer than before. Please compare with MMSSTV on the same picture, on HF and through the
+  repeater, and tell us which looks better.
+- **Settings > Misc > Auto slant** (ticked to start with): RFpix keeps analog pictures straight even when
+  the sending station's sound card is a little off. Untick it to work like MMSSTV with its own Auto slant
+  off.
+- **Send tab, Digital: Send my callsign in CW after the picture** (under Transmit time, unticked to start
+  with): your callsign in CW half a second after each digital picture sent from the Send tab.
+
 ## RFpix FM: RFpix's own signal for FM radios (new in v0.7.1 beta)
 
 RFpix can now send pictures with its own signal made for FM radios, simplex or through a repeater:

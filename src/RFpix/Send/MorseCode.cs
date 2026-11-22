@@ -82,4 +82,22 @@ public static class MorseCode
         }
         return audio;
     }
+
+    /// <summary>The pause between the end of a picture and the callsign in CW after it.</summary>
+    public static readonly TimeSpan GapAfterPicture = TimeSpan.FromSeconds(0.5);
+
+    /// <summary>How long the CW ID after a picture adds: the pause, then the callsign.</summary>
+    public static TimeSpan AfterPictureTime(string call) => GapAfterPicture + Duration(call);
+
+    /// <summary>A picture's sound followed, half a second later, by the callsign in CW (the CW button's
+    /// tone and speed): the Send tab's "Send my callsign in CW after the picture" boxes.</summary>
+    public static float[] AfterPicture(float[] sound, string call)
+    {
+        var morse = Audio(call);
+        int gap = (int)Math.Round(GapAfterPicture.TotalSeconds * SampleRate);
+        var all = new float[sound.Length + gap + morse.Length];
+        sound.CopyTo(all, 0);
+        morse.CopyTo(all, sound.Length + gap);
+        return all;
+    }
 }

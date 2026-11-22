@@ -48,7 +48,7 @@ public partial class SendPage
         if (!_analog) ShowSignalChoice();   // only the boxes for the chosen signal (HamDRM or RFpix FM)
         else FmHint.IsVisible = false;
         FitPanel.IsVisible = AnalogPanel.IsVisible = _analog;
-        TargetRow.IsVisible = SizePanel.IsVisible = QualityPanel.IsVisible = FormatPanel.IsVisible = !_analog;
+        TargetRow.IsVisible = DigitalCwBox.IsVisible = SizePanel.IsVisible = QualityPanel.IsVisible = FormatPanel.IsVisible = !_analog;
         if (_analog) ZoomBox.IsChecked = false;
         ZoomBox.IsEnabled = !_analog && _original is not null;
     }
@@ -105,12 +105,9 @@ public partial class SendPage
     {
         string call = SendSupport.Callsign;
         var time = SstvEncoder.Duration(mode, preamble: true, fskId: call);
-        if (AnalogCwBox.IsChecked == true && call.Length > 0) time += CwGap + MorseCode.Duration(call);
+        if (AnalogCwBox.IsChecked == true && call.Length > 0) time += MorseCode.AfterPictureTime(call);
         return time;
     }
-
-    /// <summary>The pause between the end of the picture (its FSK ID) and the CW callsign.</summary>
-    private static readonly TimeSpan CwGap = TimeSpan.FromSeconds(0.5);
 
     /// <summary>The analog picture's sound, as MMSSTV sends it: a short preamble, the VIS code, the
     /// picture, and the callsign as an FSK ID; then, if ticked, half a second's pause and the callsign
@@ -122,13 +119,7 @@ public partial class SendPage
         return () =>
         {
             var sound = SstvEncoder.Audio(picture, mode, preamble: true, fskId: call);
-            if (!cw) return sound;
-            var morse = MorseCode.Audio(call);
-            int gap = (int)(CwGap.TotalSeconds * SstvEncoder.SampleRate);
-            var all = new float[sound.Length + gap + morse.Length];
-            sound.CopyTo(all, 0);
-            morse.CopyTo(all, sound.Length + gap);
-            return all;
+            return cw ? MorseCode.AfterPicture(sound, call) : sound;
         };
     }
 }

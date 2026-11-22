@@ -173,6 +173,19 @@ public class WaterfallTextTests
     }
 
     [Fact]
+    public void The_CW_ID_after_a_picture_comes_half_a_second_after_it()
+    {
+        var picture = Enumerable.Repeat(0.1f, 48000).ToArray();   // one second of "picture"
+        var both = MorseCode.AfterPicture(picture, "N0CALL");
+        var morse = MorseCode.Audio("N0CALL");
+        Assert.Equal(48000 + 24000 + morse.Length, both.Length);
+        Assert.Equal(MorseCode.AfterPictureTime("N0CALL").TotalSeconds, (both.Length - 48000) / 48000.0, 3);
+        Assert.True(picture.AsSpan().SequenceEqual(both.AsSpan(0, 48000)));
+        Assert.True(both.AsSpan(48000, 24000).ToArray().All(v => v == 0));   // the half second's pause
+        Assert.True(morse.AsSpan().SequenceEqual(both.AsSpan(72000)));
+    }
+
+    [Fact]
     public void A_picture_with_text_before_and_after_still_decodes()
     {
         var test = TestTransmissions.All.Single(t => t.Number == 4);   // the shortest test
