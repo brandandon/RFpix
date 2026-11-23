@@ -149,7 +149,12 @@
             <TextBlock x:Name="AskText" Classes="Hint" FontSize="12" TextWrapping="Wrap" />
           </StackPanel>
         </Border>
-        <Button Grid.Row="3" Content="Open received folder" Click="OnOpenFolderClick" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+        <!-- Analog Auto slant (AppSettings.AutoSlant, SstvReceiver.AutoSlant), and the received folder -->
+        <Grid Grid.Row="3" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+          <CheckBox x:Name="AutoSlantBox" Content="Analog auto slant" VerticalAlignment="Center"
+                    ToolTip.Tip="Ticked (to start with): RFpix measures each analog picture's line length from its sync pulses, so a picture stays straight even when the sending station's sound card runs a little fast or slow. Unticked: every line is the mode's standard length, as in MMSSTV with Auto slant off, so a sound card that's off slants the picture (Sound-card calibration on Settings > Misc corrects your own). Takes effect from the next picture." />
+          <Button Grid.Column="1" Content="Open received folder" Click="OnOpenFolderClick" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+        </Grid>
       </Grid>
     </Grid>
 

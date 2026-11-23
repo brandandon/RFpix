@@ -193,6 +193,14 @@ public partial class ReceivePage : UserControl, IDisposable
         _analyzer.LineReady += (line, hzPerStep) =>
             Dispatcher.UIThread.Post(() => Waterfall.AddLine(line, hzPerStep));
 
+        // Analog Auto slant: read by the analog receiver as each picture starts.
+        AutoSlantBox.IsChecked = AppSettings.Current.AutoSlant;
+        AutoSlantBox.IsCheckedChanged += (_, _) =>
+        {
+            AppSettings.Current.AutoSlant = AutoSlantBox.IsChecked != false;
+            AppSettings.Current.Save();
+        };
+
         AppSettings.SoundDevicesChanged += OnSoundDevicesChanged;
         MicrophoneAccess.Answered += OnMicrophoneAnswered;
         LayoutUpdated += OnLayoutUpdated;

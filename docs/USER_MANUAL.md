@@ -1,8 +1,8 @@
 # RFpix User Manual
 
-Version 0.7.2 beta · Nov 22, 2026 · KD9DD
+Version 0.7.3 beta · Nov 23, 2026 · KD9DD
 
-This manual covers RFpix version 0.7.2 beta for Windows 10 and 11, the Mac (macOS 14 or newer) and Linux (64-bit PCs and Raspberry Pi). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
+This manual covers RFpix version 0.7.3 beta for Windows 10 and 11, the Mac (macOS 14 or newer) and Linux (64-bit PCs and Raspberry Pi). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
 
 The manual has three parts:
 
@@ -51,14 +51,14 @@ RFpix is free to download from its [releases page on GitHub](https://github.com/
 
 | File | What it is | Choose it if |
 | --- | --- | --- |
-| **RFpix-Setup-0.7.2-beta-windows.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
-| **RFpix-0.7.2-beta-windows-portable.exe** | The program in one file, nothing to install | You want to run it from a folder or a USB stick |
+| **RFpix-Setup-0.7.3-beta-windows.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
+| **RFpix-0.7.3-beta-windows-portable.exe** | The program in one file, nothing to install | You want to run it from a folder or a USB stick |
 
 Every download's name says which system it's for (*windows*, *mac* or *linux*) and its version. (Before 0.6.2 the Windows files were *RFpix-Setup-….exe* and *RFpix.exe*.)
 
 #### Installing with the installer
 
-1. Download **RFpix-Setup-0.7.2-beta-windows.exe** and open it.
+1. Download **RFpix-Setup-0.7.3-beta-windows.exe** and open it.
 2. If Windows says *"Windows protected your PC"*, click **More info**, then **Run anyway**. Windows says this about new programs that aren't yet signed; it doesn't mean anything is wrong.
 3. Accept the licence, and choose where to put RFpix. The suggested folder needs no administrator password.
 4. Tick **Put a shortcut on the desktop** if you want one.
@@ -70,7 +70,7 @@ Every download's name says which system it's for (*windows*, *mac* or *linux*) a
 
 #### Running RFpix without installing
 
-Put **RFpix-0.7.2-beta-windows-portable.exe** in any folder and double-click it (you can rename it, to *RFpix.exe* say). The first time each new version runs, it takes a few seconds longer while it unpacks its parts into a hidden folder. The *"Windows protected your PC"* message may appear here too; click **More info**, then **Run anyway**.
+Put **RFpix-0.7.3-beta-windows-portable.exe** in any folder and double-click it (you can rename it, to *RFpix.exe* say). The first time each new version runs, it takes a few seconds longer while it unpacks its parts into a hidden folder. The *"Windows protected your PC"* message may appear here too; click **More info**, then **Run anyway**.
 
 #### Updating
 
@@ -84,8 +84,8 @@ The Mac version is new in 0.5.2 beta, and hasn't yet been tried with a radio. Ea
 
 | File | For |
 | --- | --- |
-| **RFpix-0.7.2-beta-mac-apple-silicon.pkg** | Apple Silicon Macs (M1 and newer) |
-| **RFpix-0.7.2-beta-mac-intel.pkg** | Intel Macs |
+| **RFpix-0.7.3-beta-mac-apple-silicon.pkg** | Apple Silicon Macs (M1 and newer) |
+| **RFpix-0.7.3-beta-mac-intel.pkg** | Intel Macs |
 
 1. Download the installer for your Mac and open it.
 2. macOS says the installer was *"Not Opened"*, because RFpix isn't yet signed by Apple. Click **Done**. This doesn't mean anything is wrong.
@@ -111,10 +111,10 @@ The Linux version is new in 0.6.0 beta, and hasn't yet been tried with a radio. 
 
 | File | What it is | For |
 | --- | --- | --- |
-| **rfpix_0.7.2-beta_linux_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
-| **rfpix_0.7.2-beta_linux_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
-| **RFpix-0.7.2-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
-| **RFpix-0.7.2-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
+| **rfpix_0.7.3-beta_linux_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
+| **rfpix_0.7.3-beta_linux_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
+| **RFpix-0.7.3-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
+| **RFpix-0.7.3-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
 
 **With the .deb:** download it and open it (double-click it, or right-click it and choose to open it with the software installer), then click **Install**. Or, in a terminal, in the folder where it was downloaded: `sudo apt install ./rfpix_*_linux_amd64.deb` (`arm64` on a Raspberry Pi). RFpix then appears in the menu (under Internet, or Ham Radio), and `rfpix` starts it from a terminal.
 
@@ -217,6 +217,7 @@ Open **TX/RX**, then the **Receive** tab, and click **Start listening**. RFpix l
 | **Settings boxes** | How a digital picture was sent: Mode, Bandwidth, QAM, Interleave, Protection, Reed-Solomon, and who it's From. |
 | **Waterfall** (left) | The sound the radio hears, as a picture that scrolls down. Each signal shows as a coloured trace. |
 | **Picture** (right) | The last picture received, with its name, who sent it, and where it was saved. **Double-click it** to show pictures in a window of their own (below). |
+| **Analog auto slant** | Ticked to start with: RFpix measures each analog picture's line length from its sync pulses, so pictures stay straight even when the sending station's sound card runs a little fast or slow. Untick it to use each mode's standard line length, as MMSSTV does with its own Auto slant off; a sound card that's off then slants the picture. Takes effect from the next picture. |
 | **Open received folder** | Opens the folder where pictures are saved. |
 
 The boxes show the details of the picture arriving. When it ends, they keep showing the last picture's details (its mode and settings, and who it was from) until the next picture starts. Only the digital signal readings (Offset, Clock, Strength and Quality) empty when the signal goes, since they measure the signal as it arrives. Stopping listening empties all the boxes.
@@ -685,7 +686,6 @@ The **Settings** page has four tabs: **Radio**, **Misc**, **Logging** and **FTP 
 | **Your grid square (QTH)** | Your Maidenhead locator, 4 or 6 characters (such as AA00 or AA00aa). Templates show it with %qth. |
 | **Waterfall text** | Text written on everyone's waterfall **Before the picture** and **After the picture**, for digital pictures (not the tests). Leave a box empty for none. A short text is drawn big; a longer one wraps onto more lines, about 2 seconds each. |
 | **Analog pictures without their VIS code** | **Keep analog pictures found without their VIS code in the Gallery, when at least … was received**: whether analog pictures found partway through are saved to the Gallery, and how much must have arrived: 25%, 50% (to start with), 75% or 100%. Untick it to keep none. A picture not kept still shows on the Receive tab. Pictures that came with their VIS code are always kept. Separate from the upload setting on the FTP server tab. |
-| **Analog slant** | **Auto slant** (ticked to start with): RFpix measures each analog picture's line length from its sync pulses, so pictures stay straight even when the sending station's sound card runs a little fast or slow. Untick it to use each mode's standard line length, as MMSSTV does with its own Auto slant off; a sound card that's off then slants the picture. Takes effect from the next picture. |
 | **Theme** | **Follow Windows**, **Light** or **Dark**. |
 | **New versions** | **Check for new versions of RFpix when it starts**: when ticked, RFpix asks GitHub for newer versions as it starts, and shows a notice with a **Download** button if there is one. |
 | **Sound-card calibration** | Shows how fast or slow each sound device's clock runs, and when it was measured. **Measure (2 minutes)** measures both against the computer's clock while the radio stays receiving (RFpix doesn't key it); set Windows' clock right first. **Set back to none** forgets the measurements. A measurement belongs to one device: pick a different device and it needs measuring again. |
@@ -748,7 +748,7 @@ When something goes wrong and you'd like help, open **Settings > Misc** and clic
 | The **Level** bar is yellow while a picture comes in | The radio's sound is too quiet, and pictures may not decode: move the **Receive level** slider right, or turn up the radio's USB audio output level in its menu (see [Setting the receive level](#setting-the-receive-level)). |
 | A signal shows on the waterfall but nothing decodes | Check the radio is on USB (on HF) with a filter at least 2.5 kHz wide, and that the signal's three bright lines sit on the marks. If the **Quality** box is red, the signal is too weak for those settings; wait for the end and use **Ask for them (BSR)**. |
 | Pictures through an FM repeater lose pieces even with a strong signal | Two things to check. **The treble:** if the sending station's radio is in data mode, its sound goes out without FM's treble boost; RFpix 0.7.0 and later adds it (**On FM, add the treble boost** on the Radio tab, on to start with), but other programs don't. **The repeater's tone:** many radios pass the repeater's sub-audible tone (CTCSS) out with the received sound. RFpix 0.7.0 and later finds that tone and removes it by itself, so nothing needs setting; older versions could lose many pieces to it. |
-| Analog pictures come out slanted | Check **Auto slant** is ticked on the Misc tab: it straightens pictures from a sending station whose sound card is a little off. If it's unticked, or yours slant anyway, your own sound card's clock may be off: run **Sound-card calibration** on the Misc tab (section 3, step 6). |
+| Analog pictures come out slanted | Check **Analog auto slant** is ticked on the Receive tab (under the picture): it straightens pictures from a sending station whose sound card is a little off. If it's unticked, or yours slant anyway, your own sound card's clock may be off: run **Sound-card calibration** on the Misc tab (section 3, step 6). |
 | *Couldn't add a test to the test log. Is the file open in Excel?* | Close Test results.csv in Excel; RFpix can't add to it while it's open. |
 | *No sound has come from the radio yet.* (after clicking Record) | Wait a moment after **Start listening**, then click **Record** again. |
 

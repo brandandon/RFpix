@@ -21,6 +21,7 @@ running EasyPal or QSSTV.
 
 | Date (2026) | Done |
 | --- | --- |
+| Nov 23 | The analog Auto slant tick box moves to the Receive tab, under the picture, where it takes effect (v0.7.3 beta) |
 | Nov 22 | A much better analog receiver: the VIS start code read through heavy noise and fading (down to about 8 dB on HF fading paths), a narrower filter for much less speckle on weak signals, and lines lost in a fade drawn from the lines above instead of as random colour (on the test bench it now beats MMSSTV on all eight test recordings); an Auto slant tick box on Settings > Misc, as in MMSSTV; a CW ID after digital pictures (Send my callsign in CW after the picture) (v0.7.2 beta) |
 | Nov 20 | RFpix FM's public technical specification ([docs/RFPIX_FM_SPEC.md](docs/RFPIX_FM_SPEC.md)), for the FCC's rule that a new digital mode be documented publicly: the whole signal, its tables, check values, and a reference transmitter in Python that RFpix decodes |
 | Nov 20 | RFpix FM, RFpix's own signal for FM radios (simplex or a repeater): about twice as fast as HamDRM for the same signal, at five speeds (FM 1 to FM 5), always with the fountain code; received automatically beside HamDRM, with missing-piece requests answered by new repair pieces; test transmissions 14-17 (FM 2 to FM 5); no analog picture starts by mistake at the end of a digital one; the waterfall marks follow the FM signal; the FT-991A's SSB data settings in the manual (v0.7.1 beta) |
