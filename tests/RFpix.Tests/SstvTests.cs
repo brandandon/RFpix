@@ -264,7 +264,7 @@ public class SstvTests
     }
 
     [Fact]
-    public void Lines_lost_in_a_deep_fade_are_drawn_from_the_lines_above_not_as_random_colour()
+    public void Lines_lost_in_a_deep_fade_are_drawn_from_the_lines_around_them_not_as_random_colour()
     {
         // A plain picture, its sound faded 30 dB for two seconds in the middle, in noise at 20 dB.
         var m = SstvModes.Get(SstvMode.Martin2);
@@ -288,6 +288,37 @@ public class SstvTests
             worst = Math.Max(worst, sum / (3 * (m.Width - 40)));
         }
         Assert.True(worst < 20, $"faded lines off by {worst:0} on average");
+    }
+
+    [Fact]
+    public void A_weak_fading_signal_gives_grain_not_streaks_down_the_picture()
+    {
+        // A plain picture, weak and fading all the way through (as on a poor band): what noise is left should
+        // be grain, not copied down the picture line after line (which shows as vertical streaks). Seen on
+        // air, 23 November 2026: each weak line drawn mostly from the one before streaked whole pictures.
+        // (Drawn that way, this one's noise was 0.15 alike 3 lines apart, 0.14 to 0.21 with other noise; now
+        // it's 0.02, 0.01 to 0.06.)
+        var m = SstvModes.Get(SstvMode.Martin2);
+        var audio = SstvEncoder.Audio(Flat(m.Width, m.Height, 128, 128, 128), m);
+        var padded = new float[audio.Length + 96000];
+        audio.CopyTo(padded, 48000);
+        var faded = RFpix.Tests.Bench.HfChannel.Apply(padded, RFpix.Tests.Bench.HfCondition.Moderate, seed: 1);
+        var got = Receive(TestAudio.AddNoise(faded, 8, seed: 1), out _)!.Picture;
+        // How alike the noise is from one line to the line 3 below, on the green (middle of each line).
+        int w = m.Width, h = m.Height;
+        double[,] g = new double[h, w];
+        for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) g[y, x] = got.Bgra[4 * (y * w + x) + 1];
+        double sxy = 0, sxx = 0, syy = 0, mean = 0; int n = 0;
+        for (int y = 20; y < h - 20; y++) for (int x = 20; x < w - 20; x++) { mean += g[y, x]; n++; }
+        mean /= n;
+        for (int y = 20; y < h - 23; y++)
+            for (int x = 20; x < w - 20; x++)
+            {
+                double a = g[y, x] - mean, b = g[y + 3, x] - mean;
+                sxy += a * b; sxx += a * a; syy += b * b;
+            }
+        double down3 = sxy / Math.Sqrt(sxx * syy);
+        Assert.True(down3 < 0.09, $"noise 3 lines apart alike by {down3:0.00}");
     }
 
     [Fact]
