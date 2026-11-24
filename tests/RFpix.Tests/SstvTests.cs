@@ -321,6 +321,68 @@ public class SstvTests
         Assert.True(down3 < 0.09, $"noise 3 lines apart alike by {down3:0.00}");
     }
 
+    // A picture heard as on the HF bench: a second of quiet either side, the fading path, then noise (the
+    // same seeds the bench uses for that path, signal level and try).
+    private static float[] OverHf(float[] audio, RFpix.Tests.Bench.HfCondition path, int pathIndex, double snrDb, int seed, int cutAt = -1)
+    {
+        var padded = new float[audio.Length + 96000];
+        audio.CopyTo(padded, 48000);
+        var heard = path.SpreadHz > 0 ? RFpix.Tests.Bench.HfChannel.Apply(padded, path, seed * 7919 + pathIndex) : padded;
+        var noisy = TestAudio.AddNoise(heard, snrDb, seed * 104729 + (int)(snrDb * 31) + pathIndex);
+        if (cutAt >= 0) for (int i = 48000 + cutAt; i < noisy.Length; i++) noisy[i] -= heard[i];   // the sender stops; the noise carries on
+        return noisy;
+    }
+
+    [Fact]
+    public void A_weak_picture_whose_syncs_are_lost_is_still_drawn_to_the_end()
+    {
+        // Seen on air, 23 November 2026: a weak Scottie 1 stopped at line 92 of 256 while MMSSTV drew it all.
+        // RFpix lost the syncs and waited for them; they never came back clearly, so it kept only what came
+        // before. On the bench, this one stopped at line 49; now it's drawn to the end on its timing.
+        var m = SstvModes.Get(SstvMode.Scottie1);
+        var audio = SstvEncoder.Audio(SstvEncoder.Fit(Pattern(320, 256), m), m);
+        var got = Receive(OverHf(audio, RFpix.Tests.Bench.HfCondition.NoiseOnly, 0, 2, seed: 1), out _);
+        Assert.NotNull(got);
+        Assert.Equal(256, got!.Lines);
+        Assert.True(got.Complete);
+    }
+
+    [Fact]
+    public void A_sender_who_stops_part_way_gives_the_part_sent_not_noise_after_it()
+    {
+        // Drawn on its timing after the syncs go, a picture would otherwise fill up with noise to the end:
+        // it ends where the sync tone could last be heard on its beat.
+        var m = SstvModes.Get(SstvMode.Scottie1);
+        var audio = SstvEncoder.Audio(SstvEncoder.Fit(Pattern(320, 256), m), m);
+        int cutAt = (int)((SstvModes.VisTime.TotalMilliseconds + 0.4 * m.SoundLines * m.LineMs) * 48);   // at line 102
+        var got = Receive(OverHf(audio, RFpix.Tests.Bench.HfCondition.Moderate, 2, 4, seed: 2, cutAt), out _);
+        Assert.NotNull(got);
+        Assert.False(got!.Complete);
+        Assert.InRange(got.Lines, 95, 125);
+    }
+
+    [Fact]
+    public void A_picture_whose_start_the_VIS_code_put_late_finds_its_syncs()
+    {
+        // In noise and echo the VIS code's end can come out 10-30 ms late, beyond the sync search: no sync was
+        // ever found, the picture stopped at line 20, and a "joined partway" picture took over. The first lines'
+        // syncs now put the start right. (This one's VIS code put it 15 ms late.)
+        var m = SstvModes.Get(SstvMode.Scottie1);
+        var audio = SstvEncoder.Audio(SstvEncoder.Fit(Pattern(320, 256), m), m);
+        var heard = OverHf(audio, RFpix.Tests.Bench.HfCondition.Poor, 3, 8, seed: 2);
+        var rx = new SstvReceiver();
+        var pictures = new List<SstvPicture>();
+        int started = 0;
+        rx.Started += _ => started++;
+        rx.Finished += p => pictures.Add(p);
+        for (int at = 0; at < heard.Length; at += 4800) rx.AddSamples(heard.AsSpan(at, Math.Min(4800, heard.Length - at)));
+        rx.End();
+        Assert.Equal(1, started);
+        var got = Assert.Single(pictures);
+        Assert.True(got.Complete);
+        Assert.False(got.JoinedLate);
+    }
+
     [Fact]
     public void A_picture_cut_short_is_kept_as_far_as_it_got()
     {

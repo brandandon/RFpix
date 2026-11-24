@@ -303,8 +303,11 @@ public sealed class SstvReceiver
         if (_image is not null) _image.Advance(end);
         else
         {
-            // A picture whose signal faded: past its planned end there's nothing left to come back.
-            if (_faded is not null && end > _fadedEnd) End();
+            // A picture whose signal faded is still drawn on its timing, as far as the sound has come (on a
+            // weak band the picture's tones often carry on after its syncs can no longer be found). Past
+            // its planned end (and a line for the last line's sound) there's nothing left to come back.
+            _faded?.Advance(end, waiting: true);
+            if (_faded is { } waiting && end > _fadedEnd + waiting.LineSamples) End();
             if (FindBySyncs(end - 1 - SmoothHalf) is (var lateMode, long lateStart))
             {
                 // On the waiting picture's beat: the same transmission, after a fade. Carry on with it.
@@ -312,7 +315,7 @@ public sealed class SstvReceiver
                 else if (!HoldNewPictures) Begin(lateMode, lateStart, joinedLate: true);
             }
             // (While a picture waits, all its sound is kept: it's drawn again from the start at the end.)
-            else if (_faded is null && _track.Count > TrackRate * 12)
+            else if (_faded is null && _image is null && _track.Count > TrackRate * 12)   // (a waiting picture may just have come back)
             {
                 // Between pictures only the last few seconds are needed (for the VIS code, and the
                 // syncs of a picture whose VIS code was missed: six lines of the slowest mode).
@@ -341,6 +344,10 @@ public sealed class SstvReceiver
     internal static double Enough = 1;
     internal static int FadeReach = 12;
     internal static double TrustFloor = 0.05;
+    // How much the sync tone must stand out on the beat (0: noise alone; 1: a clean sync), on average over 16
+    // lines, to count the signal as still there after its syncs have gone (and over a picture's first 8 lines
+    // to move its start).
+    internal static double HeardTone = 0.25;
     private double Smoothed(long t) => SmoothHalf == 0 ? Track(t) : Weighted(t - SmoothHalf, t + SmoothHalf + 1).Hz;
 
     /// <summary>The smoothed frequency (<see cref="Smoothed"/>) of <paramref name="count"/> track samples from
@@ -580,7 +587,8 @@ public sealed class SstvReceiver
         private readonly SstvReceiver _rx;
         public readonly SstvModeInfo Mode;
         public readonly bool JoinedLate;
-        private readonly long _start;            // track sample where the first line's time begins
+        private long _start;                     // track sample where the first line's time begins (checked
+                                                 // against the first lines' syncs: CheckStart)
         private readonly double _lineSamples;    // nominal line length, in track samples
         private readonly double _syncOffset;     // where in a line its sync starts (ms)
         private readonly List<(int Line, double At)> _syncs = new();
@@ -652,25 +660,66 @@ public sealed class SstvReceiver
             return fit;
         }
 
-        /// <summary>Draws the lines whose sound has all arrived.</summary>
-        public void Advance(long trackEnd)
+        public double LineSamples => _lineSamples;
+
+        /// <summary>Draws the lines whose sound has all arrived. While <paramref name="waiting"/> (the syncs
+        /// have gone), the lines are still drawn on the timing found so far, as MMSSTV does: on a weak band the
+        /// picture often carries on after its syncs can no longer be found. If they're found again, on two
+        /// lines running, the picture carries on as before.</summary>
+        public void Advance(long trackEnd, bool waiting = false)
         {
             while (_lines < Mode.SoundLines)
             {
                 double start = LineStart(_lines);
                 if (start + _lineSamples * 1.02 + 0.03 * TrackRate > trackEnd) return;   // not all here yet
-                FindSync(_lines);
+                bool found = FindSync(_lines);
                 DrawLine(_lines, LineStart(_lines));
                 _lines++;
-                if (_lines <= _resumeLine) _missedSyncs = 0;   // the gap before a fade's end isn't counted again
-                if (_missedSyncs >= 20)   // no syncs for 20 lines: the signal has gone (perhaps only for a while)
+                if (_lines == CheckLines && !JoinedLate) CheckStart();
+                if (waiting)
                 {
-                    _rx.Fade();
-                    return;
+                    _foundRun = found ? _foundRun + 1 : 0;
+                    if (_foundRun >= 2) { _rx.Resume(_lines); return; }   // its syncs are back: Advance goes on from there
+                }
+                else
+                {
+                    if (_lines <= _resumeLine) _missedSyncs = 0;   // the gap before a fade's end isn't counted again
+                    if (_missedSyncs >= 20)   // no syncs for 20 lines: the signal has gone (perhaps only for a while)
+                    {
+                        _fadedAt ??= _lines;
+                        _rx.Fade();
+                        return;
+                    }
                 }
                 if (_lines % 4 == 0 || _lines == Mode.SoundLines) _rx.Progress?.Invoke(Snapshot(), Drawn);
             }
             _rx.End();   // complete
+        }
+
+        private int _foundRun;
+        private int? _fadedAt;   // the line where the syncs first went (null if they never did)
+
+        // How much of each line's sync window, on its beat, is the 1200 Hz sync tone (scaled: about 0 in noise
+        // alone, 1 for a clean sync), much more than noise wherever the picture's signal is still there, however
+        // weak its syncs.
+        private readonly List<double> _syncTone = new();
+
+        /// <summary>The lines to keep: all of them, unless the syncs went and the signal never came back.
+        /// Then up to the last stretch (16 lines) where the sync tone still stood out on the beat, so a
+        /// sender who stopped, or a band that closed, doesn't leave the rest of the picture as noise.</summary>
+        private int LinesHeard(int lines)
+        {
+            if (_fadedAt is not int from || from >= lines) return lines;
+            const int Run = 16;
+            int last = Math.Min(from, lines);
+            for (int line = from; line + Run <= Math.Min(lines, _syncTone.Count); line++)
+            {
+                double sum = 0;
+                for (int k = 0; k < Run; k++) sum += _syncTone[line + k];
+                if (sum / Run >= HeardTone) last = line + Run;
+            }
+            // Close to the end: the whole picture.
+            return lines - last <= Run ? lines : last;
         }
 
         public int Drawn => Mode.Color == SstvColor.PD ? 2 * _lines : _lines;
@@ -699,14 +748,17 @@ public sealed class SstvReceiver
         {
             _resumeLine = line;
             _missedSyncs = 0;
+            _foundRun = 0;
+            _fadedAt = null;   // it came back: the whole picture is kept (a later fade starts the count again)
         }
 
-        // Looks for the line's sync pulse within 8 ms of where it should be.
-        private void FindSync(int line)
+        // Looks for the line's sync pulse within 8 ms of where it should be: true if it's found.
+        private bool FindSync(int line)
         {
             double expected = LineStart(line) + _syncOffset * TrackRate / 1000;
             int width = (int)Math.Round(Mode.SyncMs * TrackRate / 1000);
             int range = (int)(0.008 * TrackRate);
+            MeasureSyncTone(line, expected, width);
             double best = -1;
             int bestAt = 0;
             // A sync is a stretch near 1200 Hz between brighter tones: score = samples inside below 1350 Hz.
@@ -738,8 +790,57 @@ public sealed class SstvReceiver
                 }
                 _syncs.Add((line, (long)Math.Round(expected) + bestAt - _syncOffset * TrackRate / 1000));
                 _missedSyncs = 0;
+                return true;
             }
-            else _missedSyncs++;
+            _missedSyncs++;
+            return false;
+        }
+
+        // The sync tone's share of the power in the line's sync window, on the beat (the best within a
+        // millisecond either side), clear of the window's edges.
+        private void MeasureSyncTone(int line, double expected, int width)
+        {
+            double best = 0;
+            for (double d = -Ms(1); d <= Ms(1); d += Ms(0.25)) best = Math.Max(best, SyncToneAt(expected + d, width));
+            while (_syncTone.Count < line) _syncTone.Add(0);
+            if (_syncTone.Count == line) _syncTone.Add(best);
+        }
+
+        // Scaled so that noise alone reads about 0 and a clean sync 1, whatever the sync's length: in a short
+        // window noise alone looks more like a tone (about 1 / the number of independent noise samples in it,
+        // given the input filter's width).
+        private double SyncToneAt(double at, int width)
+        {
+            double edge = Math.Min(Ms(1), width / 4.0);
+            double from = at + edge, to = at + width - edge;
+            double tone = _rx.Tone(SstvModes.SyncHz, from, to);
+            var sums = _rx.PowerSums((long)Math.Ceiling(from), (long)Math.Ceiling(to));
+            double power = sums[^1] / Math.Max(1, sums.Length - 1);
+            if (power <= 0) return 0;
+            double noiseAlone = 1 / Math.Max(1.5, (to - from) * 2 * CutoffHz / TrackRate);
+            return (tone / power - noiseAlone) / (1 - noiseAlone);
+        }
+
+        // Where the picture starts, checked once its first lines have arrived: the VIS code's end gives it to
+        // a few milliseconds in noise, sometimes 10-30 ms out (more than the sync search reaches, and then no
+        // sync is ever found). The first lines' syncs together, as sync tone on their beat, pin it down.
+        private const int CheckLines = 8;
+
+        private void CheckStart()
+        {
+            int width = (int)Math.Round(Mode.SyncMs * TrackRate / 1000);
+            double offset = _syncOffset * TrackRate / 1000, best = 0, bestShift = 0;
+            for (double shift = -Ms(30); shift <= Ms(30); shift += Ms(0.25))
+            {
+                double sum = 0;
+                for (int line = 0; line < CheckLines; line++) sum += SyncToneAt(_start + shift + line * _lineSamples + offset, width);
+                if (sum > best) { best = sum; bestShift = shift; }
+            }
+            if (best / CheckLines < HeardTone) return;   // not clear enough: keep what the VIS code said
+            _start += (long)Math.Round(bestShift);
+            // Syncs found where the old start put them are noise, unless they agree with the new one.
+            _syncs.RemoveAll(s => Math.Abs(s.At - (_start + _lineSamples * s.Line)) > Ms(2));
+            _missedSyncs = 0;
         }
 
         // The value (0-255) of a scan's pixels, averaged over each pixel's time. The frequency
@@ -953,7 +1054,12 @@ public sealed class SstvReceiver
         /// hardly any of it arrived.</summary>
         public SstvPicture? Finish()
         {
-            int lines = _lines;
+            // The sync tone measured again with the final timing (while arriving, the timing may still have
+            // been settling), then the lines heard.
+            int width = (int)Math.Round(Mode.SyncMs * TrackRate / 1000);
+            _syncTone.Clear();
+            for (int line = 0; line < _lines; line++) MeasureSyncTone(line, LineStart(line) + _syncOffset * TrackRate / 1000, width);
+            int lines = LinesHeard(_lines);
             if (lines < 8) return null;
             _cr = _cb = _lastY = null;
             Array.Clear(_prior);
@@ -967,6 +1073,10 @@ public sealed class SstvReceiver
             _redrawing = true;
             for (int line = 0; line < lines; line++) DrawLine(line, LineStart(line));
             _redrawing = false;
+            // Lines drawn while waiting but after the signal had gone go back to black.
+            int rows = Math.Min(Mode.Height, Mode.Color == SstvColor.PD ? 2 * lines : lines);
+            for (int i = 4 * rows * Mode.Width; i < _bgra.Length; i += 4) { _bgra[i] = _bgra[i + 1] = _bgra[i + 2] = 0; }
+            _lines = lines;
             bool complete = lines == Mode.SoundLines;
             return new SstvPicture(Mode, Snapshot(), Drawn, complete, DateTime.Now, JoinedLate);
         }

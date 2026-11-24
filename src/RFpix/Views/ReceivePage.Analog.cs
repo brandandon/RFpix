@@ -39,12 +39,13 @@ public partial class ReceivePage
         AppLog.Info("Receive", $"Analog SSTV {mode.Name} arriving" + (_sstv.ReceivingLate ? ", found without its VIS code." : " (its VIS code heard)."));
     }
 
-    /// <summary>The picture's signal has gone: it's kept, in case it comes back before the picture's end.</summary>
+    /// <summary>The picture's syncs have gone: it's still drawn on its timing (often the picture carries on
+    /// in the noise), and kept as far as its signal could still be heard.</summary>
     private void ShowAnalogFaded(int lines)
     {
         if (_analogMode is not { } mode) return;
-        PictureCaption.Text = $"Analog SSTV {mode.Name}: the signal faded at line {lines}. Waiting for it to come back…";
-        AppLog.Info("Receive", $"Analog SSTV {mode.Name}: the signal faded at line {lines}; waiting for it to come back before saving.");
+        PictureCaption.Text = $"Analog SSTV {mode.Name}: the signal faded at line {lines}. Still drawing on its timing…";
+        AppLog.Info("Receive", $"Analog SSTV {mode.Name}: the signal faded at line {lines} (its syncs lost); still drawing on its timing, kept as far as the signal can be heard.");
     }
 
     private void ShowAnalogResumed(int line)
