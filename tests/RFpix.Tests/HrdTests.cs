@@ -9,6 +9,13 @@ using Xunit;
 
 namespace RFpix.Tests;
 
+// Run on their own, after the other tests: they connect to the pretend HRD with RFpix's real 5-second wait, and
+// with the CPU-heavy picture tests running alongside, a slow build machine once took longer than that just to
+// complete the connection on this computer (Windows, Nov 24, 2026).
+[CollectionDefinition("Radio sharing, on its own", DisableParallelization = true)]
+public class RadioSharingCollection { }
+
+[Collection("Radio sharing, on its own")]
 public class HrdTests
 {
     /// <summary>A pretend Ham Radio Deluxe: answers one connection's commands, and remembers what it was told.</summary>
