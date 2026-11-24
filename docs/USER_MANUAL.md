@@ -1,8 +1,8 @@
 # RFpix User Manual
 
-Version 0.7.3 beta · Nov 23, 2026 · KD9DD
+Version 0.7.4 beta · Nov 23, 2026 · KD9DD
 
-This manual covers RFpix version 0.7.3 beta for Windows 10 and 11, the Mac (macOS 14 or newer) and Linux (64-bit PCs and Raspberry Pi). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
+This manual covers RFpix version 0.7.4 beta for Windows 10 and 11, the Mac (macOS 14 or newer) and Linux (64-bit PCs and Raspberry Pi). If you're new to RFpix, read Part 1 and follow the setup checklist in section 3; it takes about 20 minutes and ends with your first picture received and sent.
 
 The manual has three parts:
 
@@ -51,14 +51,14 @@ RFpix is free to download from its [releases page on GitHub](https://github.com/
 
 | File | What it is | Choose it if |
 | --- | --- | --- |
-| **RFpix-Setup-0.7.3-beta-windows.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
-| **RFpix-0.7.3-beta-windows-portable.exe** | The program in one file, nothing to install | You want to run it from a folder or a USB stick |
+| **RFpix-Setup-0.7.4-beta-windows.exe** | An installer | You want RFpix in the Start menu and easy to update (recommended) |
+| **RFpix-0.7.4-beta-windows-portable.exe** | The program in one file, nothing to install | You want to run it from a folder or a USB stick |
 
 Every download's name says which system it's for (*windows*, *mac* or *linux*) and its version. (Before 0.6.2 the Windows files were *RFpix-Setup-….exe* and *RFpix.exe*.)
 
 #### Installing with the installer
 
-1. Download **RFpix-Setup-0.7.3-beta-windows.exe** and open it.
+1. Download **RFpix-Setup-0.7.4-beta-windows.exe** and open it.
 2. If Windows says *"Windows protected your PC"*, click **More info**, then **Run anyway**. Windows says this about new programs that aren't yet signed; it doesn't mean anything is wrong.
 3. Accept the licence, and choose where to put RFpix. The suggested folder needs no administrator password.
 4. Tick **Put a shortcut on the desktop** if you want one.
@@ -70,7 +70,7 @@ Every download's name says which system it's for (*windows*, *mac* or *linux*) a
 
 #### Running RFpix without installing
 
-Put **RFpix-0.7.3-beta-windows-portable.exe** in any folder and double-click it (you can rename it, to *RFpix.exe* say). The first time each new version runs, it takes a few seconds longer while it unpacks its parts into a hidden folder. The *"Windows protected your PC"* message may appear here too; click **More info**, then **Run anyway**.
+Put **RFpix-0.7.4-beta-windows-portable.exe** in any folder and double-click it (you can rename it, to *RFpix.exe* say). The first time each new version runs, it takes a few seconds longer while it unpacks its parts into a hidden folder. The *"Windows protected your PC"* message may appear here too; click **More info**, then **Run anyway**.
 
 #### Updating
 
@@ -84,8 +84,8 @@ The Mac version is new in 0.5.2 beta, and hasn't yet been tried with a radio. Ea
 
 | File | For |
 | --- | --- |
-| **RFpix-0.7.3-beta-mac-apple-silicon.pkg** | Apple Silicon Macs (M1 and newer) |
-| **RFpix-0.7.3-beta-mac-intel.pkg** | Intel Macs |
+| **RFpix-0.7.4-beta-mac-apple-silicon.pkg** | Apple Silicon Macs (M1 and newer) |
+| **RFpix-0.7.4-beta-mac-intel.pkg** | Intel Macs |
 
 1. Download the installer for your Mac and open it.
 2. macOS says the installer was *"Not Opened"*, because RFpix isn't yet signed by Apple. Click **Done**. This doesn't mean anything is wrong.
@@ -111,10 +111,10 @@ The Linux version is new in 0.6.0 beta, and hasn't yet been tried with a radio. 
 
 | File | What it is | For |
 | --- | --- | --- |
-| **rfpix_0.7.3-beta_linux_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
-| **rfpix_0.7.3-beta_linux_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
-| **RFpix-0.7.3-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
-| **RFpix-0.7.3-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
+| **rfpix_0.7.4-beta_linux_amd64.deb** | An installer package | PCs with Ubuntu, Mint or Debian (recommended there) |
+| **rfpix_0.7.4-beta_linux_arm64.deb** | An installer package | Raspberry Pi OS (64-bit) |
+| **RFpix-0.7.4-beta-linux-x64.AppImage** | The program in one file, nothing to install | Any other Linux on a PC (Fedora, openSUSE...) |
+| **RFpix-0.7.4-beta-linux-arm64.AppImage** | The program in one file | Any other 64-bit Linux on a Raspberry Pi |
 
 **With the .deb:** download it and open it (double-click it, or right-click it and choose to open it with the software installer), then click **Install**. Or, in a terminal, in the folder where it was downloaded: `sudo apt install ./rfpix_*_linux_amd64.deb` (`arm64` on a Raspberry Pi). RFpix then appears in the menu (under Internet, or Ham Radio), and `rfpix` starts it from a terminal.
 
@@ -213,6 +213,7 @@ Open **TX/RX**, then the **Receive** tab, and click **Start listening**. RFpix l
 | **Play recording…** | Plays a saved recording into RFpix instead of the radio, for testing or for recordings other stations send you. |
 | **Level** | How loud the radio's audio is, in dB. Yellow means too quiet for pictures to decode; orange means too loud. |
 | **Receive level** | Sets the radio's recording level: adjust it for the best image reception. See [Setting the receive level](#setting-the-receive-level). |
+| **Listening for** | The line under the level meter: what RFpix is decoding, which follows the Send tab (below). |
 | **Signal boxes** | Offset, Clock, Strength and Quality of a digital signal (below). |
 | **Settings boxes** | How a digital picture was sent: Mode, Bandwidth, QAM, Interleave, Protection, Reed-Solomon, and who it's From. |
 | **Waterfall** (left) | The sound the radio hears, as a picture that scrolls down. Each signal shows as a coloured trace. |
@@ -254,6 +255,12 @@ There are two sets of marks, digital and analog. **They follow what's being rece
 - **Digital:** three lines at 725, 1475 and 1850 Hz. Every HamDRM signal has a steady tone on each of them, so its three bright lines should sit on the marks.
 - **Analog:** **S** 1200 Hz (sync), **B** 1500 Hz (black), **V** 1900 Hz (the VIS start code) and **W** 2300 Hz (white). An analog picture is one tone sweeping between B and W, with a sync pulse at S at the start of every line.
 
+#### What RFpix listens for
+
+RFpix decodes the kind of picture picked on the **Send tab**: with **Digital** picked, HamDRM and RFpix FM pictures; with **Analog SSTV**, analog pictures. The line under the level meter says which. To receive the other kind, pick it on the Send tab (a picture of the old kind that was arriving is finished and saved as far as it got).
+
+Listening for one kind at a time keeps noise from passing for the other kind. On a busy or noisy frequency (an FM repeater between pictures, say) noise, or the first second of a digital transmission, could look like an analog picture's start code, and a "picture" of noise would take over the screen and the boxes. (Since 0.7.4 beta; before, RFpix decoded everything at once.)
+
 #### Where pictures are saved
 
 Digital pictures go to **Documents\RFpix\Received\Digital** and analog pictures to **Documents\RFpix\Received\Analog**. Each file is named with the date, time and sender, for example *2026-10-22 2130 N0ABC tower.jpg*. (If you've moved your pictures with **Change folder…** on the Gallery page, they go to that folder's Received instead.) Every picture also appears in the **Gallery** (section 8), and can be copied to your website (section 9).
@@ -264,9 +271,13 @@ An analog picture normally begins with a short start code (the VIS code) that sa
 
 #### When an analog picture fades out
 
-A short fade, such as the slow fading on an HF path, doesn't spoil the lines it falls on with random colour: RFpix measures how far the signal stands above the noise, and draws lines lost in a fade mostly from the lines above, so a fade shows as a softer band across the picture.
+A weak or fading signal doesn't spoil the picture with random colour: RFpix measures how far the signal stands above the noise at every moment, and a pixel heard only faintly is drawn mostly from its neighbours (above, below and either side), so a fade shows as a softer stretch rather than speckle. Since 0.7.4 beta it never copies one line on down the picture, which on a weak band made vertical streaks.
 
-If the signal fades out altogether partway through an analog picture, RFpix doesn't save it straight away. The Receive tab says *the signal faded at line …, waiting for it to come back*. If the same picture's signal returns before the picture would have finished, RFpix recognises it by its timing (its lines fall exactly on the same beat) and **carries on drawing it in the same picture**, at the right line. The part lost in the fade shows as noise or black, and you get one picture in the Gallery, not two halves. The picture is saved (and uploaded) once, when it's really over: when it finishes, when its time is up, when a new picture starts, or when you stop listening. If the sender's FSK ID comes while RFpix is waiting, the callsign is saved with the picture.
+If RFpix loses an analog picture's sync pulses partway through (in a deep fade, or a weak signal whose syncs sink into the noise), the Receive tab says *the signal faded at line …, still drawing on its timing*. As MMSSTV does, RFpix **keeps drawing the picture** on the timing it has, since on a weak band the picture often carries on in the noise. If the syncs come back, it carries on as before. When the picture is over, it's kept as far as the sync tone could still be heard on its beat, so if the sender stopped, or the band closed, the rest isn't filled with noise. A "picture" whose sync was never heard at all (noise taken for a start code) isn't saved.
+
+You get one picture in the Gallery, not two halves. It's saved (and uploaded) once, when it's really over: when it finishes, when its time is up, when a new picture starts, or when you stop listening. If the sender's FSK ID comes while the signal is faded, the callsign is saved with the picture.
+
+RFpix also checks each picture's start against its first few lines' sync pulses: in noise the start code can put it a little late, which used to make it lose the picture after 20 lines.
 
 When Receive is left running, many of these are only scraps: the end of a picture, or noise that looked like one. So a picture found without its VIS code is **saved to the Gallery only when at least half of it arrived**. One that isn't kept still shows on the Receive tab until the next picture, with a note under it such as *Not saved to the Gallery: only 30% received*. To keep more or fewer, change **Analog pictures without their VIS code** on **Settings > Misc** (25%, 50%, 75% or 100%, or untick it to keep none). Pictures that started with their VIS code are always saved, even if they were cut short. Whether these pictures go to your website is a separate setting, on the FTP server tab (section 9).
 
@@ -346,7 +357,7 @@ These say how the picture is sent. Every station receives any of them automatica
 | Setting | Choices | What it does |
 | --- | --- | --- |
 | **Signal** | HamDRM, RFpix FM | HamDRM is what EasyPal, QSSTV and RFpix all receive. RFpix FM is RFpix's own signal for FM radios (below); only RFpix 0.7.1 or newer receives it. |
-| **Speed** | FM 1 to FM 5 | RFpix FM only, in place of Mode, Bandwidth, QAM, Interleave and Protection (below). |
+| **Speed** | FM 1 to FM 6 | RFpix FM only, in place of Mode, Bandwidth, QAM, Interleave and Protection (below). |
 | **Mode** | A, B, E | A carries the most data; B and E hold up better on fading paths, more slowly. |
 | **Bandwidth** | 2.2 kHz, 2.5 kHz | 2.5 kHz is faster; 2.2 kHz fits narrower radio filters. |
 | **QAM** | 4, 16, 64 | 64 is fastest but needs a strong, clean signal; 4 is slowest and toughest. |
@@ -358,7 +369,7 @@ These say how the picture is sent. Every station receives any of them automatica
 
 #### RFpix FM: RFpix's own signal for FM radios
 
-RFpix can send pictures with its own signal, made for FM radios (simplex or through a repeater), instead of HamDRM. Pick **RFpix FM** in the **Signal** list, then a **Speed**. For the same signal, it's about twice as fast as HamDRM's settings that come through it. Only stations running RFpix 0.7.1 or newer receive it (not EasyPal or QSSTV); they receive it automatically, alongside HamDRM, with nothing to switch. It's for FM: on SSB, use HamDRM.
+RFpix can send pictures with its own signal, made for FM radios (simplex or through a repeater), instead of HamDRM. Pick **RFpix FM** in the **Signal** list, then a **Speed**. For the same signal, it's about twice as fast as HamDRM's settings that come through it. Only stations running RFpix 0.7.1 or newer receive it (not EasyPal or QSSTV); they receive it automatically, alongside HamDRM, with **Digital** picked on their Send tab. It's for FM: on SSB, use HamDRM.
 
 | Speed | Picture data | What it's for |
 | --- | --- | --- |
@@ -366,13 +377,14 @@ RFpix can send pictures with its own signal, made for FM radios (simplex or thro
 | **FM 2** | 3.1 kbit/s | Tough: comes through where HamDRM's toughest settings do, about 50% faster |
 | **FM 3** | 4.9 kbit/s | The usual choice: as tough as HamDRM's B 16-QAM with Fountain 20%, at twice the speed |
 | **FM 4** | 6.7 kbit/s | Fast, for a fair signal: about 1.4 times the data of HamDRM's fastest setting (A 64-QAM low), and tougher |
-| **FM 5** | 8.9 kbit/s | The fastest, for a strong signal, with the transmit level a little hot |
+| **FM 5** | 8.9 kbit/s | Fast, for a strong signal, with the transmit level a little hot |
+| **FM 6** | 11.0 kbit/s | The fastest, only for a very clean signal: the receiving station's Quality box near 30 dB (new in 0.7.4 beta, for testing) |
 
 - **It always carries the fountain code.** The **Repair data** list offers Fountain 20%, 50% or 75% (20% unless you pick more). A station that misses part of a picture can catch the rest when it's sent again, as with HamDRM's Fountain pictures.
-- **Tested on the air** through the net's repeater (Nov 20, 2026): FM 2 and FM 3 came through reliably, and FM 4 too once the receiver was improved (checked on the recordings). FM 5 came through radio to radio on the first try; through the repeater it's still to be tried with 0.7.1.
+- **Tested on the air** through the net's repeater (Nov 20, 2026): FM 2 and FM 3 came through reliably, and FM 4 too once the receiver was improved (checked on the recordings). FM 5 came through radio to radio on the first try. On Nov 23, FM 4 and FM 5 came through well, with the Quality box reading 24-29 dB.
 - **The transmit level matters more than with HamDRM.** The faster speeds come through weaker signals with the level a little hotter than you'd use for HamDRM. FM 5 needs it.
 - **It goes out in frames of about 3 seconds.** A station that tunes in late, or loses the repeater for a few seconds, picks up at the next frame. The sender's callsign and the picture's name go out every few frames, so a late station still gets them.
-- **On the Receive tab,** while an RFpix FM signal arrives, the digital boxes show its speed (**Mode** reads FM 1 to FM 5, **QAM** the QAM in the middle of the band, **Protection** the error correction), the sender's callsign, and the **Quality** (green when it's enough for that speed). The line under the picture says how many of the pieces needed have arrived.
+- **On the Receive tab,** while an RFpix FM signal arrives, the digital boxes show its speed (**Mode** reads FM 1 to FM 6, **QAM** the QAM in the middle of the band, **Protection** the error correction), the sender's callsign, and the **Quality** (green when it's enough for that speed). The line under the picture says how many of the pieces needed have arrived.
 - **Missing pieces work as for Fountain pictures** (section 4, Missing pieces): the request goes out in RFpix's FM signal itself, one frame of about 3 seconds, and the sender's RFpix answers with new repair pieces at the picture's own speed.
 - **It's documented publicly,** as the FCC asks of a new digital mode: the full technical description is in [RFPIX_FM_SPEC.md](RFPIX_FM_SPEC.md). Identify your station by voice or CW as usual: the callsign RFpix sends inside the signal is handy for the stations receiving, but it doesn't count as your identification.
 
@@ -748,6 +760,7 @@ When something goes wrong and you'd like help, open **Settings > Misc** and clic
 | The **Level** bar is yellow while a picture comes in | The radio's sound is too quiet, and pictures may not decode: move the **Receive level** slider right, or turn up the radio's USB audio output level in its menu (see [Setting the receive level](#setting-the-receive-level)). |
 | A signal shows on the waterfall but nothing decodes | Check the radio is on USB (on HF) with a filter at least 2.5 kHz wide, and that the signal's three bright lines sit on the marks. If the **Quality** box is red, the signal is too weak for those settings; wait for the end and use **Ask for them (BSR)**. |
 | Pictures through an FM repeater lose pieces even with a strong signal | Two things to check. **The treble:** if the sending station's radio is in data mode, its sound goes out without FM's treble boost; RFpix 0.7.0 and later adds it (**On FM, add the treble boost** on the Radio tab, on to start with), but other programs don't. **The repeater's tone:** many radios pass the repeater's sub-audible tone (CTCSS) out with the received sound. RFpix 0.7.0 and later finds that tone and removes it by itself, so nothing needs setting; older versions could lose many pieces to it. |
+| An analog picture stops partway, or a picture you expected isn't received at all | RFpix decodes only the kind picked on the Send tab (the line under the level meter says which): pick **Analog SSTV** there for analog pictures, **Digital** for HamDRM and RFpix FM. An analog picture whose signal faded keeps being drawn on its timing, and is kept as far as its signal could be heard. |
 | Analog pictures come out slanted | Check **Analog auto slant** is ticked on the Receive tab (under the picture): it straightens pictures from a sending station whose sound card is a little off. If it's unticked, or yours slant anyway, your own sound card's clock may be off: run **Sound-card calibration** on the Misc tab (section 3, step 6). |
 | *Couldn't add a test to the test log. Is the file open in Excel?* | Close Test results.csv in Excel; RFpix can't add to it while it's open. |
 | *No sound has come from the radio yet.* (after clicking Record) | Wait a moment after **Start listening**, then click **Record** again. |

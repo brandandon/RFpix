@@ -21,6 +21,22 @@ signed. Click **More info**, then **Run anyway**.
 Your settings live in %AppData%\RFpix, and your received pictures, recordings and test results
 in Documents\RFpix. Uninstalling asks whether to remove the settings, and never removes your files.
 
+## Analog pictures, listening for one kind, and FM 6 (new in v0.7.4 beta)
+
+- **Analog pictures on a weak or fading band** should no longer have vertical streaks, and should be a little
+  sharper and less speckled. Please compare with MMSSTV on the same picture.
+- **An analog picture whose sync pulses are lost keeps being drawn** on its timing (the Receive tab says
+  *still drawing on its timing*), as MMSSTV does, instead of stopping at that line. Where the sender
+  really stopped, the picture should end about there, not fill up with noise.
+- **The Receive tab decodes the kind of picture picked on the Send tab**: Digital (HamDRM and RFpix FM) or
+  Analog SSTV; the line under the level meter says which. Please check that analog "pictures" no longer
+  start by themselves between, or at the start of, RFpix FM pictures, and that switching the Send tab
+  switches what's received. **To receive the analog test pictures, or anyone's analog pictures, pick
+  Analog SSTV on the Send tab.**
+- **FM 6** is on the Send tab's Speed list: the fastest RFpix FM speed (11 kbit/s), for a very clean signal
+  only (the receiving station's Quality box near 30 dB). Please try it where FM 5 comes through well, and
+  note the Quality box.
+
 ## Auto slant on the Receive tab (new in v0.7.3 beta)
 
 - The **Analog auto slant** tick box is now on the Receive tab, under the received picture, instead of
