@@ -140,6 +140,7 @@ public partial class ReceivePage : UserControl, IDisposable
                                    (quality is double q ? $", quality {q:0} dB" : "") + ".");
             Dispatcher.UIThread.Post(() => { ShowReceivedFile(received, file.Callsign, quality); ShowIncomplete(); });
         };
+        WireLevelCheck();   // RFpix FM's level check (ReceivePage.LevelCheck.cs)
         _fm.RequestHeard += request =>
         {
             AppLog.Info("Receive", $"RFpix FM signal: {(request.Callsign.Length > 0 ? request.Callsign : "a station")} asked for " +
@@ -374,6 +375,8 @@ public partial class ReceivePage : UserControl, IDisposable
         ShowHeard();
         TransmissionText.Text = "";
         FileText.Text = "";
+        LevelCheckText.Text = "";
+        LevelCheckText.IsVisible = false;
         // Start fresh next time, so a signal from one source isn't carried over to another.
         // (Through the pump, so it happens after any audio still waiting.)
         _pump.Post(() =>

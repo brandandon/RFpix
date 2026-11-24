@@ -33,6 +33,11 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
   start by themselves between, or at the start of, RFpix FM pictures, and that switching the Send tab
   switches what's received. **To receive the analog test pictures, or anyone's analog pictures, pick
   Analog SSTV on the Send tab.**
+- **Level check** (Send tab, Digital, beside Send): sends about 18 seconds of RFpix FM in six steps 3 dB apart
+  around your Transmit level. Every listening RFpix 0.7.4 or newer shows which step came through best (Receive
+  tab, under the picture's details), to read out over the air; the sender picks that step and clicks **Use this
+  level**. Please try it on the net: note each station's best step and quality, then send a picture at the level
+  chosen and compare the Quality box with before.
 - **FM 6** is on the Send tab's Speed list: the fastest RFpix FM speed (11 kbit/s), for a very clean signal
   only (the receiving station's Quality box near 30 dB). Please try it where FM 5 comes through well, and
   note the Quality box.

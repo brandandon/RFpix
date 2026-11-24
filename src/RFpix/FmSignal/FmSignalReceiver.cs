@@ -27,7 +27,8 @@ namespace RFpix.FmSignal;
 /// <param name="Blocks">Its blocks.</param>
 /// <param name="Good">Blocks that decoded with a good check.</param>
 /// <param name="SnrDb">The signal-to-noise ratio measured on its tones (the average of the tones' ratios).</param>
-public sealed record FmFrame(int Start, FmSignalMode? Mode, int Blocks, int Good, double SnrDb);
+/// <param name="LevelStep">For a level check frame (FmLevelCheck), which step it is (its Mode is then null).</param>
+public sealed record FmFrame(int Start, FmSignalMode? Mode, int Blocks, int Good, double SnrDb, FmLevelStep? LevelStep = null);
 
 /// <summary>What a recording gave.</summary>
 /// <param name="Files">The files received complete.</param>
@@ -191,6 +192,7 @@ public static class FmSignalReceiver
         }
         int value = 0;
         foreach (double v in headerSoft) value = value << 1 | (v < 0 ? 1 : 0);
+        if (FmLevelCheck.FromHeader(value) is { } step) return (new FmFrame(start, null, 0, 0, MeasureKnown(y, h, value), step), found);
         var mode = FmSignalMode.ById(value >> 8);
         if (mode is null) return (new FmFrame(start, null, 0, 0, double.NaN), found);
 
@@ -327,6 +329,49 @@ public static class FmSignalReceiver
         var phaseFit = Line(phase);
         double g = gain.Average();
         return (s, k) => h[k] * Complex.FromPolarCoordinates(g, phaseFit(s - first) + slopeFit(s - first) * (k - middle));
+    }
+
+    /// <summary>A level check frame (FmLevelCheck): everything it sends is known, so the path is measured on
+    /// all of it, and the signal-to-noise ratio from how far each tone lands from what was sent, exactly, even
+    /// where the data couldn't be decoded. Worked out as for a picture's frames (the average of the tones'
+    /// ratios), so the figures compare with the Quality box.</summary>
+    private static double MeasureKnown(Complex[][] y, Complex[] h, int header)
+    {
+        var sent = FmLevelCheck.Sent(header);
+        var path = Track(y, h);
+        for (int pass = 0; pass < 2; pass++)
+        {
+            var better = new Complex[FftSize];
+            foreach (int k in Carriers)
+            {
+                Complex top = 0;
+                double bottom = 0;
+                for (int s = 0; s < FrameSymbols; s++)
+                {
+                    var r = path(s, k) / h[k] * sent[s][k];
+                    top += y[s][k] * Complex.Conjugate(r);
+                    bottom += (r * Complex.Conjugate(r)).Real;
+                }
+                better[k] = bottom > 0 ? top / bottom : h[k];
+            }
+            h = better;
+            path = Track(y, h);
+        }
+        int firstData = SyncSymbols + HeaderSymbols;
+        double snrSum = 0;
+        foreach (int k in DataCarriers)
+        {
+            double noise = 0;
+            for (int s = firstData; s < FrameSymbols; s++)
+            {
+                var e = y[s][k] - path(s, k) * sent[s][k];
+                noise += (e * Complex.Conjugate(e)).Real;
+            }
+            noise = Math.Max(noise / DataSymbols, 1e-12);
+            double hp = path(firstData, k).Magnitude;
+            snrSum += hp * hp / noise;
+        }
+        return 10 * Math.Log10(snrSum / DataCarriers.Length);
     }
 
     /// <summary>What was most likely sent on every symbol and tone: the syncs, pilots and header as known,

@@ -42,6 +42,8 @@ public partial class SendPage
     private void ShowSendAs()
     {
         IdButton.IsVisible = WfTextButton.IsVisible = WfPicButton.IsVisible = !_analog;
+        LevelCheckButton.IsVisible = !_analog;   // the level check is RFpix's FM signal (SendPage.LevelCheck.cs)
+        if (_analog) LevelCheckPanel.IsVisible = false;
         ProfileWrap.IsVisible = !_analog;
         var settings = SettingsWrap.Children;
         for (int i = 0; i < settings.Count - 2; i++) settings[i].IsVisible = !_analog;

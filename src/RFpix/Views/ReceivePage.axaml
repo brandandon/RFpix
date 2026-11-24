@@ -104,6 +104,8 @@
         <TextBlock x:Name="TransmissionText" Classes="Hint" FontSize="12" />
         <!-- The file arriving: name, size and how far along -->
         <TextBlock x:Name="FileText" />
+        <!-- A level check heard (ReceivePage.LevelCheck.cs): its steps as they arrive, then the best one to read out -->
+        <TextBlock x:Name="LevelCheckText" FontWeight="SemiBold" TextWrapping="Wrap" MaxWidth="900" HorizontalAlignment="Left" IsVisible="False" />
         <!-- The last RFpix test transmission received, and the log of them all -->
         <StackPanel x:Name="TestPanel" Orientation="Horizontal" Spacing="10" IsVisible="False">
           <TextBlock x:Name="TestResultText" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="900" />

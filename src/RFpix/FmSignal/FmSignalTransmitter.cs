@@ -178,7 +178,7 @@ public static class FmSignalTransmitter
     }
 
     /// <summary>Writes one symbol (tone values in, sound out), with its guard in front.</summary>
-    private static void WriteSymbol(float[] sound, int at, Complex[] cells)
+    internal static void WriteSymbol(float[] sound, int at, Complex[] cells)
     {
         var re = new double[FftSize];
         var im = new double[FftSize];

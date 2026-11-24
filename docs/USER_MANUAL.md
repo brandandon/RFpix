@@ -382,11 +382,22 @@ RFpix can send pictures with its own signal, made for FM radios (simplex or thro
 
 - **It always carries the fountain code.** The **Repair data** list offers Fountain 20%, 50% or 75% (20% unless you pick more). A station that misses part of a picture can catch the rest when it's sent again, as with HamDRM's Fountain pictures.
 - **Tested on the air** through the net's repeater (Nov 20, 2026): FM 2 and FM 3 came through reliably, and FM 4 too once the receiver was improved (checked on the recordings). FM 5 came through radio to radio on the first try. On Nov 23, FM 4 and FM 5 came through well, with the Quality box reading 24-29 dB.
-- **The transmit level matters more than with HamDRM.** The faster speeds come through weaker signals with the level a little hotter than you'd use for HamDRM. FM 5 needs it.
+- **The transmit level matters more than with HamDRM.** The faster speeds come through weaker signals with the level a little hotter than you'd use for HamDRM. FM 5 needs it. The **Level check** (below) finds the best level.
 - **It goes out in frames of about 3 seconds.** A station that tunes in late, or loses the repeater for a few seconds, picks up at the next frame. The sender's callsign and the picture's name go out every few frames, so a late station still gets them.
 - **On the Receive tab,** while an RFpix FM signal arrives, the digital boxes show its speed (**Mode** reads FM 1 to FM 6, **QAM** the QAM in the middle of the band, **Protection** the error correction), the sender's callsign, and the **Quality** (green when it's enough for that speed). The line under the picture says how many of the pieces needed have arrived.
 - **Missing pieces work as for Fountain pictures** (section 4, Missing pieces): the request goes out in RFpix's FM signal itself, one frame of about 3 seconds, and the sender's RFpix answers with new repair pieces at the picture's own speed.
 - **It's documented publicly,** as the FCC asks of a new digital mode: the full technical description is in [RFPIX_FM_SPEC.md](RFPIX_FM_SPEC.md). Identify your station by voice or CW as usual: the callsign RFpix sends inside the signal is handy for the stations receiving, but it doesn't count as your identification.
+
+#### The level check: finding the best transmit level for FM
+
+On FM, how well a digital picture arrives depends mostly on the sending station's **Transmit level** (how far it swings the radio's frequency). Too low, and FM's noise wins; too high, and your radio's limiter (and the repeater's) clips the signal. The receive level makes little difference, as long as the receiving sound card isn't overloaded. The level check finds the best transmit level in about 20 seconds (new in 0.7.4 beta).
+
+1. **On the Send tab** (Digital), click **Level check**. RFpix sends about 18 seconds of its FM signal in six steps, 3 dB apart: from 9 dB below your Transmit level to 6 dB above it (or up to 0 dB, if that's less). No picture is needed.
+2. **Every listening station** running RFpix 0.7.4 or newer, with Digital picked on its Send tab, sees each step arrive, then the result on its Receive tab, for example: *Level check: best at step 5 (+3 dB), quality 28 dB, enough for FM 6. Read out "step 5".* It also lists the quality at every step, and says if the sender could go louder or should turn down. The result goes in each station's log too.
+3. **Each station reads out its best step** over the air.
+4. **On your Send tab**, the steps are listed with the levels they went out at. Pick the step and click **Use this level**: the Transmit level is set to it. If your own RFpix heard the check back (on a second radio, or the repeater's output), its own best step is shown and picked to start with.
+
+**With several stations,** use the best step of the station whose quality was lowest. Clipping happens at your radio and the repeater, so it's the same for everyone; noise depends on how well each station hears the repeater. A weak station gains from a little more level, a strong one loses little from it. If one station alone says the louder steps were worse, check their radio is on wide FM, not narrow. The best level belongs to your radio and the repeater, so you only need to find it again if something in that chain changes.
 
 #### Profiles
 

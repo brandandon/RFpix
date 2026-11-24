@@ -203,11 +203,23 @@
                 </StackPanel>
                 <WrapPanel>
                   <Button x:Name="SendButton" Content="Send" Click="OnSendClick" MinWidth="110" IsEnabled="False" Margin="0,0,8,6" />
-                  <Button x:Name="SaveButton" Content="Save as sound file…" Click="OnSaveClick" IsEnabled="False" Margin="0,0,0,6"
+                  <Button x:Name="SaveButton" Content="Save as sound file…" Click="OnSaveClick" IsEnabled="False" Margin="0,0,8,6"
                           ToolTip.Tip="Saves the transmission as a WAV file instead of sending it: to play into another program, or to check it." />
+                  <Button x:Name="LevelCheckButton" Content="Level check" Click="OnLevelCheckClick" Margin="0,0,0,6"
+                          ToolTip.Tip="For FM: sends about 18 seconds of RFpix's FM signal in six steps, 3 dB apart around your Transmit level. Every RFpix 0.7.4 or newer listening shows which step came through best, to read out over the air; then pick that step here." />
                 </WrapPanel>
                 <ProgressBar x:Name="Progress" Minimum="0" Maximum="1" IsVisible="False" />
                 <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
+                <!-- After a level check: its steps, to pick the one the stations read out (SendPage.LevelCheck.cs) -->
+                <StackPanel x:Name="LevelCheckPanel" Spacing="4" IsVisible="False">
+                  <TextBlock x:Name="LevelCheckText" TextWrapping="Wrap" FontSize="13" />
+                  <WrapPanel>
+                    <ComboBox x:Name="LevelStepBox" MinWidth="200" Margin="0,0,8,4" />
+                    <Button Content="Use this level" Click="OnUseLevelClick" Margin="0,0,8,4"
+                            ToolTip.Tip="Sets the Transmit level to the step picked." />
+                    <Button Content="Close" Click="OnCloseLevelCheckClick" Margin="0,0,0,4" />
+                  </WrapPanel>
+                </StackPanel>
               </StackPanel>
             </StackPanel>
           </Grid>

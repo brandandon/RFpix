@@ -74,6 +74,23 @@ public sealed class FmSignalLiveReceiver
     /// <summary>A frame decoded (on the audio thread).</summary>
     public event Action<FmFrame>? FrameDecoded;
 
+    /// <summary>A step of a level check arrived: which step, and its quality (dB).</summary>
+    public event Action<FmLevelStep, double>? LevelStepHeard;
+
+    /// <summary>A level check is over: each step heard and its quality.</summary>
+    public event Action<FmLevelResult>? LevelCheckHeard;
+
+    private readonly List<(FmLevelStep Step, double QualityDb)> _levelSteps = new();
+    private long _levelLastEnd;
+
+    private void FinishLevelCheck(List<Action> events)
+    {
+        if (_levelSteps.Count == 0) return;
+        var result = new FmLevelResult(_levelSteps.ToList());
+        _levelSteps.Clear();
+        events.Add(() => LevelCheckHeard?.Invoke(result));
+    }
+
     /// <summary>The last frame heard, while its transmission lasts; null between transmissions.</summary>
     public FmHeard? Heard { get; private set; }
 
@@ -115,6 +132,7 @@ public sealed class FmSignalLiveReceiver
         lock (_lock)
         {
             DecodeReady(events, atEnd: true);
+            FinishLevelCheck(events);
             EndTransmission(events);
         }
         foreach (var e in events) e();
@@ -125,6 +143,7 @@ public sealed class FmSignalLiveReceiver
     {
         lock (_lock)
         {
+            _levelSteps.Clear();
             _tones = new SubTones(Rate);
             _collector = new FmPieceCollector();
             _soundStart = 0; _soundCount = 0; _power = 1e-6;
@@ -202,6 +221,18 @@ public sealed class FmSignalLiveReceiver
             var (frame, blocks) = FmSignalReceiver.DecodeFrame(frameSound, 0);
             frame = frame with { Start = (int)Math.Min(int.MaxValue, start) };
             events.Add(() => FrameDecoded?.Invoke(frame));
+            if (frame.LevelStep is { } step && !double.IsNaN(frame.SnrDb))
+            {
+                // A level check: its steps come one after another; a step numbered no higher than the last
+                // starts a new one.
+                if (_levelSteps.Count > 0 && step.Step <= _levelSteps[^1].Step.Step) FinishLevelCheck(events);
+                double q = frame.SnrDb;
+                _levelSteps.Add((step, q));
+                _levelLastEnd = start + FrameLength;
+                events.Add(() => LevelStepHeard?.Invoke(step, q));
+                if (step.Step == FmLevelCheck.Steps - 1) FinishLevelCheck(events);
+                continue;
+            }
             if (frame.Mode is null) continue;
             // A request for missing pieces (the same in every block of its frame): passed on once.
             if (blocks.Select(FmRequest.From).FirstOrDefault(r => r is not null) is { } request)
@@ -237,6 +268,7 @@ public sealed class FmSignalLiveReceiver
     /// <summary>No frame for two frames' time: the transmission is over.</summary>
     private void CheckEnded(List<Action> events)
     {
+        if (_levelSteps.Count > 0 && _frames.Count == 0 && End - _levelLastEnd > 2L * FrameLength) FinishLevelCheck(events);
         if (!_ended && _frames.Count == 0 && End - _lastDecodedEnd > 2L * FrameLength) EndTransmission(events);
     }
 

@@ -31,6 +31,7 @@ public partial class TxRxPage : UserControl, IDisposable
         InitializeComponent();
         ReceiveTab.BsrHeard += OnBsrHeard;
         ReceiveTab.FmRequestHeard += OnFmRequestHeard;
+        ReceiveTab.LevelCheckHeard += result => SendTab.ShowOwnLevelCheck(result);   // a level check this station heard back
         _noteTimer.Tick += (_, _) => { _noteTimer.Stop(); NoteBar.IsVisible = false; };
         // Popped out when RFpix last closed: pop out again once the main window is up.
         Loaded += (_, _) => { if (AppSettings.Current.ReceivePoppedOut && _receiveWindow is null) PopOut(); };

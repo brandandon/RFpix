@@ -703,7 +703,7 @@ public partial class SendPage : UserControl, IDisposable
         var cancel = _sending.Token;
         SendButton.Content = "Stop";
         SendButton.IsEnabled = true;
-        SaveButton.IsEnabled = OpenButton.IsEnabled = CwButton.IsEnabled = IdButton.IsEnabled = false;
+        SaveButton.IsEnabled = OpenButton.IsEnabled = CwButton.IsEnabled = IdButton.IsEnabled = LevelCheckButton.IsEnabled = false;
         DigitalButton.IsEnabled = AnalogButton.IsEnabled = false;   // not while sending
         WfTextButton.IsEnabled = WfPicButton.IsEnabled = false;
         Progress.Value = 0;
@@ -730,7 +730,7 @@ public partial class SendPage : UserControl, IDisposable
             SendButton.Content = "Send";
             SendButton.IsEnabled = _analog ? _analogPicture is not null : _fitted is not null && _fitting is null;
             SaveButton.IsEnabled = SendButton.IsEnabled;
-            OpenButton.IsEnabled = CwButton.IsEnabled = IdButton.IsEnabled = true;
+            OpenButton.IsEnabled = CwButton.IsEnabled = IdButton.IsEnabled = LevelCheckButton.IsEnabled = true;
             DigitalButton.IsEnabled = AnalogButton.IsEnabled = true;
             WfTextButton.IsEnabled = WfPicButton.IsEnabled = true;
             Progress.IsVisible = false;
