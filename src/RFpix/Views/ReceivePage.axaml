@@ -57,6 +57,9 @@
                      TextWrapping="Wrap" MaxWidth="260" />
         </Grid>
         <TextBlock x:Name="FormatText" Classes="Hint" FontSize="12" />
+        <!-- What it listens for: the kind picked on the Send tab (ReceivePage.Listen.cs) -->
+        <TextBlock x:Name="ListenTextBlock" Classes="Hint" FontSize="12" TextWrapping="Wrap"
+                   ToolTip.Tip="The Receive tab decodes the kind of picture picked on the Send tab (Digital or Analog SSTV), so noise can't pass for another kind of picture and take over the screen. To receive the other kind, pick it on the Send tab." />
         <!-- While recording: how long and how big; afterwards: where it was saved -->
         <TextBlock x:Name="RecordText" FontSize="12" IsVisible="False" />
         <!-- A problem (otherwise hidden). Then the HamDRM signal's offset, clock, strength and quality,

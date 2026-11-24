@@ -186,7 +186,8 @@ public partial class ReceivePage : UserControl, IDisposable
         });
 
         _meterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
-        _meterTimer.Tick += (_, _) => UpdateMeter();
+        _meterTimer.Tick += (_, _) => { UpdateMeter(); ShowListening(); };
+        ShowListening();
 
         // The analyzer works on the audio thread; the waterfall must be updated
         // on the screen's thread, so each finished line is "posted" across.
@@ -430,16 +431,21 @@ public partial class ReceivePage : UserControl, IDisposable
 
         // Feed the same audio to the waterfall's spectrum analyzer...
         _analyzer.AddSamples(e.Samples, e.Count, e.SampleRate);
-        // ...and to the HamDRM receiver, and the analog SSTV one.
-        _receiver.AddSamples(e.Samples, e.Count, e.SampleRate);
-        _fm.AddSamples(e.Samples, e.Count, e.SampleRate);
+        // ...and to the receivers for what the Send tab is set to (ReceivePage.Listen.cs): HamDRM and RFpix FM,
+        // or analog SSTV.
+        var listen = ListenNow();
+        if (listen == ListenFor.Digital)
+        {
+            _receiver.AddSamples(e.Samples, e.Count, e.SampleRate);
+            _fm.AddSamples(e.Samples, e.Count, e.SampleRate);
+        }
         // While a digital transmission arrives (HamDRM with its settings read, or RFpix's FM signal), and for
         // 10 seconds after, no new analog picture starts: its sound can briefly look like one.
         _samplesHeard += e.Count;
         if (_receiver.Heard is { Fac: not null } || _fm.Heard is not null) _lastDigitalAt = _samplesHeard;
         _sstv.HoldNewPictures = _samplesHeard - _lastDigitalAt < DigitalHoldSeconds * (long)e.SampleRate;
         _sstv.AutoSlant = AppSettings.Current.AutoSlant;
-        if (e.SampleRate == RFpix.Analog.SstvReceiver.InputRate) _sstv.AddSamples(e.Samples.AsSpan(0, e.Count));
+        if (listen == ListenFor.Analog && e.SampleRate == RFpix.Analog.SstvReceiver.InputRate) _sstv.AddSamples(e.Samples.AsSpan(0, e.Count));
         // The radio's sound is also kept for recording (the last 30 seconds, or all of it while recording).
         if (source == _input) _recorder.AddSamples(e.Samples, e.Count, e.SampleRate);
     }

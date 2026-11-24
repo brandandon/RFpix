@@ -51,9 +51,9 @@ public sealed record FmSignalMode(int Id, string Name, int MidBits, int EdgeBits
         new(5, "FM 6: 256-QAM 3/4 (fastest)", 8, 6, 2, 24),
     };
 
-    /// <summary>The speeds the Send tab offers: FM 1 to FM 5 (FM 6 needed 30 dB on the bench, strong
-    /// simplex only; it's still received).</summary>
-    public static IReadOnlyList<FmSignalMode> Offered { get; } = All.Take(5).ToList();
+    /// <summary>The speeds the Send tab offers: all six. FM 6 needs a very clean signal (about 30 dB on the
+    /// bench, strong simplex; on the air the Quality box near 29-30 dB), offered from 0.7.4 for testing.</summary>
+    public static IReadOnlyList<FmSignalMode> Offered { get; } = All;
 
     /// <summary>The speed's short name, e.g. "FM 3".</summary>
     public string ShortName => $"FM {Id + 1}";

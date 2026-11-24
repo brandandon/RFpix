@@ -127,7 +127,7 @@
                   <StackPanel x:Name="SpeedPanel" Spacing="3" Margin="0,0,10,8">
                     <TextBlock FontSize="13" Text="Speed" />
                     <ComboBox x:Name="SpeedBox" Width="150" SelectionChanged="OnSendSettingChanged"
-                              ToolTip.Tip="FM 1 is the toughest and slowest; FM 5 the fastest, for a strong signal with the transmit level a little hot. FM 3 is as tough as HamDRM's toughest setting, at twice the speed." />
+                              ToolTip.Tip="FM 1 is the toughest and slowest; FM 5 fast, for a strong signal with the transmit level a little hot; FM 6 the fastest, only for a very clean signal (the receiving station's Quality box near 30 dB). FM 3 is as tough as HamDRM's toughest setting, at twice the speed." />
                   </StackPanel>
                   <StackPanel x:Name="ModePanel" Spacing="3" Margin="0,0,10,8">
                     <TextBlock FontSize="13" Text="Mode" />
@@ -171,7 +171,7 @@
                   </StackPanel>
                 </WrapPanel>
                 <TextBlock x:Name="FmHint" Classes="Hint" FontSize="13" TextWrapping="Wrap" IsVisible="False"
-                           Text="RFpix's FM signal is for FM radios, simplex or through a repeater, and only RFpix (0.7.1 or newer) receives it. It always carries the fountain code. The faster speeds like the transmit level a little hotter than for HamDRM (FM 5 needs it)." />
+                           Text="RFpix's FM signal is for FM radios, simplex or through a repeater, and only RFpix (0.7.1 or newer) receives it. It always carries the fountain code. The faster speeds like the transmit level a little hotter than for HamDRM (FM 5 needs it). FM 6 needs a very clean signal: the receiving station's Quality box near 30 dB." />
               </StackPanel>
             </StackPanel>
               <TextBlock Grid.Row="0" Grid.Column="1" x:Name="SentLabel" Classes="Hint" FontSize="13" Text="As sent" />

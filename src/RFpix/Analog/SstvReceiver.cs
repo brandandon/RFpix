@@ -705,18 +705,22 @@ public sealed class SstvReceiver
         private readonly List<double> _syncTone = new();
 
         /// <summary>The lines to keep: all of them, unless the syncs went and the signal never came back.
-        /// Then up to the last stretch (16 lines) where the sync tone still stood out on the beat, so a
-        /// sender who stopped, or a band that closed, doesn't leave the rest of the picture as noise.</summary>
+        /// Then up to the last line heard: the last whose sync was found on the beat, or the end of the last
+        /// stretch (16 lines) where the sync tone still stood out on it. So a sender who stopped, or a band that
+        /// closed, doesn't leave the rest of the picture as noise; and a "picture" never heard at all (noise, or
+        /// the start of a digital transmission, taken for a VIS code) is dropped.</summary>
         private int LinesHeard(int lines)
         {
             if (_fadedAt is not int from || from >= lines) return lines;
             const int Run = 16;
-            int last = Math.Min(from, lines);
-            for (int line = from; line + Run <= Math.Min(lines, _syncTone.Count); line++)
+            int last = 0;
+            foreach (var (line, at) in _syncs)
+                if (line < lines && Math.Abs(at - LineStart(line)) <= Ms(2)) last = Math.Max(last, line + 1);
+            for (int line = 0; line + Run <= Math.Min(lines, _syncTone.Count); line++)
             {
                 double sum = 0;
                 for (int k = 0; k < Run; k++) sum += _syncTone[line + k];
-                if (sum / Run >= HeardTone) last = line + Run;
+                if (sum / Run >= HeardTone) last = Math.Max(last, line + Run);
             }
             // Close to the end: the whole picture.
             return lines - last <= Run ? lines : last;

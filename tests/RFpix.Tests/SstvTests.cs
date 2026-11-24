@@ -384,6 +384,20 @@ public class SstvTests
     }
 
     [Fact]
+    public void A_VIS_code_followed_by_noise_alone_gives_no_picture()
+    {
+        // Seen on air, 23 November 2026: the start of an RFpix FM transmission through a repeater was taken
+        // for a VIS code (Robot 72, PD 180), and a "picture" of noise took over the screen and was saved. A
+        // picture whose sync tone never stood out on its beat wasn't one: nothing is saved.
+        var m = SstvModes.Get(SstvMode.Robot72);
+        var audio = SstvEncoder.Audio(SstvEncoder.Fit(Pattern(320, 240), m), m);
+        int visEnd = (int)(SstvModes.VisTime.TotalMilliseconds * 48);
+        var got = Receive(OverHf(audio, RFpix.Tests.Bench.HfCondition.NoiseOnly, 0, 20, seed: 1, cutAt: visEnd), out var started);
+        Assert.Equal(SstvMode.Robot72, started?.Mode);   // the VIS code was read...
+        Assert.Null(got);                                // ...but no picture followed
+    }
+
+    [Fact]
     public void A_picture_cut_short_is_kept_as_far_as_it_got()
     {
         var m = SstvModes.Get(SstvMode.Robot36);
