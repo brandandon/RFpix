@@ -103,6 +103,10 @@ public sealed class AppSettings
     /// standard line length, as MMSSTV with its Auto slant off.</summary>
     public bool AutoSlant { get; set; } = true;
 
+    /// <summary>How weak analog pixels are drawn (Receive tab, "Weak signals": Shorter guessing to start with, Own share,
+    /// or No smoothing; chosen by Dan, Nov 28, 2026). New pictures follow it; a recent one can be drawn again.</summary>
+    public RFpix.Analog.AnalogDrawing AnalogDrawing { get; set; } = RFpix.Analog.AnalogDrawing.ShorterGuessing;
+
     /// <summary>Whether an analog picture is saved to the Gallery. Pictures that started with their
     /// VIS code always are, even cut short; one found without it only by the two settings above.
     /// <paramref name="lines"/> of the picture's <paramref name="height"/> arrived.</summary>

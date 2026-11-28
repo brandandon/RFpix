@@ -21,7 +21,15 @@ signed. Click **More info**, then **Run anyway**.
 Your settings live in %AppData%\RFpix, and your received pictures, recordings and test results
 in Documents\RFpix. Uninstalling asks whether to remove the settings, and never removes your files.
 
-## Recording each picture, test 21, the treble boost, and better logs (new in v0.7.5 beta)
+## Recording each picture, weak analog signals, test 21, the treble boost, and better logs (new in v0.7.5 beta)
+
+- **Weak signals** (Receive tab, under the picture): try each of **Shorter guessing**, **Own share** and
+  **No smoothing** on weak or fading analog pictures, side by side with MMSSTV if you can. Changing it redraws the
+  picture on the screen at once; **‹ Earlier** and **Later ›** step through the last 5 analog pictures. Check the
+  Gallery copy changes too. Please say which one you'd want as the starting choice.
+- **Weak VIS codes:** pictures that used to come out as noise because a weak start code was read as the wrong mode
+  (a Martin 1 as Robot 36 or Robot 72) should now start in the right mode. Robot pictures in deep fades should go
+  grey rather than green.
 
 - **Record each picture** (Receive tab, under Record): tick it and leave RFpix listening. Each picture should
   get its own recording in Documents\RFpix\Recordings\Automatic, starting a few seconds before the picture

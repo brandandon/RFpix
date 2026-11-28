@@ -219,6 +219,8 @@ Open **TX/RX**, then the **Receive** tab, and click **Start listening**. RFpix l
 | **Settings boxes** | How a digital picture was sent: Mode, Bandwidth, QAM, Interleave, Protection, Reed-Solomon, and who it's From. |
 | **Waterfall** (left) | The sound the radio hears, as a picture that scrolls down. Each signal shows as a coloured trace. |
 | **Picture** (right) | The last picture received, with its name, who sent it, and where it was saved. **Double-click it** to show pictures in a window of their own (below). |
+| **Weak signals** | How analog pictures are drawn where the signal is weak: **Shorter guessing** (to start with), **Own share** or **No smoothing**. New pictures follow it, and changing it also redraws the analog picture shown. See [When an analog picture fades out](#when-an-analog-picture-fades-out). |
+| **‹ Earlier**, **Later ›** | Step through the last 5 analog pictures received, to draw one again another way. |
 | **Analog auto slant** | Ticked to start with: RFpix measures each analog picture's line length from its sync pulses, so pictures stay straight even when the sending station's sound card runs a little fast or slow. Untick it to use each mode's standard line length, as MMSSTV does with its own Auto slant off; a sound card that's off then slants the picture. Takes effect from the next picture. |
 | **Open received folder** | Opens the folder where pictures are saved. |
 
@@ -278,11 +280,21 @@ Digital pictures go to **Documents\RFpix\Received\Digital** and analog pictures 
 
 #### Analog pictures that started before you were listening
 
-An analog picture normally begins with a short start code (the VIS code) that says which mode it is. If you started listening partway through, or the code was lost in noise, RFpix works out the mode from the picture's sync pulses after about five lines. The picture then starts at the top of the frame with the line where it was found, and is marked **joined partway**. RFpix reads the VIS code even through heavy noise and fading (tested down to about 8 dB signal-to-noise on HF fading paths), so this mostly happens when you start listening late.
+An analog picture normally begins with a short start code (the VIS code) that says which mode it is. If you started listening partway through, or the code was lost in noise, RFpix works out the mode from the picture's sync pulses after about five lines. The picture then starts at the top of the frame with the line where it was found, and is marked **joined partway**. RFpix reads the VIS code even through heavy noise and fading (tested down to about 8 dB signal-to-noise on HF fading paths), so this mostly happens when you start listening late. (Before 0.7.5 beta a very weak VIS code could be read as the wrong mode, such as a Martin 1 as a Robot 36, and the picture came out as noise; RFpix now reads the code's tones as they were sent and checks it again once its end is known.)
 
 #### When an analog picture fades out
 
-A weak or fading signal doesn't spoil the picture with random colour: RFpix measures how far the signal stands above the noise at every moment, and a pixel heard only faintly is drawn mostly from its neighbours (above, below and either side), so a fade shows as a softer stretch rather than speckle. Since 0.7.4 beta it never copies one line on down the picture, which on a weak band made vertical streaks.
+RFpix measures how far the signal stands above the noise at every moment, for every pixel. **Weak signals**, under the picture on the Receive tab, sets what it does with a pixel heard only faintly:
+
+| Choice | What it does | Looks like |
+|---|---|---|
+| **Shorter guessing** (to start with) | A weak pixel leans on the pixels just around it (the lines just above and below, and either side), the more the weaker it is. Weak colour fades to grey: noise on its own reads as green in Robot and PD pictures, which used to wash a deep fade green. | The smoothest. Fine detail can soften. |
+| **Own share** | The same, but every pixel keeps at least 40% of what was heard for it, so detail that was there can't be smoothed away. | More speckle; letters and edges hold up better in a fade. |
+| **No smoothing** | Each pixel is just what was heard for it, as MMSSTV draws. | The most speckle, like MMSSTV's copy. |
+
+New pictures are drawn the way it's set. You can also change your mind afterwards: RFpix keeps the last 5 analog pictures with their measurements, so changing **Weak signals** redraws the picture on the screen in a split second, even while the next one arrives. **‹ Earlier** and **Later ›** step through those 5. A picture drawn again replaces its copy in the Gallery, and its website copy too if that hasn't gone up yet (once uploaded, the website keeps the first one).
+
+These choices came from recordings of pictures received side by side with MMSSTV (Nov 28, 2026). Until 0.7.5 beta RFpix reached up to 12 lines either way into a deep fade, which smeared letters past reading; now it looks only 2 lines away. It never copies one line on down the picture (which on a weak band made vertical streaks).
 
 If RFpix loses an analog picture's sync pulses partway through (in a deep fade, or a weak signal whose syncs sink into the noise), the Receive tab says *the signal faded at line …, still drawing on its timing*. As MMSSTV does, RFpix **keeps drawing the picture** on the timing it has, since on a weak band the picture often carries on in the noise. If the syncs come back, it carries on as before. When the picture is over, it's kept as far as the sync tone could still be heard on its beat, so if the sender stopped, or the band closed, the rest isn't filled with noise. A "picture" whose sync was never heard at all (noise taken for a start code) isn't saved.
 

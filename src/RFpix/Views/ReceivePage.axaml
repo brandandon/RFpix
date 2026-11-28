@@ -130,7 +130,7 @@
                                    PointerExited="OnWaterfallPointerExited" />
       </Border>
 
-      <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto,Auto" RowSpacing="6">
+      <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto,Auto,Auto" RowSpacing="6">
         <!-- Flex: the picture takes the room there is, rather than asking for its full size -->
         <controls:Flex Grid.Row="0" Min="120">
         <!-- Double-click: the picture in a window of its own (PictureViewerWindow) -->
@@ -164,6 +164,16 @@
           <CheckBox x:Name="AutoSlantBox" Content="Analog auto slant" VerticalAlignment="Center"
                     ToolTip.Tip="Ticked (to start with): RFpix measures each analog picture's line length from its sync pulses, so a picture stays straight even when the sending station's sound card runs a little fast or slow. Unticked: every line is the mode's standard length, as in MMSSTV with Auto slant off, so a sound card that's off slants the picture (Sound-card calibration on Settings > Misc corrects your own). Takes effect from the next picture." />
           <Button Grid.Column="1" Content="Open received folder" Click="OnOpenFolderClick" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+        </Grid>
+        <!-- How weak analog pixels are drawn, and the last few analog pictures (ReceivePage.WeakSignals.cs) -->
+        <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+          <TextBlock Text="Weak signals" VerticalAlignment="Center" />
+          <ComboBox x:Name="WeakBox" Grid.Column="1" HorizontalAlignment="Stretch" MinWidth="150" SelectionChanged="OnWeakChanged"
+                    ToolTip.Tip="How analog pictures are drawn where the signal is weak. Shorter guessing: a weak pixel leans on the ones just around it, and weak colour fades to grey. Own share: the same, but every pixel keeps at least 40% of what was heard for it (more speckle, but no detail smoothed away). No smoothing: each pixel is just what was heard, as MMSSTV draws. New pictures follow this; changing it also redraws the analog picture shown and replaces its copy in the Gallery." />
+          <Button x:Name="EarlierButton" Grid.Column="2" Content="‹ Earlier" Click="OnEarlierClick"
+                  ToolTip.Tip="Show the analog picture before this one (the last 5 are kept, to be drawn again another way)." />
+          <Button x:Name="LaterButton" Grid.Column="3" Content="Later ›" Click="OnLaterClick"
+                  ToolTip.Tip="Show the next analog picture of the last 5." />
         </Grid>
       </Grid>
     </Grid>

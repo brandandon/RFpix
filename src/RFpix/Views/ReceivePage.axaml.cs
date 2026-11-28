@@ -142,6 +142,7 @@ public partial class ReceivePage : UserControl, IDisposable
         };
         WireLevelCheck();   // RFpix FM's level check (ReceivePage.LevelCheck.cs)
         SetUpAutoRecord();   // "Record each picture" (ReceivePage.AutoRecord.cs)
+        SetUpWeakSignals();   // "Weak signals" and the recent analog pictures (ReceivePage.WeakSignals.cs)
         _fm.RequestHeard += request =>
         {
             AppLog.Info("Receive", $"RFpix FM signal: {(request.Callsign.Length > 0 ? request.Callsign : "a station")} asked for " +
@@ -452,6 +453,7 @@ public partial class ReceivePage : UserControl, IDisposable
         if (_receiver.Heard is { Fac: not null } || _fm.Heard is not null) _lastDigitalAt = _samplesHeard;
         _sstv.HoldNewPictures = _samplesHeard - _lastDigitalAt < DigitalHoldSeconds * (long)e.SampleRate;
         _sstv.AutoSlant = AppSettings.Current.AutoSlant;
+        _sstv.Drawing = AppSettings.Current.AnalogDrawing;
         if (listen == ListenFor.Analog && e.SampleRate == RFpix.Analog.SstvReceiver.InputRate) _sstv.AddSamples(e.Samples.AsSpan(0, e.Count));
         // The radio's sound is also kept for recording (the last 30 seconds, or all of it while recording).
         if (source == _input) _recorder.AddSamples(e.Samples, e.Count, e.SampleRate);
@@ -686,6 +688,7 @@ public partial class ReceivePage : UserControl, IDisposable
             if ((_receiver.Callsign ?? _fm.Heard?.Callsign) is { Length: > 0 } call && !_recordingCallsigns.Contains(call)) _recordingCallsigns.Add(call);
         }
         UpdateAutoRecord();   // "Record each picture" (ReceivePage.AutoRecord.cs)
+        UpdateKeptButtons();  // another picture may have taken a kept one's place (ReceivePage.WeakSignals.cs)
 
         // Sound Windows lost on the way in (each gap is filled with silence so the timing holds),
         // and audio lost because the computer fell far behind (should never happen): say so.

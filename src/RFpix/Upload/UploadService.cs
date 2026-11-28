@@ -154,6 +154,33 @@ public static class UploadService
         }
     }
 
+    /// <summary>A picture drawn again (Receive tab, "Weak signals"): its website copy at <paramref name="path"/> is
+    /// replaced, if it's still waiting there to be uploaded. Once uploaded it has been moved to Archives, and the
+    /// website keeps it as it was: true if replaced.</summary>
+    public static bool ReplaceCopy(string path, DecodedPicture picture, DateTime when)
+    {
+        if (!File.Exists(path)) return false;
+        var s = AppSettings.Current.Upload;
+        string part = path + $".{Guid.NewGuid():N}.part";
+        try
+        {
+            var stamped = s.StampCopies ? TimeStamp.Stamp(picture, TimeStamp.Text(when)) : picture;
+            File.WriteAllBytes(part, Pictures.EncodeJpeg(stamped, 90));
+            if (!File.Exists(path)) return false;   // uploaded meanwhile
+            MoveOver(part, path);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PictureException)
+        {
+            Add($"Couldn't replace the copy {Path.GetFileName(path)}: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            try { if (File.Exists(part)) File.Delete(part); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+    }
+
     /// <summary>The same for a picture's file (decoded first).</summary>
     public static string? SaveCopy(byte[] pictureFile, DateTime when, bool analog, bool sent = false)
     {

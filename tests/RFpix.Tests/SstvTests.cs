@@ -225,6 +225,63 @@ public class SstvTests
 
     // ---- weak and fading signals (measured on the HF bench, Nov 2026) ----
 
+    [Theory]
+    [InlineData("analog_vis_martin1_weak_a.wav")]
+    [InlineData("analog_vis_martin1_weak_b.wav")]
+    public void Weak_VIS_codes_off_the_air_are_read_as_the_right_mode(string clip)
+    {
+        // Recorded on 20 m beside MMSSTV, Nov 28, 2026: two weak Martin 1 pictures that RFpix 0.7.4 read as
+        // Robot 36 and Robot 72 (its input filter takes more off the code's 1s than its 0s, and the first look at
+        // a code can come a few ms early).
+        var audio = RFpix.Audio.WavFile.Read(Path.Combine(Recordings.Folder, "offair", clip)).Samples;
+        Receive(audio, out var started);
+        Assert.Equal(SstvMode.Martin1, started?.Mode);
+    }
+
+    [Fact]
+    public void In_a_deep_fade_Robot_colour_fades_to_grey_not_green()
+    {
+        // Noise reads as the middle of the input filter, 1750 Hz, which on Robot's colour scale is green: in a
+        // deep fade the colour went green (Dan's recordings, Nov 28, 2026). Now weak colour leans to grey.
+        // (0.7.4: this picture's faded lines were 46 greener than grey on average; now about 19.)
+        var m = SstvModes.Get(SstvMode.Robot72);
+        var audio = SstvEncoder.Audio(Flat(m.Width, m.Height, 128, 128, 128), m);
+        int from = audio.Length / 3, to = from + 8 * 48000;
+        for (int i = from; i < to; i++) audio[i] *= 0.1f;   // 8 seconds, 20 dB down
+        var got = Receive(Noisy(audio, 10, seed: 1), out _)!.Picture;
+        double visMs = SstvModes.VisTime.TotalMilliseconds;
+        int first = (int)((from / 48.0 - visMs) / m.LineMs) + 3, last = first + (int)(8000 / m.LineMs) - 6;
+        double green = 0; int n = 0;
+        for (int i = 4 * first * m.Width; i < 4 * last * m.Width; i += 4, n++) green += got.Bgra[i + 1] - (got.Bgra[i] + got.Bgra[i + 2]) / 2.0;
+        Assert.True(green / n < 30, $"the faded lines are {green / n:0} greener than grey on average");
+    }
+
+    [Fact]
+    public void A_received_picture_can_be_drawn_again_another_way()
+    {
+        // Receive tab, "Weak signals": a picture already received is drawn again from its measurements.
+        var m = SstvModes.Get(SstvMode.Martin2);
+        var audio = SstvEncoder.Audio(Flat(m.Width, m.Height, 128, 128, 128), m);
+        var faded = RFpix.Tests.Bench.HfChannel.Apply(Noisy(audio, 30), RFpix.Tests.Bench.HfCondition.Moderate, seed: 1);
+        var got = Receive(TestAudio.AddNoise(faded, 8, seed: 1), out _)!;
+        Assert.Equal(AnalogDrawing.ShorterGuessing, got.Drawing);
+        Assert.NotNull(got.Redraw);
+        // The same way: the same picture, every time.
+        Assert.Equal(got.Picture.Bgra, got.Redraw!(AnalogDrawing.ShorterGuessing).Bgra);
+        // The noise left in a plain grey picture: no smoothing keeps the most, own share less, shorter guessing least.
+        double Grain(AnalogDrawing d)
+        {
+            var b = got.Redraw!(d).Bgra;
+            double sum = 0; int n = 0;
+            for (int y = 20; y < m.Height - 20; y++)
+                for (int x = 20; x < m.Width - 20; x++, n++) sum += Math.Abs(b[4 * (y * m.Width + x) + 1] - 128);
+            return sum / n;
+        }
+        double none = Grain(AnalogDrawing.NoSmoothing), own = Grain(AnalogDrawing.OwnShare), shorter = Grain(AnalogDrawing.ShorterGuessing);
+        Assert.True(none > own && own > shorter, $"grain: no smoothing {none:0.0}, own share {own:0.0}, shorter guessing {shorter:0.0}");
+        Assert.Equal(got.Picture.Bgra, got.Redraw!(AnalogDrawing.ShorterGuessing).Bgra);   // and back again
+    }
+
     /// <summary>The picture's sound with a second of silence either side and noise at
     /// <paramref name="snrDb"/> (in 2.5 kHz, as the HF bench).</summary>
     private static float[] Noisy(float[] audio, double snrDb, int seed = 3)
@@ -266,14 +323,16 @@ public class SstvTests
     [Fact]
     public void Lines_lost_in_a_deep_fade_are_drawn_from_the_lines_around_them_not_as_random_colour()
     {
-        // A plain picture, its sound faded 30 dB for two seconds in the middle, in noise at 20 dB.
+        // A plain picture, its sound faded 30 dB for two lines in the middle, in noise at 20 dB. (Until Nov 28,
+        // 2026 RFpix reached up to 12 lines either way and this fade lasted two seconds; in a long fade that
+        // blended letters past reading, so now it reaches 2 lines, and a longer fade shows what was heard.)
         var m = SstvModes.Get(SstvMode.Martin2);
         var picture = Flat(m.Width, m.Height, 150, 110, 70);
         var audio = SstvEncoder.Audio(picture, m);
-        int from = audio.Length / 2, to = from + 2 * 48000;
+        int from = audio.Length / 2, to = from + (int)(2 * m.LineMs * 48);
         for (int i = from; i < to; i++) audio[i] *= 0.03f;
         var got = Receive(Noisy(audio, 20), out _)!.Picture;
-        // The faded lines (about 9 of them) stay close to the picture's colour.
+        // The faded lines stay close to the picture's colour.
         double lineMs = m.LineMs, visMs = SstvModes.VisTime.TotalMilliseconds;
         int first = (int)((from / 48.0 - visMs) / lineMs) + 1, last = (int)((to / 48.0 - visMs) / lineMs) - 1;
         double worst = 0;

@@ -78,15 +78,18 @@ public partial class ReceivePage
         // A picture found without its VIS goes to the Gallery only if enough of it arrived
         // (Settings > Misc), and to the website only by its own rule (Settings > FTP server).
         var settings = AppSettings.Current;
+        // Kept for a while, so it can be drawn again another way (ReceivePage.WeakSignals.cs).
+        var kept = KeepAnalog(got, _analogCaption);
         if (settings.Upload.ShouldCopyAnalog(got.JoinedLate, got.Lines, got.Mode.Height))
         {
             var copy = got.Picture;
-            _ = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(copy, when, analog: true));
+            kept.WebsiteCopy = Task.Run(() => RFpix.Upload.UploadService.SaveCopy(copy, when, analog: true));
         }
         if (!settings.ShouldKeepAnalog(got.JoinedLate, got.Lines, got.Mode.Height))
         {
             string note = NotKeptNote(settings.KeepNoVis, got.Lines, got.Mode.Height);
             if (from is null) _unkeptAnalog = (note, DateTime.Now);
+            kept.Note = note;
             PictureCaption.Text = $"{_analogCaption}\n{note}";
             AppLog.Info("Receive", $"Analog SSTV {got.Mode.Name}: {got.Lines} of {got.Mode.Height} lines, without its VIS code; not kept in the Gallery (Settings > Misc).");
             return;
@@ -96,6 +99,8 @@ public partial class ReceivePage
             var png = await Task.Run(() => Pictures.EncodePng(got.Picture));
             string name = $"SSTV {got.Mode.Name}.png";
             string savedAs = Path.GetFileName(ReceivedFileSaver.Save(new ReceivedFile(name, png, 0), AnalogFolder, null, when));
+            kept.GalleryPath = Path.Combine(AnalogFolder, savedAs);
+            kept.Note = $"Saved as \"{savedAs}\"";
             var entry = new GalleryEntry(savedAs, when, name, from, $"Analog SSTV  ·  {got.Mode.Name}" + (got.JoinedLate ? "  ·  joined partway" : ""));
             GalleryIndex.Add(AnalogFolder, entry);
             if (from is null) _lastAnalog = (AnalogFolder, entry, DateTime.Now);   // for an FSK ID still to come
@@ -122,6 +127,7 @@ public partial class ReceivePage
     {
         AppLog.Info("Receive", $"FSK ID heard: {call}");
         _analogFrom = call;
+        NoteKeptSender(call);   // ReceivePage.WeakSignals.cs
         // The FSK ID comes just after the picture: it's that picture's sender (for Log QSO).
         if (_analogMode is { } heardMode)
             LastPicture = new(call, (_lastAnalog?.Entry.When ?? DateTime.Now).ToUniversalTime(), Digital: false, heardMode.Name);

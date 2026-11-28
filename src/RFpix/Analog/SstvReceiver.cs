@@ -43,7 +43,29 @@ namespace RFpix.Analog;
 /// <param name="Lines">How many lines arrived (all of them if complete).</param>
 /// <param name="JoinedLate">Found from its sync pulses, its VIS code missed: it starts partway through.</param>
 public sealed record SstvPicture(SstvModeInfo Mode, DecodedPicture Picture, int Lines, bool Complete, DateTime Ended,
-                                 bool JoinedLate = false);
+                                 bool JoinedLate = false)
+{
+    /// <summary>How weak pixels were drawn.</summary>
+    public AnalogDrawing Drawing { get; init; }
+
+    /// <summary>Draws the picture again from its measurements in another way (a split second; nothing is listened
+    /// to again). Null when the measurements aren't kept. Not on the audio thread's receiver: the picture is done.</summary>
+    public Func<AnalogDrawing, DecodedPicture>? Redraw { get; init; }
+}
+
+/// <summary>How an analog picture's weak pixels are drawn (Receive tab, "Weak signals"; chosen by Dan, Nov 28, 2026,
+/// from his recordings beside MMSSTV's copies).</summary>
+public enum AnalogDrawing
+{
+    /// <summary>A weak pixel leans on its neighbours (the lines just above and below, and either side), the more
+    /// the weaker it is; weak colour leans to grey.</summary>
+    ShorterGuessing,
+    /// <summary>As Shorter guessing, but every pixel keeps at least 40% of its own reading: more speckle, and
+    /// detail that was there can't be smoothed away.</summary>
+    OwnShare,
+    /// <summary>Each pixel is only its own reading, as MMSSTV draws.</summary>
+    NoSmoothing,
+}
 
 public sealed class SstvReceiver
 {
@@ -125,6 +147,7 @@ public sealed class SstvReceiver
     {
         CentreHz = centreHz; CutoffHz = cutoffHz; Taps = taps;
         _lowpass = MakeLowpass(taps, cutoffHz / InputRate);
+        _filterPower?.Clear();
         MixPeriod = InputRate / Gcd(InputRate, (int)centreHz);
         MixCos = Enumerable.Range(0, MixPeriod).Select(i => Math.Cos(2 * Math.PI * centreHz * i / InputRate)).ToArray();
         MixSin = Enumerable.Range(0, MixPeriod).Select(i => -Math.Sin(2 * Math.PI * centreHz * i / InputRate)).ToArray();
@@ -278,6 +301,11 @@ public sealed class SstvReceiver
     public bool AutoSlant { get => Volatile.Read(ref _autoSlant); set => Volatile.Write(ref _autoSlant, value); }
     private bool _autoSlant = true;
 
+    /// <summary>How weak pixels are drawn (Receive tab, "Weak signals"). Read when each picture starts; a picture
+    /// received can be drawn again another way (<see cref="SstvPicture.Redraw"/>).</summary>
+    public AnalogDrawing Drawing { get => (AnalogDrawing)Volatile.Read(ref _drawing); set => Volatile.Write(ref _drawing, (int)value); }
+    private int _drawing;
+
     private void OnTrack()
     {
         long end = TrackEnd;
@@ -288,6 +316,11 @@ public sealed class SstvReceiver
             {
                 _pendingVis = null;
                 long pictureStart = Refine(firstEnd, vis);
+                // The bits read again where the code really ends: when first found it can be 10 ms or so early,
+                // and on a weak signal a bit read across the edge can come out wrong (seen on the air, Nov 28,
+                // 2026: a Martin 1 read as Scottie 2, right once read again).
+                if (ReadCode(pictureStart) is int again && again != vis && SstvModes.FromVis(again) is { } corrected)
+                    pendingMode = corrected;
                 // The noise, on the second leader (300 ms of 1900 Hz, clear of its edges).
                 long leader2 = pictureStart - (long)(0.600 * TrackRate);
                 _visNoise = NoiseIn(leader2 + 0.02 * TrackRate, leader2 + 0.28 * TrackRate, 1800, 2000);
@@ -342,8 +375,12 @@ public sealed class SstvReceiver
     // A pixel whose own and nearest neighbours' trust adds up to less than this (as much as one pixel whose
     // tone is half the power) looks further up and down, up to this many scans.
     internal static double Enough = 1;
-    internal static int FadeReach = 12;
+    internal static int FadeReach = 2;   // 12 in 0.7.4: in a deep fade that smeared letters past reading (Nov 28, 2026)
     internal static double TrustFloor = 0.05;
+    // Own share: the least of its own reading every pixel keeps.
+    internal static double OwnShare = 0.4;
+    // Weak colour (YCrCb's colour differences) leans to grey: as much say as a pixel this trusted.
+    internal static double ChromaPull = 3;
     // How much the sync tone must stand out on the beat (0: noise alone; 1: a clean sync), on average over 16
     // lines, to count the signal as still there after its syncs have gone (and over a picture's first 8 lines
     // to move its start).
@@ -441,9 +478,45 @@ public sealed class SstvReceiver
         {
             double sum = 0;
             for (int c = 0; c < chunks; c++) sum += Tone(hz, from + c * chunk, from + (c + 1) * chunk);
+            sum /= FilterPower(hz);   // as sent: the input filter takes more off a tone near its edge
             if (sum > best) { best = sum; bestHz = hz; }
         }
         return bestHz;
+    }
+
+    /// <summary>How much of a tone's power the input filter lets through: about all of it in the middle of the band,
+    /// but at its edge much less. The VIS code's 1 (1100 Hz) loses about 8 dB, its 0 (1300 Hz) about 2 dB, so tones
+    /// compared as they come out of the filter favour 0s: on a weak signal, 1s read as 0s (seen on the air, Nov 28,
+    /// 2026: Martin 1 read as Robot 36 and as Robot 72). Comparing them as sent puts that right.</summary>
+    private static double FilterPower(double hz) =>
+        _filterPower.GetOrAdd((int)Math.Round(hz), static f => MeasureFilterPower(f));
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, double> _filterPower = new();
+
+    private static double MeasureFilterPower(double hz)
+    {
+        var h = _lowpass;
+        int mid = h.Length / 2;
+        double re = 0, im = 0, w = 2 * Math.PI * (hz - CentreHz) / InputRate;
+        for (int i = 0; i < h.Length; i++) { re += h[i] * Math.Cos(w * (i - mid)); im -= h[i] * Math.Sin(w * (i - mid)); }
+        return Math.Max(1e-6, re * re + im * im);
+    }
+
+    /// <summary>The VIS code whose stop bit ends at <paramref name="end"/>, read again: null if a bit isn't clear or
+    /// the parity is wrong.</summary>
+    private int? ReadCode(long end)
+    {
+        double ms = TrackRate / 1000.0;
+        long bits = end - (long)(30 * ms) - (long)(8 * 30 * ms);
+        int vis = 0, ones = 0;
+        for (int i = 0; i < 8; i++)
+        {
+            double f = Peak(bits + (long)((30 * i + 5) * ms), 20, 1000, 1450);
+            if (!Near(f, SstvModes.SyncHz, 180)) return null;
+            bool one = f < SstvModes.SyncHz;
+            if (i < 7) vis |= (one ? 1 : 0) << i;
+            if (one) ones++;
+        }
+        return ones % 2 == 0 ? vis : null;
     }
 
     private static bool Near(double hz, double target, double within = 60) => Math.Abs(hz - target) <= within;
@@ -596,19 +669,22 @@ public sealed class SstvReceiver
         private int _missedSyncs;
         private readonly byte[] _bgra;
         private readonly bool _autoSlant;        // as set when the picture started
+        private AnalogDrawing _drawing;          // as set when the picture started, or asked for by Redraw
 
         // The noise, measured on the sync pulses (the middle of the last few lines' figures): in a fade, a
-        // pixel whose tone is hardly above the noise is drawn mostly from its neighbours, rather than as a
-        // random shade (see Smooth). Each scan's last drawn values are kept for a pixel with no tone at all.
-        internal static double FadeWeight = 10;
+        // pixel whose tone is hardly above the noise leans on its neighbours, rather than showing as a random
+        // shade (see Smooth). FadeWeight: how much the noise counts against a pixel's tone in judging how far
+        // to trust it (10 in 0.7.2-0.7.4, tuned by PSNR, which rewards smoothness; 3 since Nov 28, 2026, picked
+        // by eye against MMSSTV on Dan's recordings: a weak pixel keeps more of its own reading).
+        internal static double FadeWeight = 3;
         private readonly List<double> _noises = new();
         private double _noise;
-        private readonly double[]?[] _prior = new double[]?[4];
 
         public Image(SstvReceiver rx, SstvModeInfo mode, long start, bool joinedLate = false)
         {
             _rx = rx;
             _autoSlant = rx.AutoSlant;
+            _drawing = rx.Drawing;
             // The noise as measured on the VIS code's leader, counted as five syncs' worth.
             if (!joinedLate && rx._visNoise > 0) { for (int i = 0; i < 5; i++) _noises.Add(rx._visNoise); _noise = rx._visNoise; }
             Mode = mode;
@@ -858,7 +934,7 @@ public sealed class SstvReceiver
         // Each scan's own values and how sure of each one we are (0 to 1), per slot in the order they came. The
         // sureness is how much of the power around the pixel (a millisecond either side: fading changes over
         // tenths of a second) is the tone rather than the noise.
-        private readonly List<(float[] Raw, float[] Sure)>[] _scans = { new(), new(), new(), new() };
+        private readonly List<(float[] Raw, float[] Ratio)>[] _scans = { new(), new(), new(), new() };
         private readonly int[] _scanAt = new int[4];   // redrawing (Finish): the next scan of each slot
         private bool _redrawing;
 
@@ -885,17 +961,18 @@ public sealed class SstvReceiver
                 var (hz, _) = _rx.Weighted(from, to);
                 if (hz <= 0) { raw[x] = 0; sure[x] = 0; continue; }
                 raw[x] = (float)Math.Clamp((hz - SstvModes.BlackHz) / (SstvModes.WhiteHz - SstvModes.BlackHz) * 255, 0, 255);
-                double k = 1;
-                if (_noise > 0 && FadeWeight > 0)
+                // Kept: how strong the tone is against the noise (no noise measured yet: clear). How far that's
+                // trusted is worked out when drawing (Sure), so the picture can be drawn again another way.
+                double ratio = float.PositiveInfinity;
+                if (_noise > 0)
                 {
                     long c = (long)Math.Round(at + (x + 0.5) * step) - p0;
                     long a = Math.Clamp(c - half, 0, sums.Length - 1), b = Math.Clamp(c + half, 0, sums.Length - 1);
                     double power = b > a ? (sums[b] - sums[a]) / (b - a) : 0;
                     // How much of the power is the tone: all of it on a clean signal, little in a deep fade.
-                    double tone = Math.Max(0, power - _noise);
-                    k = tone / (tone + FadeWeight * _noise);
+                    ratio = Math.Max(0, power - _noise) / _noise;
                 }
-                sure[x] = (float)k;
+                sure[x] = (float)ratio;
             }
             _scans[slot].Add((raw, sure));
             return Smooth(slot, _scans[slot].Count - 1, below: false);
@@ -906,58 +983,82 @@ public sealed class SstvReceiver
         // a weak one leans on its neighbours, the more the weaker it is. Only the measured values are used,
         // never the drawn ones, so nothing is carried on down the picture (copying down line after line
         // makes streaks on a weak signal). Only in a deep fade, where the lines next to it were lost too,
-        // does it look further up and down, as far as it must to find lines that were heard (and then
-        // blends between them: lost lines show as a soft stretch, not random colour).
+        // does it look a little further up and down (FadeReach). How it's drawn (_drawing):
+        //  - Shorter guessing: as above; a pixel with nothing to lean on is its own reading.
+        //  - Own share: the same, but every pixel keeps at least OwnShare of its own reading.
+        //  - No smoothing: each pixel its own reading, as MMSSTV draws.
+        // In the colour-difference scans of Robot and PD (YCrCb), weak colour leans to grey (ChromaPull): noise
+        // reads as the filter's middle, 1750 Hz, which on that scale is green, so a deep fade came out as a
+        // green wash (Dan's recordings, Nov 28, 2026).
         private double[] Smooth(int slot, int index, bool below)
         {
             var list = _scans[slot];
-            var (raw, sure) = list[index];
+            var (raw, ratio) = list[index];
             int width = raw.Length;
             var values = new double[width];
-            var prior = _prior[slot];
+            if (_drawing == AnalogDrawing.NoSmoothing)
+            {
+                for (int x = 0; x < width; x++) values[x] = raw[x];
+                return values;
+            }
+            bool chroma = slot is 1 or 2 && Mode.Color != SstvColor.Gbr;
+            double ownShare = _drawing == AnalogDrawing.OwnShare ? OwnShare : 0;
+            // How sure a pixel is, from its tone against the noise: 1 when clear, 0 with no tone at all.
+            static double Sure(float r) => float.IsPositiveInfinity(r) ? 1 : r <= 0 ? 0 : r / (r + FadeWeight);
             // Trust, from how sure: none at all for a tone hardly above the noise (noise alone sometimes looks
             // like a little tone, and many such pixels in a deep fade would add up to a lot of noise).
             static double Trust(double k) => k >= 0.999 ? 1000 : k <= TrustFloor ? 0 : (k - TrustFloor) / (1 - k);
             for (int x = 0; x < width; x++)
             {
-                double pc = Trust(sure[x]);
-                double total = pc * raw[x], weight = pc;
-                if (pc < 1000)
+                double pc = Trust(Sure(ratio[x]));
+                if (pc >= 1000) { values[x] = raw[x]; continue; }
+                double own = pc * raw[x], ownWeight = pc;
+                if (chroma) { own += ChromaPull * 128; ownWeight += ChromaPull; }
+                double total = 0, weight = 0;   // the neighbours'
+                void Add(float[] r, float[] q, int xx, double detail)
                 {
-                    void Add(float[] r, float[] s, int xx, double detail)
-                    {
-                        if (xx < 0 || xx >= width || s[xx] <= TrustFloor) return;
-                        double p = Trust(s[xx]);
-                        double w = 1 / (1 / p + detail);
-                        total += w * r[xx]; weight += w;
-                    }
-                    void AddLine(int i, double detail)
-                    {
-                        if (i < 0 || i >= list.Count || i > index && !below) return;
-                        var (r, s) = list[i];
-                        if (r.Length != width) return;
-                        Add(r, s, x, detail); Add(r, s, x - 1, detail + DetailH); Add(r, s, x + 1, detail + DetailH);
-                    }
-                    Add(raw, sure, x - 1, DetailH);
-                    Add(raw, sure, x + 1, DetailH);
-                    AddLine(index - 1, DetailV);
-                    AddLine(index + 1, DetailV);
-                    for (int d = 2; d <= FadeReach && weight < Enough; d++)
-                    {
-                        AddLine(index - d, DetailV * d * d);
-                        AddLine(index + d, DetailV * d * d);
-                    }
+                    if (xx < 0 || xx >= width) return;
+                    double k = Sure(q[xx]);
+                    if (k <= TrustFloor) return;
+                    double p = Trust(k);
+                    double w = 1 / (1 / p + detail);
+                    total += w * r[xx]; weight += w;
                 }
-                values[x] = weight > 1e-9 ? total / weight : prior?[x] ?? 0;
+                void AddLine(int i, double detail)
+                {
+                    if (i < 0 || i >= list.Count || i > index && !below) return;
+                    var (r, q) = list[i];
+                    if (r.Length != width) return;
+                    Add(r, q, x, detail); Add(r, q, x - 1, detail + DetailH); Add(r, q, x + 1, detail + DetailH);
+                }
+                Add(raw, ratio, x - 1, DetailH);
+                Add(raw, ratio, x + 1, DetailH);
+                AddLine(index - 1, DetailV);
+                AddLine(index + 1, DetailV);
+                for (int d = 2; d <= FadeReach && pc + weight < Enough; d++)
+                {
+                    AddLine(index - d, DetailV * d * d);
+                    AddLine(index + d, DetailV * d * d);
+                }
+                double all = ownWeight + weight;
+                double v = all > 1e-9 ? (own + total) / all : raw[x];
+                // Own share: the neighbours may say at most the rest.
+                if (ownShare > 0 && weight > 1e-9 && ownWeight / all < ownShare)
+                {
+                    double mine = ownWeight > 1e-9 ? own / ownWeight : raw[x];
+                    v = ownShare * mine + (1 - ownShare) * total / weight;
+                }
+                values[x] = v;
             }
-            _prior[slot] = values;
             return values;
         }
 
         private double Ms(double ms) => ms * TrackRate / 1000;
 
-        // Robot 36's colour: each line carries one colour difference; kept for its pair.
+        // Robot 36's colour: each line carries one colour difference; kept for its pair. Which one each line
+        // carried, for drawing it again.
         private double[]? _cr, _cb;
+        private readonly Dictionary<int, bool> _isCr = new();
 
         private void DrawLine(int line, double start)
         {
@@ -986,8 +1087,14 @@ public sealed class SstvReceiver
                     double c = sep + Ms(m.GapMs + 1.5);
                     var y = Scan(y0, m.ScanMs, w, 0);
                     // The separator says which: black before R-Y, white before B-Y.
-                    double sepHz = MeanHz(sep + Ms(0.5), Ms(m.GapMs - 1));
-                    bool isCr = sepHz > 0 ? sepHz < 1900 : line % 2 == 0;
+                    bool isCr;
+                    if (_redrawing && _isCr.TryGetValue(line, out bool known)) isCr = known;   // (the sound may be gone)
+                    else
+                    {
+                        double sepHz = MeanHz(sep + Ms(0.5), Ms(m.GapMs - 1));
+                        isCr = sepHz > 0 ? sepHz < 1900 : line % 2 == 0;
+                        _isCr[line] = isCr;
+                    }
                     var colour = Scan(c, m.ScanMs / 2, w, isCr ? 1 : 2);
                     if (isCr) _cr = colour; else _cb = colour;
                     PutYcc(line, y, _cr ?? Gray(w), _cb ?? Gray(w));
@@ -1066,23 +1173,39 @@ public sealed class SstvReceiver
             int lines = LinesHeard(_lines);
             if (lines < 8) return null;
             _cr = _cb = _lastY = null;
-            Array.Clear(_prior);
             foreach (var list in _scans) list.Clear();
             for (int line = 0; line < lines; line++) DrawLine(line, LineStart(line));
             // Again, now that each scan's neighbours below are known too (while arriving, a line is drawn
             // from the ones above it only).
-            _cr = _cb = _lastY = null;
-            Array.Clear(_prior);
-            Array.Clear(_scanAt);
-            _redrawing = true;
-            for (int line = 0; line < lines; line++) DrawLine(line, LineStart(line));
-            _redrawing = false;
-            // Lines drawn while waiting but after the signal had gone go back to black.
-            int rows = Math.Min(Mode.Height, Mode.Color == SstvColor.PD ? 2 * lines : lines);
-            for (int i = 4 * rows * Mode.Width; i < _bgra.Length; i += 4) { _bgra[i] = _bgra[i + 1] = _bgra[i + 2] = 0; }
             _lines = lines;
+            DrawAgain();
             bool complete = lines == Mode.SoundLines;
-            return new SstvPicture(Mode, Snapshot(), Drawn, complete, DateTime.Now, JoinedLate);
+            return new SstvPicture(Mode, Snapshot(), Drawn, complete, DateTime.Now, JoinedLate) { Drawing = _drawing, Redraw = Redraw };
+        }
+
+        // Draws every line again from the measurements kept (no sound needed), with the scans below known too;
+        // the lines after the last one heard stay black.
+        private void DrawAgain()
+        {
+            _cr = _cb = _lastY = null;
+            Array.Clear(_scanAt);
+            Array.Clear(_bgra);
+            for (int i = 3; i < _bgra.Length; i += 4) _bgra[i] = 255;
+            _redrawing = true;
+            for (int line = 0; line < _lines; line++) DrawLine(line, LineStart(line));
+            _redrawing = false;
+        }
+
+        /// <summary>The finished picture drawn again another way (SstvPicture.Redraw). Only once the picture is
+        /// finished, when nothing else draws it.</summary>
+        private DecodedPicture Redraw(AnalogDrawing drawing)
+        {
+            lock (_bgra)
+            {
+                _drawing = drawing;
+                DrawAgain();
+                return Snapshot();
+            }
         }
     }
 
