@@ -13,10 +13,12 @@
 //   Scottie 1, 2, DX   green, blue, red, with the sync between blue and red
 //   Robot 36 and 72    brightness, then colour difference (YCrCb), 240 lines
 //   PD 50 to PD 290    two lines at a time: brightness, R-Y, B-Y, brightness (YCrCb)
+//   B/W 8 and 12       brightness only, 160 x 120 (Robot's black-and-white modes, as MMSSTV has them; added
+//                      Nov 28, 2026, after a B/W 8 heard on 20 m that only MMSSTV saved)
 
 namespace RFpix.Analog;
 
-public enum SstvMode { Martin1, Martin2, Scottie1, Scottie2, ScottieDX, Robot36, Robot72, PD50, PD90, PD120, PD160, PD180, PD240, PD290 }
+public enum SstvMode { Martin1, Martin2, Scottie1, Scottie2, ScottieDX, Robot36, Robot72, PD50, PD90, PD120, PD160, PD180, PD240, PD290, BW8, BW12 }
 
 /// <summary>How a mode carries colour.</summary>
 public enum SstvColor
@@ -27,6 +29,8 @@ public enum SstvColor
     Robot,
     /// <summary>Two lines per sync: brightness, R-Y, B-Y, brightness (PD).</summary>
     PD,
+    /// <summary>Brightness only: black and white (B/W 8, B/W 12).</summary>
+    Mono,
 }
 
 /// <param name="Name">For the screen, e.g. "Martin 1".</param>
@@ -79,6 +83,11 @@ public static class SstvModes
         new(SstvMode.PD180, "PD 180", 96, SstvColor.PD, 640, 496, 754.24, 183.04, 20.0, 2.08, 0),
         new(SstvMode.PD240, "PD 240", 97, SstvColor.PD, 640, 496, 1000.0, 244.48, 20.0, 2.08, 0),
         new(SstvMode.PD290, "PD 290", 94, SstvColor.PD, 800, 616, 937.28, 228.8, 20.0, 2.08, 0),
+        // B/W: sync, porch, then the brightness, and a gap at black to the line's end (B/W 8: 900 lines a minute,
+        // sync 10, scan 56; B/W 12: 600 a minute, sync 7, scan 93; the SSTV Handbook's table 4.1, and a B/W 8
+        // from MMSSTV recorded off the air, Nov 28, 2026, whose lines measured 66.7 ms).
+        new(SstvMode.BW8, "B/W 8", 2, SstvColor.Mono, 160, 120, 200.0 / 3, 56.0, 10.0, 0, 2.0 / 3),
+        new(SstvMode.BW12, "B/W 12", 6, SstvColor.Mono, 160, 120, 100.0, 93.0, 7.0, 0, 0),
     };
 
     public static SstvModeInfo Get(SstvMode mode) => All.First(m => m.Mode == mode);

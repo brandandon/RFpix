@@ -51,6 +51,8 @@ public class SstvTests
     [InlineData(SstvMode.PD180, 187.1)]
     [InlineData(SstvMode.PD240, 248.0)]
     [InlineData(SstvMode.PD290, 288.7)]
+    [InlineData(SstvMode.BW8, 8.0)]
+    [InlineData(SstvMode.BW12, 12.0)]
     public void Each_mode_takes_its_standard_time(SstvMode mode, double seconds)
     {
         var m = SstvModes.Get(mode);
@@ -63,6 +65,7 @@ public class SstvTests
             SstvColor.Gbr => m.SyncMs + 3 * (m.GapMs + m.ScanMs),
             SstvColor.Robot when mode == SstvMode.Robot36 => m.SyncMs + m.PorchMs + m.ScanMs + m.GapMs + 1.5 + m.ScanMs / 2,
             SstvColor.Robot => m.SyncMs + m.PorchMs + m.ScanMs + 2 * (m.GapMs + 1.5 + m.ScanMs / 2),
+            SstvColor.Mono => m.SyncMs + m.PorchMs + m.ScanMs + m.GapMs,
             _ => m.SyncMs + m.PorchMs + 4 * m.ScanMs,
         };
         Assert.Equal(m.LineMs, parts, 2);
@@ -236,6 +239,40 @@ public class SstvTests
         var audio = RFpix.Audio.WavFile.Read(Path.Combine(Recordings.Folder, "offair", clip)).Samples;
         Receive(audio, out var started);
         Assert.Equal(SstvMode.Martin1, started?.Mode);
+    }
+
+    [Theory]
+    [InlineData(SstvMode.BW8)]
+    [InlineData(SstvMode.BW12)]
+    public void A_black_and_white_picture_is_sent_and_received_in_grey(SstvMode mode)
+    {
+        // B/W 8 and 12: brightness only (added Nov 28, 2026).
+        var m = SstvModes.Get(mode);
+        var picture = SstvEncoder.Fit(Pattern(400, 300), m);
+        var got = Receive(SstvEncoder.Audio(picture, m), out var started);
+        Assert.Equal(mode, started!.Mode);
+        Assert.True(got!.Complete);
+        var grey = new byte[picture.Bgra.Length];
+        for (int i = 0; i < grey.Length; i += 4)
+        {
+            byte y = (byte)Math.Round(0.299 * picture.Bgra[i + 2] + 0.587 * picture.Bgra[i + 1] + 0.114 * picture.Bgra[i]);
+            grey[i] = grey[i + 1] = grey[i + 2] = y; grey[i + 3] = 255;
+            Assert.True(got.Picture.Bgra[i] == got.Picture.Bgra[i + 1] && got.Picture.Bgra[i + 1] == got.Picture.Bgra[i + 2]);   // no colour
+        }
+        double psnr = Psnr(new DecodedPicture(m.Width, m.Height, grey), got.Picture);
+        Assert.True(psnr > 26, $"quality {psnr:0.0} dB");
+    }
+
+    [Fact]
+    public void A_B_W_8_picture_off_the_air_is_received()
+    {
+        // Sent by MMSSTV after a Martin 2, recorded on 20 m on Nov 28, 2026 (only MMSSTV saved it then).
+        var audio = RFpix.Audio.WavFile.Read(Path.Combine(Recordings.Folder, "offair", "analog_bw8_offair.wav")).Samples;
+        var got = Receive(audio, out var started);
+        Assert.Equal(SstvMode.BW8, started?.Mode);
+        Assert.NotNull(got);
+        Assert.True(got!.Complete);
+        Assert.Equal(120, got.Lines);
     }
 
     [Fact]

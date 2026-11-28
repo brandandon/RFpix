@@ -438,7 +438,9 @@ public sealed class SstvReceiver
         // would also look like Robot 72).
         foreach (var mode in SstvModes.All.OrderBy(m => m.LineMs))
         {
-            if (!SyncLength(lastMs, mode)) continue;
+            // Not the black-and-white modes: a picture of 8 or 12 seconds found late would be a scrap, and their
+            // short lines make noise easier to take for one.
+            if (mode.Color == SstvColor.Mono || !SyncLength(lastMs, mode)) continue;
             double line = mode.LineMs * TrackRate / 1000;
             long first = last;
             bool all = true;
@@ -1101,6 +1103,12 @@ public sealed class SstvReceiver
                     // The line above shared this colour difference: draw it again with both.
                     if (line > 0 && !isCr && _cr is not null) Redraw(line - 1);
                     if (isCr) _lastY = y;
+                    break;
+                }
+                case SstvColor.Mono:
+                {
+                    var y = Scan(start + Ms(m.SyncMs + m.PorchMs), m.ScanMs, w, 0);
+                    PutRgb(line, y, y, y);
                     break;
                 }
                 case SstvColor.Robot:

@@ -469,10 +469,12 @@ In analog, the digital-only parts of the tab are hidden (the send settings, Sign
 
 #### The modes
 
-MMSSTV, QSSTV and most SSTV programs and phone apps receive all of these. Martin 1 and Scottie 1 are the most common on HF and FM nets; Robot 36 is the quickest.
+MMSSTV, QSSTV and most SSTV programs and phone apps receive these. Martin 1 and Scottie 1 are the most common on HF and FM nets; Robot 36 is the quickest in colour. B/W 8 and B/W 12 are small black-and-white pictures (MMSSTV sends them; some phone apps may not receive them).
 
 | Mode | Picture size | Time on the air |
 | --- | --- | --- |
+| B/W 8 | 160 × 120, black and white | 0:09 |
+| B/W 12 | 160 × 120, black and white | 0:13 |
 | Robot 36 | 320 × 240 | 0:37 |
 | PD 50 | 320 × 256 | 0:51 |
 | Martin 2 | 320 × 256 | 0:59 |

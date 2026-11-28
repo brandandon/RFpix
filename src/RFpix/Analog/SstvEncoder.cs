@@ -42,6 +42,7 @@ public static class SstvEncoder
         {
             case SstvColor.Gbr: WriteGbr(tones, mode, channels); break;
             case SstvColor.Robot: WriteRobot(tones, mode, channels); break;
+            case SstvColor.Mono: WriteMono(tones, mode, channels); break;
             default: WritePD(tones, mode, channels); break;
         }
         foreach (var (hz, ms) in FskId.Tones(fskId)) tones.Tone(hz, ms);
@@ -195,6 +196,17 @@ public static class SstvEncoder
                 t.Tone(SstvModes.BlackHz, 1.5);
                 t.Scan(c.Cb[y], colourMs);
             }
+        }
+    }
+
+    private static void WriteMono(ToneWriter t, SstvModeInfo m, Channels c)
+    {
+        for (int y = 0; y < m.Height; y++)
+        {
+            t.Tone(SstvModes.SyncHz, m.SyncMs);
+            t.Tone(SstvModes.BlackHz, m.PorchMs);
+            t.Scan(c.Y[y], m.ScanMs);
+            t.Tone(SstvModes.BlackHz, m.GapMs);
         }
     }
 

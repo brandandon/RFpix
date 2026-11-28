@@ -27,6 +27,8 @@ in Documents\RFpix. Uninstalling asks whether to remove the settings, and never 
   **No smoothing** on weak or fading analog pictures, side by side with MMSSTV if you can. Changing it redraws the
   picture on the screen at once; **‹ Earlier** and **Later ›** step through the last 5 analog pictures. Check the
   Gallery copy changes too. Please say which one you'd want as the starting choice.
+- **Black-and-white modes B/W 8 and B/W 12** (new): received, and on the Send tab's mode list. If you can, send
+  one from MMSSTV and check RFpix receives it, and send one from RFpix and check MMSSTV does.
 - **Weak VIS codes:** pictures that used to come out as noise because a weak start code was read as the wrong mode
   (a Martin 1 as Robot 36 or Robot 72) should now start in the right mode. Robot pictures in deep fades should go
   grey rather than green.
