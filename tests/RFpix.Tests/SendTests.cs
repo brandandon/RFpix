@@ -19,16 +19,16 @@ public class SendTests
     // ---- the test transmissions ----
 
     [Fact]
-    public void There_are_thirteen_tests_each_with_its_own_picture_and_settings()
+    public void There_are_fourteen_tests_each_with_its_own_picture_and_settings()
     {
         // Tests 3, 7, 8 and 9 were retired (Nov 14, 2026); their numbers aren't reused. Tests 14 to 17
-        // send RFpix's FM signal at FM 2 to FM 5.
+        // send RFpix's FM signal at FM 2 to FM 5, and test 21 at FM 6 (18 to 20 are RF-Hybrid's, in RFpix-Fast).
         var all = TestTransmissions.All;
-        Assert.Equal(new[] { 1, 2, 4, 5, 6, 10, 11, 12, 13, 14, 15, 16, 17 }, all.Select(t => t.Number));
-        Assert.Equal(13, all.Select(t => (t.Settings, t.ReedSolomon, t.RepairPercent, t.FmSpeed)).Distinct().Count());
-        Assert.Equal(new[] { 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 }, all.Select(t => t.ReedSolomon));
-        Assert.Equal(new[] { 0, 0, 0, 0, 0, 0, 20, 50, 75, 20, 20, 20, 20 }, all.Select(t => t.RepairPercent));
-        Assert.Equal(new[] { 2, 3, 4, 5 }, all.Where(t => t.FmMode is not null).Select(t => t.FmSpeed));
+        Assert.Equal(new[] { 1, 2, 4, 5, 6, 10, 11, 12, 13, 14, 15, 16, 17, 21 }, all.Select(t => t.Number));
+        Assert.Equal(14, all.Select(t => (t.Settings, t.ReedSolomon, t.RepairPercent, t.FmSpeed)).Distinct().Count());
+        Assert.Equal(new[] { 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0 }, all.Select(t => t.ReedSolomon));
+        Assert.Equal(new[] { 0, 0, 0, 0, 0, 0, 20, 50, 75, 20, 20, 20, 20, 20 }, all.Select(t => t.RepairPercent));
+        Assert.Equal(new[] { 2, 3, 4, 5, 6 }, all.Where(t => t.FmMode is not null).Select(t => t.FmSpeed));
         Assert.Equal("rfpix-test-10.rs2", all[5].SendName);   // sent wrapped, as QSSTV sends RS files
         Assert.Matches(@"^rfpix-test-12\.fc\d+$", all[7].SendName);
         // The fountain tests have test 10's settings, so they compare directly with RS2.

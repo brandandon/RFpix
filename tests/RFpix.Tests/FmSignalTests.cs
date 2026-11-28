@@ -166,6 +166,33 @@ public class FmSignalTests
     }
 
     [Fact]
+    public void The_same_file_from_two_stations_is_complete_both_times_each_from_its_own_sender()
+    {
+        // Nov 27, 2026: every station's test 17 is the same file; once one had come through, the next station's
+        // was logged "not complete" (and the test result too), though it had arrived perfectly.
+        var mode = FmSignalMode.All[3];
+        var file = File(3000);
+        var (data, k) = FmSignalTransmitter.Wrap(file, "jpg", mode, 20);
+        var one = FmSignalTransmitter.Audio(data, k, mode, fileNumber: 21, new FmFileInfo("N0CALL", "rfpix-test-21.jpg"));
+        var two = FmSignalTransmitter.Audio(data, k, mode, fileNumber: 21, new FmFileInfo("N1CALL", "rfpix-test-21.jpg"));
+        var gap = new float[48000 * 8];
+        var audio = new float[48000].Concat(one).Concat(gap).Concat(two).Concat(gap).ToArray();
+        var rx = new FmSignalLiveReceiver();
+        var reports = new List<FmTransmissionReport>();
+        int files = 0;
+        rx.TransmissionEnded += r => reports.AddRange(r);
+        rx.FileReceived += (_, _) => files++;
+        for (int i = 0; i < audio.Length; i += 4800) rx.AddSamples(audio[i..Math.Min(audio.Length, i + 4800)], Math.Min(4800, audio.Length - i), 48000);
+        rx.EndOfAudio();
+        Assert.Equal(1, files);   // saved once
+        Assert.Equal(2, reports.Count);
+        Assert.All(reports, r => Assert.NotNull(r.File));
+        Assert.Equal(new[] { "N0CALL", "N1CALL" }, reports.Select(r => r.Callsign));
+        Assert.Equal(new[] { false, true }, reports.Select(r => r.ReceivedEarlier));
+        Assert.Contains("frames heard", reports[0].Details);
+    }
+
+    [Fact]
     public void A_late_station_gets_the_details_from_a_later_frame()
     {
         // The details go in the first frame and the last: missing the first, they come in the last.

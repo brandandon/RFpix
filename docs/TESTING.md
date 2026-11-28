@@ -1,7 +1,7 @@
 # Testing RFpix on the air
 
 Thanks for helping test RFpix (now in beta), a HamDRM (digital SSTV) program for Windows, the Mac and Linux by KD9DD.
-RFpix has thirteen built-in **test transmissions**: fixed pictures sent with fixed settings,
+RFpix has fourteen built-in **test transmissions**: fixed pictures sent with fixed settings,
 and each picture says what its settings are. When you receive one, RFpix checks it against
 its own copy of the original and writes down how it came through.
 
@@ -20,6 +20,19 @@ signed. Click **More info**, then **Run anyway**.
 
 Your settings live in %AppData%\RFpix, and your received pictures, recordings and test results
 in Documents\RFpix. Uninstalling asks whether to remove the settings, and never removes your files.
+
+## Test 21, the treble boost, and better logs (new in v0.7.5 beta)
+
+- **Test 21** sends RFpix FM 6 (the fastest speed) with its own picture. Please send it where FM 5 (test 17)
+  comes through well, and note the Quality box at each station.
+- **The FM treble boost** (Settings > Radio) now goes on only when a picture goes out in data mode (the radio
+  in DATA-FM, or RFpix switching it there). In plain FM the radio adds the boost itself, and RFpix's on top
+  boosted the treble twice. The log line for each transmission says whether it was added.
+- **The same test from several stations** (or the same picture sent again) is now logged and scored as
+  received each time, crediting each sender. Before, after the first, the rest were logged "not complete".
+- **The log says more**: lost or gap-filled sound, and for each RFpix FM transmission how many frames were
+  heard, how many blocks decoded and the quality range. If pictures stop completing at a good signal, please
+  send the log (and click **Record** before restarting RFpix: it keeps the last 30 seconds).
 
 ## Analog pictures, listening for one kind, and FM 6 (new in v0.7.4 beta)
 
@@ -222,7 +235,8 @@ Please try receiving first, then **Test PTT**, then sending, and report anything
 | 14 | RFpix FM 2 · Fountain 20% | RFpix FM: tough (RFpix 0.7.1 or newer, FM radios) |
 | 15 | RFpix FM 3 · Fountain 20% | RFpix FM: the usual speed (RFpix 0.7.1 or newer) |
 | 16 | RFpix FM 4 · Fountain 20% | RFpix FM: fast, needs a fair signal (RFpix 0.7.1 or newer) |
-| 17 | RFpix FM 5 · Fountain 20% | RFpix FM: fastest, level a little hot (RFpix 0.7.1 or newer) |
+| 17 | RFpix FM 5 · Fountain 20% | RFpix FM: fast, level a little hot (RFpix 0.7.1 or newer) |
+| 21 | RFpix FM 6 · Fountain 20% | RFpix FM: the fastest, very clean signal only (RFpix 0.7.5 or newer) |
 
 Tests 3, 7, 8 and 9 have been retired; their numbers aren't used again.
 

@@ -125,11 +125,18 @@ public sealed class FmPieceCollector
         public byte[]? Rebuilt;
         public string? Extension;
         public bool Done;
+        public FmReceivedFile? Received;   // once Done: the file as received
         public DateTime LastHeard;
     }
 
     private readonly List<File> _files = new();
     private const int Remembered = 20;
+
+    /// <summary>The file a block belongs to, if it was already received complete (sent again, or the same file
+    /// from another station, such as a test transmission that every station sends alike).</summary>
+    public FmReceivedFile? Earlier(FmBlock block) =>
+        block.IsRequest ? null : _files.FirstOrDefault(f => f.Done && f.Number == block.FileNumber && f.SourcePieces == block.SourcePieces &&
+                                                             f.PieceBytes == block.Payload.Length)?.Received;
 
     /// <summary>Adds a block; returns any file that it completes.</summary>
     public FmReceivedFile? Add(FmBlock block, FmSignalMode? mode, DateTime when)
@@ -187,6 +194,7 @@ public sealed class FmPieceCollector
         var result = new FmReceivedFile(file.Number, file.Rebuilt!, name, file.Info?.Callsign is { Length: > 0 } c ? c : null,
                                         file.Mode, file.Pieces.Count, file.SourcePieces);
         file.Pieces.Clear();   // the memory back; the file stays known so late pieces are ignored
+        file.Received = result;
         return result;
     }
 }

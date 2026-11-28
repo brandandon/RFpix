@@ -23,6 +23,8 @@ TESTS = [  # number, mode, bandwidth, QAM, interleave, protection, repair data (
     (15, "FM 3", "", "16-QAM 2/3", "", "", "Fountain 20%", (40, 90, 100)),
     (16, "FM 4", "", "64-QAM 2/3", "", "", "Fountain 20%", (100, 40, 90)),
     (17, "FM 5", "", "64-QAM 3/4", "", "", "Fountain 20%", (40, 100, 40)),
+    # RFpix 0.7.5: FM 6, the fastest (asked by Dan, Nov 27, 2026). Number 21: 18 to 20 are RF-Hybrid's in RFpix-Fast.
+    (21, "FM 6", "", "256-QAM 3/4", "", "", "Fountain 20%", (110, 70, 20)),
 ]
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FONT_REG = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"

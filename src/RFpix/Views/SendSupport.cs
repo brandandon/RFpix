@@ -92,7 +92,12 @@ internal static class SendSupport
             status("Connecting to the radio…");
             radio = await RadioService.ConnectIfNeededAsync(radioSettings);   // (if Settings connected meanwhile, that one)
         }
-        bool boost = hamDrm && radioSettings.FmPreEmphasis && radio is not null && await Task.Run(() => OnFm(radio), cancel);
+        // RFpix's FM treble boost, only when the picture goes out in data mode (DATA-FM, FM-D), which radios send
+        // flat: the radio already in it, or switched to it by RFpix as it keys. In plain FM the radio adds the boost
+        // itself, and RFpix's on top would boost the treble twice (N9UE's FT-991A, Nov 27, 2026).
+        var fm = hamDrm && radioSettings.FmPreEmphasis && radio is not null ? await Task.Run(() => ReadFm(radio), cancel) : FmKind.NotFm;
+        bool switching = keyed && radioSettings.DataModeForTransmit && RadioChoices.CanSwitchDataMode(radioSettings.Choice);
+        bool boost = Boosts(fm, switching);
 
         status("Preparing the transmission…");
         var (sound, seconds) = await Task.Run(() =>
@@ -116,7 +121,8 @@ internal static class SendSupport
             status($"Transmitting {what} ({seconds:0} s)…");
             AppLog.Info("Send", $"Transmitting {what} ({seconds:0} s) through {device.Name}, " +
                                 $"{(keyed ? "keyed by RFpix" : "by VOX")}, level {LevelLabel(AppSettings.Current.TransmitLevelDb)}" +
-                                (boost ? ", with FM's treble boost (the radio is on FM)." : "."));
+                                (boost ? ", with FM's treble boost (sent in data mode, which radios send flat)."
+                                 : fm == FmKind.Fm ? ", without RFpix's treble boost (in plain FM the radio adds it)." : "."));
             var shown = new Progress<double>(f =>
             {
                 progress.Report(f);
@@ -170,22 +176,29 @@ internal static class SendSupport
     public static event Action? GalleryChanged;
     public static void RaiseGalleryChanged() => GalleryChanged?.Invoke();
 
-    /// <summary>True if the connected radio is on FM (or DATA-FM): it's asked. If it doesn't answer, false.</summary>
-    private static bool OnFm(RadioConnection radio)
+    internal enum FmKind { NotFm, Fm, DataFm }
+
+    /// <summary>Whether the connected radio is on plain FM, DATA-FM, or neither: it's asked. If it doesn't answer, neither.</summary>
+    private static FmKind ReadFm(RadioConnection radio)
     {
-        try
-        {
-            ulong mode = radio.ReadMode();
-            // FM and DATA-FM, and their narrow forms (Hamlib's FMN and PKTFMN).
-            const ulong fmNarrow = 1ul << 21, dataFmNarrow = 1ul << 34;
-            return mode is HamlibNative.ModeFm or HamlibNative.ModePktFm or fmNarrow or dataFmNarrow;
-        }
+        try { return FmKindOf(radio.ReadMode()); }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             AppLog.Info("Send", $"Couldn't read the radio's mode for the FM treble boost ({ex.Message}): sent without it.");
-            return false;
+            return FmKind.NotFm;
         }
     }
+
+    /// <summary>Plain FM or DATA-FM (and their narrow forms, Hamlib's FMN and PKTFMN) from Hamlib's mode.</summary>
+    internal static FmKind FmKindOf(ulong mode)
+    {
+        const ulong fmNarrow = 1ul << 21, dataFmNarrow = 1ul << 34;
+        return mode is HamlibNative.ModePktFm or dataFmNarrow ? FmKind.DataFm
+             : mode is HamlibNative.ModeFm or fmNarrow ? FmKind.Fm : FmKind.NotFm;
+    }
+
+    /// <summary>Whether RFpix adds FM's treble boost: only for a picture sent in data mode.</summary>
+    internal static bool Boosts(FmKind fm, bool switchingToDataMode) => fm == FmKind.DataFm || fm == FmKind.Fm && switchingToDataMode;
 
     /// <summary>Notes a picture about to go out: in the sent log (so missing pieces can be sent
     /// again if asked), and in the Sent folder for the Gallery. Returns a problem, or null.</summary>

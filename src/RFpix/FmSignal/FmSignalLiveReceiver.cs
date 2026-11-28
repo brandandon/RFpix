@@ -31,7 +31,25 @@ public sealed record FmHeard(FmSignalMode Mode, double QualityDb, int Good, int 
 /// <param name="FrameQualities">Each frame's signal quality, in dB.</param>
 public sealed record FmTransmissionReport(DateTime Ended, string? Name, FmReceivedFile? File, IReadOnlyList<int> PiecesSeen,
                                           int SourcePieces, int PiecesSent, string? Callsign, FmSignalMode? Mode,
-                                          IReadOnlyList<double> FrameQualities);
+                                          IReadOnlyList<double> FrameQualities, bool ReceivedEarlier = false,
+                                          int BlocksGood = 0, int Blocks = 0)
+{
+    /// <summary>For the log: frames heard (and about how many were sent), blocks decoded, and the quality, so a
+    /// transmission that didn't complete shows whether frames went unheard or arrived and failed.</summary>
+    public string Details
+    {
+        get
+        {
+            int perFrame = Mode?.BlocksPerFrame ?? 0;
+            // The pieces go out in order, so the span of piece numbers heard says about how many frames were sent
+            // (a missing-pieces answer starts part way along).
+            int span = PiecesSeen.Count > 0 ? PiecesSeen.Max() - PiecesSeen.Min() + 1 : 0;
+            string sent = perFrame > 0 && span > 0 ? $" (about {(span + perFrame - 1) / perFrame} sent)" : "";
+            string quality = FrameQualities.Count == 0 ? "" : $", quality {FrameQualities.Min():0} to {FrameQualities.Max():0} dB";
+            return $"{FrameQualities.Count} frames heard{sent}, {BlocksGood} of {Blocks} blocks decoded{quality}";
+        }
+    }
+}
 
 public sealed class FmSignalLiveReceiver
 {
@@ -67,9 +85,10 @@ public sealed class FmSignalLiveReceiver
     public event Action<IReadOnlyList<FmTransmissionReport>>? TransmissionEnded;
 
     // This transmission so far: each file's pieces, details and result, and the frames' qualities.
-    private sealed class HeardFile { public readonly HashSet<int> Seen = new(); public int Highest = -1; public FmFileInfo? Info; public FmReceivedFile? File; public FmSignalMode? Mode; }
+    private sealed class HeardFile { public readonly HashSet<int> Seen = new(); public int Highest = -1; public FmFileInfo? Info; public FmReceivedFile? File; public FmSignalMode? Mode; public bool Earlier; }
     private readonly Dictionary<(int, int), HeardFile> _thisTransmission = new();
     private readonly List<double> _qualities = new();
+    private int _blocksGood, _blocks;   // this transmission's, for the log
 
     /// <summary>A frame decoded (on the audio thread).</summary>
     public event Action<FmFrame>? FrameDecoded;
@@ -245,6 +264,8 @@ public sealed class FmSignalLiveReceiver
             var now = DateTime.Now;
             double quality = frame.SnrDb;
             _qualities.Add(quality);
+            _blocksGood += frame.Good;
+            _blocks += frame.Blocks;
             foreach (var block in blocks)
             {
                 var key = (block.FileNumber, block.SourcePieces);
@@ -257,6 +278,13 @@ public sealed class FmSignalLiveReceiver
                     events.Add(() => FileReceived?.Invoke(file, quality));
                     var done = _thisTransmission.FirstOrDefault(h => h.Key.Item1 == file.FileNumber && h.Key.Item2 == file.SourcePieces).Value;
                     if (done is not null) done.File = file;
+                }
+                else if (heard.File is null && _collector.Earlier(block) is { } earlier)
+                {
+                    // Received complete before (sent again, or the same file from another station: every station's
+                    // test 17 is alike, Nov 27, 2026): this transmission counts as complete too, not "not complete".
+                    heard.File = earlier;
+                    heard.Earlier = true;
                 }
             }
             var current = _collector.Current;
@@ -286,11 +314,12 @@ public sealed class FmSignalLiveReceiver
             var qualities = _qualities.ToList();
             var reports = _thisTransmission.Select(h => new FmTransmissionReport(DateTime.Now, h.Value.File?.Name ?? h.Value.Info?.Name,
                 h.Value.File, h.Value.Seen.Order().ToList(), h.Key.Item2, h.Value.Highest + 1,
-                h.Value.Info?.Callsign is { Length: > 0 } c ? c : null, h.Value.Mode, qualities)).ToList();
+                h.Value.Info?.Callsign is { Length: > 0 } c ? c : null, h.Value.Mode, qualities, h.Value.Earlier, _blocksGood, _blocks)).ToList();
             events.Add(() => TransmissionEnded?.Invoke(reports));
         }
         _thisTransmission.Clear();
         _qualities.Clear();
+        _blocksGood = _blocks = 0;
         Heard = null;
     }
 

@@ -172,7 +172,8 @@ public partial class ReceivePage : UserControl, IDisposable
             {
                 AppLog.Info("Receive", $"RFpix FM transmission ended: \"{r.Name ?? "(name not heard)"}\"" +
                                        (r.Callsign is { } c ? $" from {c}" : "") + $", {r.PiecesSeen.Count} pieces this time ({r.SourcePieces} needed), " +
-                                       (r.File is not null ? "complete" : "not complete") + ".");
+                                       (r.File is null ? "not complete" : r.ReceivedEarlier ? "complete (the same file was received before, so it isn't saved again)" : "complete") +
+                                       $"; {r.Details}.");
                 var file = r.File is { } f ? FmFile(f) : null;
                 ReportTest(new TransmissionReport(r.Ended, r.Name, file, r.File is not null ? r.SourcePieces : r.PiecesSeen.Count,
                                                   r.PiecesSent, r.Callsign, null, null, r.FrameQualities, 0, 0) { PiecesSeen = r.PiecesSeen });
@@ -453,6 +454,24 @@ public partial class ReceivePage : UserControl, IDisposable
         if (source == _input) _recorder.AddSamples(e.Samples, e.Count, e.SampleRate);
     }
 
+    // Lost sound, logged as well as shown (Nov 27, 2026: N9UE's pictures stopped completing at a good signal
+    // until he restarted, and the log couldn't say whether sound had been lost): at most every 10 seconds.
+    private int _gapsLogged, _droppedLogged;
+    private DateTime _lostLoggedAt;
+
+    private void LogLostSound()
+    {
+        if (DateTime.Now - _lostLoggedAt < TimeSpan.FromSeconds(10)) return;
+        int gaps = _input.Gaps, dropped = _pump.Dropped;
+        if (gaps > _gapsLogged)
+            AppLog.Info("Sound", $"Windows left {gaps - _gapsLogged} more gap{(gaps - _gapsLogged == 1 ? "" : "s")} in the sound (filled with silence; {gaps} since listening started).");
+        if (dropped > _droppedLogged)
+            AppLog.Error("Sound", $"{dropped - _droppedLogged} more chunks of sound lost: the computer is too busy, processing fell more than 30 seconds behind ({dropped} since listening started).");
+        if (gaps > _gapsLogged || dropped > _droppedLogged) _lostLoggedAt = DateTime.Now;
+        _gapsLogged = gaps;
+        _droppedLogged = dropped;
+    }
+
     /// <summary>If a transmission was one of RFpix's test transmissions, says how it came through and adds
     /// it to the test log (on the audio thread).</summary>
     private void ReportTest(TransmissionReport report)
@@ -673,6 +692,7 @@ public partial class ReceivePage : UserControl, IDisposable
             if (_input.Gaps > 0) text += $"  ·  {_input.Gaps} gap{(_input.Gaps == 1 ? "" : "s")} in the sound from Windows (filled)";
             if (_pump.Dropped > 0) text += $"  ·  {_pump.Dropped} chunks of audio lost: the computer is too busy";
             FormatText.Text = text;
+            LogLostSound();
         }
 
         // While a recording plays, show which one and how far along it is.

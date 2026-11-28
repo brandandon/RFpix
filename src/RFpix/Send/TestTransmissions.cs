@@ -34,7 +34,7 @@ namespace RFpix.Send;
 /// <param name="Purpose">What it tests, in a few words.</param>
 /// <param name="ReedSolomon">0 for none, or RS1 to RS4.</param>
 /// <param name="RepairPercent">RFpix's repair code (the fountain code): the extra, in percent; 0 for none.</param>
-/// <param name="FmSpeed">1 to 5 to send RFpix's FM signal at that speed (Settings unused); 0 for HamDRM.</param>
+/// <param name="FmSpeed">1 to 6 to send RFpix's FM signal at that speed (Settings unused); 0 for HamDRM.</param>
 public sealed record TestTransmission(int Number, TransmitSettings Settings, string Purpose, int ReedSolomon = 0, int RepairPercent = 0,
                                       int FmSpeed = 0)
 {
@@ -142,7 +142,9 @@ public static class TestTransmissions
         new TestTransmission(14, FmSettings, "RFpix FM 2: tough, through FM radios", RepairPercent: 20, FmSpeed: 2),
         new TestTransmission(15, FmSettings, "RFpix FM 3: as tough as test 11, twice as fast", RepairPercent: 20, FmSpeed: 3),
         new TestTransmission(16, FmSettings, "RFpix FM 4: fast, needs a fair signal", RepairPercent: 20, FmSpeed: 4),
-        new TestTransmission(17, FmSettings, "RFpix FM 5: fastest, strong signal, level a little hot", RepairPercent: 20, FmSpeed: 5),
+        new TestTransmission(17, FmSettings, "RFpix FM 5: fast, strong signal, level a little hot", RepairPercent: 20, FmSpeed: 5),
+        // Number 21 (Dan, Nov 27, 2026): 18 to 20 are RF-Hybrid's (RFpix-Fast), so the numbers match everywhere.
+        new TestTransmission(21, FmSettings, "RFpix FM 6: the fastest, very clean signal only (Quality near 30 dB)", RepairPercent: 20, FmSpeed: 6),
     };
 
     // (For the FM tests, unused: the FM signal has its own settings.)
