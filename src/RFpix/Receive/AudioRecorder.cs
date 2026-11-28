@@ -85,10 +85,11 @@ public sealed class AudioRecorder
         if (why is not null) StoppedByItself?.Invoke(stoppedPath, why);
     }
 
-    /// <summary>Starts a recording in the folder, beginning with the last 30 seconds heard.
+    /// <summary>Starts a recording in the folder, beginning with the last 30 seconds heard (or the last
+    /// <paramref name="preRoll"/>, if shorter: an automatic recording takes only a few seconds before the picture).
     /// Returns the file's path. Throws IOException or UnauthorizedAccessException if the file
     /// can't be made, or InvalidOperationException if no sound has arrived yet.</summary>
-    public string Start(string folder, DateTime when)
+    public string Start(string folder, DateTime when, TimeSpan? preRoll = null)
     {
         lock (_lock)
         {
@@ -104,10 +105,11 @@ public sealed class AudioRecorder
             // the recording doesn't start: the file is closed, and RFpix isn't left "recording".
             try
             {
-                int start = (_ringPos - _ringFilled + _ring.Length) % _ring.Length;
-                int first = Math.Min(_ringFilled, _ring.Length - start);
+                int filled = preRoll is { } p ? Math.Min(_ringFilled, (int)(p.TotalSeconds * _sampleRate)) : _ringFilled;
+                int start = (_ringPos - filled + _ring.Length) % _ring.Length;
+                int first = Math.Min(filled, _ring.Length - start);
                 _writer.Write(_ring.AsSpan(start, first));
-                _writer.Write(_ring.AsSpan(0, _ringFilled - first));
+                _writer.Write(_ring.AsSpan(0, filled - first));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -118,16 +120,16 @@ public sealed class AudioRecorder
         }
     }
 
-    /// <summary>Stops recording. The callsigns heard during it (up to 3) replace "recording"
-    /// in the file's name, e.g. "2026-10-11 1530 N0CALL.wav". Returns the saved file's path,
-    /// or null if nothing was being recorded.</summary>
-    public string? Stop(IEnumerable<string>? callsigns = null)
+    /// <summary>Stops recording. What was received (<paramref name="label"/>, such as "SSTV Martin 2", for an
+    /// automatic recording) and the callsigns heard during it (up to 3) replace "recording" in the file's name,
+    /// e.g. "2026-10-11 1530 N0CALL.wav". Returns the saved file's path, or null if nothing was being recorded.</summary>
+    public string? Stop(IEnumerable<string>? callsigns = null, string? label = null)
     {
         lock (_lock)
         {
             string? path = TryClose();
-            var heard = (callsigns ?? Array.Empty<string>())
-                .Select(Clean).Where(c => c.Length > 0).Distinct().Take(3).ToList();
+            var heard = (label is { Length: > 0 } ? new[] { CleanLabel(label) } : Array.Empty<string>())
+                .Concat((callsigns ?? Array.Empty<string>()).Select(Clean).Where(c => c.Length > 0).Distinct().Take(3)).ToList();
             if (path is null || heard.Count == 0) return path;
 
             string name = Path.GetFileNameWithoutExtension(path);
@@ -145,6 +147,10 @@ public sealed class AudioRecorder
             }
         }
     }
+
+    // A label is RFpix's own ("SSTV Martin 2", "RFpix FM"): keep what a file name can hold.
+    private static string CleanLabel(string label) =>
+        new string(label.Select(c => char.IsAsciiLetterOrDigit(c) || c is ' ' or '-' ? c : '-').ToArray()).Trim();
 
     // A callsign comes off the air: keep letters and digits, and turn anything else ("/") into "-".
     private static string Clean(string callsign) =>

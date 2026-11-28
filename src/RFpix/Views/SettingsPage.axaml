@@ -68,6 +68,22 @@
                          Text="When Receive is left running, RFpix also picks up pictures partway through (their VIS code at the start was missed), and noise can look like one. These settings keep the small scraps out of the Gallery. A picture that isn't kept still shows on the Receive tab until the next one. Pictures that started with their VIS code are always kept. Whether pictures go to your website is set separately, on the FTP server tab." />
             </StackPanel>
 
+            <!-- Receive tab, "Record each picture": how long and how much is kept (RFpix.Receive.AutoRecordCleanup). -->
+            <StackPanel Spacing="6">
+              <TextBlock Text="Automatic recordings" FontWeight="SemiBold" />
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Keep them for" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ComboBox x:Name="AutoRecordDaysBox" Width="70" VerticalAlignment="Center" />
+                <TextBlock Text="days, and use at most" VerticalAlignment="Center" Margin="8,0,8,0" />
+                <TextBox x:Name="AutoRecordMbBox" Width="90" VerticalAlignment="Center" />
+                <TextBlock Text="MB" VerticalAlignment="Center" Margin="8,0,0,0" />
+              </StackPanel>
+              <TextBlock x:Name="AutoRecordMbProblem" Classes="Hint" Foreground="#C62828" IsVisible="False"
+                         Text="Type a whole number of MB, from 10 to 1000000." />
+              <TextBlock Classes="Hint" TextWrapping="Wrap"
+                         Text="With Record each picture ticked on the Receive tab, each picture is recorded by itself in Documents\RFpix\Recordings\Automatic. Recordings older than this are deleted, then the oldest until they fit the space set. Recordings take about 6 MB a minute: 1000 MB holds about 140 Martin 2 pictures. Recordings made with the Record button are never deleted." />
+            </StackPanel>
+
             <StackPanel Spacing="6">
               <TextBlock Text="Theme" FontWeight="SemiBold" />
               <!-- Picking an item runs OnThemeChanged in SettingsPage.axaml.cs. -->

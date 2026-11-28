@@ -210,6 +210,7 @@ Open **TX/RX**, then the **Receive** tab, and click **Start listening**. RFpix l
 | --- | --- |
 | **Start listening / Stop** | Starts and stops listening to the radio's sound input. |
 | **Record** | Saves what the radio hears as a sound file, starting 30 seconds *before* you click it, so a picture that's already arriving is caught. Click **Stop recording** to finish. Recordings go to Documents\RFpix\Recordings. |
+| **Record each picture** (under Record) | While listening, records each picture by itself: from 10 seconds before it was found to 5 seconds after it ends, only the kind RFpix is listening for. See [Recording each picture](#recording-each-picture). |
 | **Play recording…** | Plays a saved recording into RFpix instead of the radio, for testing or for recordings other stations send you. |
 | **Level** | How loud the radio's audio is, in dB. Yellow means too quiet for pictures to decode; orange means too loud. |
 | **Receive level** | Sets the radio's recording level: adjust it for the best image reception. See [Setting the receive level](#setting-the-receive-level). |
@@ -222,6 +223,16 @@ Open **TX/RX**, then the **Receive** tab, and click **Start listening**. RFpix l
 | **Open received folder** | Opens the folder where pictures are saved. |
 
 The boxes show the details of the picture arriving. When it ends, they keep showing the last picture's details (its mode and settings, and who it was from) until the next picture starts. Only the digital signal readings (Offset, Clock, Strength and Quality) empty when the signal goes, since they measure the signal as it arrives. Stopping listening empties all the boxes.
+
+#### Recording each picture
+
+Tick **Record each picture** (under **Record** on the Receive tab) and RFpix records each picture by itself while it listens: each recording starts 10 seconds before the picture was found and stops 5 seconds after it ends (a fade that comes back within those 5 seconds stays in the same file). Only the kind of picture RFpix is listening for is recorded: analog SSTV, or HamDRM and RFpix FM when the Send tab is on Digital (RF-Hybrid too, in RFpix-Fast). Between pictures nothing is recorded.
+
+The recordings go to **Documents\RFpix\Recordings\Automatic**, named for when the picture started, what it was, and any callsign heard, such as *2026-11-28 1930 SSTV Martin 2.wav* or *2026-11-28 1945 RFpix FM N0CALL.wav*. Play one back with **Play recording…**: it decodes like the radio.
+
+So they don't fill the disk, old ones are deleted. On **Settings > Misc**, under **Automatic recordings**, choose how many days to keep them (1 to 7) and the most space they may take, in MB (1000 MB at first). RFpix deletes those older than the days set, then the oldest until the rest fit. A recording takes about 6 MB a minute, so 1000 MB holds about 140 Martin 2 pictures. Recordings made with the **Record** button (in Documents\RFpix\Recordings) are never deleted.
+
+While **Record** is recording, nothing is recorded automatically (that recording already has the sound). Clicking **Stop recording** during an automatic recording saves it, and the next picture is recorded as usual.
 
 #### Setting the receive level
 
@@ -710,6 +721,7 @@ The **Settings** page has four tabs: **Radio**, **Misc**, **Logging** and **FTP 
 | **Your grid square (QTH)** | Your Maidenhead locator, 4 or 6 characters (such as AA00 or AA00aa). Templates show it with %qth. |
 | **Waterfall text** | Text written on everyone's waterfall **Before the picture** and **After the picture**, for digital pictures (not the tests). Leave a box empty for none. A short text is drawn big; a longer one wraps onto more lines, about 2 seconds each. |
 | **Analog pictures without their VIS code** | **Keep analog pictures found without their VIS code in the Gallery, when at least … was received**: whether analog pictures found partway through are saved to the Gallery, and how much must have arrived: 25%, 50% (to start with), 75% or 100%. Untick it to keep none. A picture not kept still shows on the Receive tab. Pictures that came with their VIS code are always kept. Separate from the upload setting on the FTP server tab. |
+| **Automatic recordings** | For **Record each picture** on the Receive tab: **Keep them for** 1 to 7 days (7 to start with), **and use at most** so many MB (1000 to start with). Older ones are deleted, then the oldest until the rest fit. Recordings made with the Record button are never deleted. See [Recording each picture](#recording-each-picture). |
 | **Theme** | **Follow Windows**, **Light** or **Dark**. |
 | **New versions** | **Check for new versions of RFpix when it starts**: when ticked, RFpix asks GitHub for newer versions as it starts, and shows a notice with a **Download** button if there is one. |
 | **Sound-card calibration** | Shows how fast or slow each sound device's clock runs, and when it was measured. **Measure (2 minutes)** measures both against the computer's clock while the radio stays receiving (RFpix doesn't key it); set Windows' clock right first. **Set back to none** forgets the measurements. A measurement belongs to one device: pick a different device and it needs measuring again. |

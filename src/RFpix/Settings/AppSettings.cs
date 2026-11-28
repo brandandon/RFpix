@@ -84,6 +84,16 @@ public sealed class AppSettings
     /// <summary>Keep analog pictures found without their VIS code (they start partway down) in the
     /// Gallery... (Settings, Misc tab; separate from the website rule on the FTP server tab).</summary>
     public bool KeepNoVis { get; set; } = true;
+
+    /// <summary>Record each picture received by itself (Receive tab, "Record each picture"; asked by Dan, Nov 28, 2026),
+    /// into Recordings\Automatic: from a few seconds before it was found to a few seconds after it ends.</summary>
+    public bool AutoRecord { get; set; }
+
+    /// <summary>How many days automatic recordings are kept (1 to 7; Settings > Misc).</summary>
+    public int AutoRecordDays { get; set; } = 7;
+
+    /// <summary>The most space automatic recordings may take, in MB (Settings > Misc): the oldest go first.</summary>
+    public int AutoRecordMaxMb { get; set; } = 1000;
     /// <summary>...when at least this much of the picture arrived (25, 50, 75 or 100 percent, as
     /// <see cref="RFpix.Upload.UploadSettings.NoVisPercents"/>).</summary>
     public int KeepNoVisMinPercent { get; set; } = 50;

@@ -34,13 +34,18 @@
     <!-- Row 0: start/stop, record, play a recording on the left; the level meter, format and the
          signal boxes beside them, wrapping in a narrow window -->
     <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="16">
-     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+     <!-- The buttons, and under Record the "Record each picture" tick box (ReceivePage.AutoRecord.cs): under it, not
+          beside it, so the row still fits the narrowest window. -->
+     <Grid Grid.Column="0" ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="4"
+           VerticalAlignment="Center">
       <Button x:Name="StartButton" Content="Start listening" Click="OnStartStopClick" MinWidth="130" />
-      <Button x:Name="RecordButton" Content="Record" Click="OnRecordClick" MinWidth="130" IsEnabled="False"
+      <Button x:Name="RecordButton" Grid.Column="1" Content="Record" Click="OnRecordClick" MinWidth="130" IsEnabled="False"
               ToolTip.Tip="Save what the radio hears as a WAV file in Documents\RFpix\Recordings, starting 30 seconds before you press it. Handy for a transmission that didn't decode: it can be played back and studied." />
-      <Button x:Name="PlayButton" Content="Play recording…" Click="OnPlayClick" MinWidth="140"
+      <CheckBox x:Name="AutoRecordBox" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Content="Record each picture" Click="OnAutoRecordClick"
+                ToolTip.Tip="While listening, record each picture by itself, from 10 seconds before it was found to 5 seconds after it ends, in Documents\RFpix\Recordings\Automatic. Old ones are deleted as set on Settings > Misc (kept up to 7 days, and at most so many MB). Recordings made with the Record button are never deleted." />
+      <Button x:Name="PlayButton" Grid.Column="2" Content="Play recording…" Click="OnPlayClick" MinWidth="140"
               ToolTip.Tip="Play a WAV recording into the waterfall instead of the radio. Handy for testing, or for recordings other stations send you." />
-     </StackPanel>
+     </Grid>
       <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
         <!-- The level meter, and under it the slider that sets the radio's recording level
              (the same one as in Windows' Sound settings, or the Mac's input volume). -->

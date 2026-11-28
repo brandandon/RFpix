@@ -59,12 +59,14 @@ public partial class ReceivePage
     private void StopRecording()
     {
         var (length, bytes) = _recorder.Progress;
-        string? path = _recorder.Stop(_recordingCallsigns);
-        ShowRecordingSaved(path, null, length, bytes);
+        bool auto = _autoRecording;
+        string? path = _recorder.Stop(_recordingCallsigns, auto ? _autoLabel : null);
+        if (auto) AutoRecordingStopped(path);   // ReceivePage.AutoRecord.cs
+        ShowRecordingSaved(path, null, length, bytes, auto);
         UpdateStartButton();
     }
 
-    private void ShowRecordingSaved(string? path, string? why, TimeSpan length = default, long bytes = 0)
+    private void ShowRecordingSaved(string? path, string? why, TimeSpan length = default, long bytes = 0, bool auto = false)
     {
         RecordText.ClearValue(TextBlock.ForegroundProperty);
         RecordText.IsVisible = true;
@@ -77,7 +79,8 @@ public partial class ReceivePage
         AppSettings.Current.LastRecordingFolder = Path.GetDirectoryName(path);
         AppSettings.Current.Save();
         string size = bytes > 0 ? $" ({length:h\\:mm\\:ss}, {bytes / 1e6:0.0} MB)" : "";
-        RecordText.Text = (why is null ? "" : why + " ") + $"Saved \"{Path.GetFileName(path)}\"{size} in Documents\\RFpix\\Recordings";
+        RecordText.Text = (why is null ? "" : why + " ") + $"Saved \"{Path.GetFileName(path)}\"{size} in Documents\\RFpix\\Recordings" +
+                          (auto ? "\\Automatic" : "");
     }
 
     // ---- playing a recording ----

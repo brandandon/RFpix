@@ -55,6 +55,25 @@ public partial class SettingsPage : UserControl, IDisposable
             AppSettings.Current.Save();
         };
 
+        // Automatic recordings ("Record each picture" on the Receive tab): kept 1 to 7 days, and at most so many MB.
+        int[] days = Enumerable.Range(RFpix.Receive.AutoRecordCleanup.MinDays, RFpix.Receive.AutoRecordCleanup.MaxDays).ToArray();
+        AutoRecordDaysBox.ItemsSource = days.Select(d => d.ToString()).ToArray();
+        AutoRecordDaysBox.SelectedIndex = Math.Clamp(AppSettings.Current.AutoRecordDays, days[0], days[^1]) - days[0];
+        AutoRecordDaysBox.SelectionChanged += (_, _) =>
+        {
+            AppSettings.Current.AutoRecordDays = days[Math.Clamp(AutoRecordDaysBox.SelectedIndex, 0, days.Length - 1)];
+            AppSettings.Current.Save();
+        };
+        AutoRecordMbBox.Text = AppSettings.Current.AutoRecordMaxMb.ToString();
+        AutoRecordMbBox.TextChanged += (_, _) =>
+        {
+            int? mb = RFpix.Receive.AutoRecordCleanup.ParseMb(AutoRecordMbBox.Text);
+            AutoRecordMbProblem.IsVisible = mb is null;
+            if (mb is not { } ok) return;
+            AppSettings.Current.AutoRecordMaxMb = ok;
+            AppSettings.Current.Save();
+        };
+
         CheckForUpdatesBox.IsChecked = AppSettings.Current.CheckForUpdates;
         CheckForUpdatesBox.IsCheckedChanged += (_, _) =>
         {

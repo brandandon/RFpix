@@ -21,8 +21,14 @@ signed. Click **More info**, then **Run anyway**.
 Your settings live in %AppData%\RFpix, and your received pictures, recordings and test results
 in Documents\RFpix. Uninstalling asks whether to remove the settings, and never removes your files.
 
-## Test 21, the treble boost, and better logs (new in v0.7.5 beta)
+## Recording each picture, test 21, the treble boost, and better logs (new in v0.7.5 beta)
 
+- **Record each picture** (Receive tab, under Record): tick it and leave RFpix listening. Each picture should
+  get its own recording in Documents\RFpix\Recordings\Automatic, starting a few seconds before the picture
+  and ending a few seconds after, named for the picture (e.g. *SSTV Martin 2* or *RFpix FM*). Check that
+  nothing is recorded between pictures, and that **Play recording…** decodes them. On Settings > Misc, under
+  **Automatic recordings**, set the days (1 to 7) and the MB: the oldest should go first. These recordings are
+  the most useful thing to send with a report of a picture that didn't come through.
 - **Test 21** sends RFpix FM 6 (the fastest speed) with its own picture. Please send it where FM 5 (test 17)
   comes through well, and note the Quality box at each station.
 - **The FM treble boost** (Settings > Radio) now goes on only when a picture goes out in data mode (the radio

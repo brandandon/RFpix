@@ -141,6 +141,7 @@ public partial class ReceivePage : UserControl, IDisposable
             Dispatcher.UIThread.Post(() => { ShowReceivedFile(received, file.Callsign, quality); ShowIncomplete(); });
         };
         WireLevelCheck();   // RFpix FM's level check (ReceivePage.LevelCheck.cs)
+        SetUpAutoRecord();   // "Record each picture" (ReceivePage.AutoRecord.cs)
         _fm.RequestHeard += request =>
         {
             AppLog.Info("Receive", $"RFpix FM signal: {(request.Callsign.Length > 0 ? request.Callsign : "a station")} asked for " +
@@ -183,7 +184,9 @@ public partial class ReceivePage : UserControl, IDisposable
         // A recording that stops by itself (too long, disk full): say so on the screen's thread.
         _recorder.StoppedByItself += (path, why) => Dispatcher.UIThread.Post(() =>
         {
-            ShowRecordingSaved(path, why);
+            bool auto = _autoRecording;
+            if (auto) AutoRecordingStopped(path);
+            ShowRecordingSaved(path, why, auto: auto);
             UpdateStartButton();
         });
 
@@ -678,9 +681,11 @@ public partial class ReceivePage : UserControl, IDisposable
         if (_recorder.IsRecording)
         {
             var (length, bytes) = _recorder.Progress;
-            RecordText.Text = $"● Recording  ·  {length:h\\:mm\\:ss}  ·  {bytes / 1e6:0.0} MB  (includes the 30 seconds before)";
+            RecordText.Text = $"● Recording  ·  {length:h\\:mm\\:ss}  ·  {bytes / 1e6:0.0} MB  " +
+                              (_autoRecording ? $"(this picture, from {AutoRecordPolicy.Lead.TotalSeconds:0} seconds before it)" : "(includes the 30 seconds before)");
             if ((_receiver.Callsign ?? _fm.Heard?.Callsign) is { Length: > 0 } call && !_recordingCallsigns.Contains(call)) _recordingCallsigns.Add(call);
         }
+        UpdateAutoRecord();   // "Record each picture" (ReceivePage.AutoRecord.cs)
 
         // Sound Windows lost on the way in (each gap is filled with silence so the timing holds),
         // and audio lost because the computer fell far behind (should never happen): say so.
@@ -893,7 +898,7 @@ public partial class ReceivePage : UserControl, IDisposable
         AppSettings.SoundDevicesChanged -= OnSoundDevicesChanged;
         MicrophoneAccess.Answered -= OnMicrophoneAnswered;
         try { _testLog.WriteHeld(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-        if (_recorder.IsRecording) _recorder.Stop(_recordingCallsigns);   // closing RFpix: keep what was recorded
+        if (_recorder.IsRecording) _recorder.Stop(_recordingCallsigns, _autoRecording ? _autoLabel : null);   // closing RFpix: keep what was recorded
         _asking?.Cancel();   // closing RFpix mid-request: stop (Transmission un-keys)
         _output.Dispose();
         _player.Dispose();
